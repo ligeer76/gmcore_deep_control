@@ -114,7 +114,7 @@ module namelist_mod
   character(30)   :: pv_adv_scheme        = 'weno'   ! midpoint, upwind, weno
   logical         :: pv_pole_stokes       = .true.
   integer         :: upwind_order_pv      = 5
-  real(r8)        :: upwind_wgt_pv        = 1
+  real(r8)        :: upwind_wgt_pv        = 0.5_r8
   integer         :: weno_order_pv        = 5
 
   character(8)    :: pgf_scheme           = ''       ! lin97, ptb
@@ -134,7 +134,7 @@ module namelist_mod
   integer         :: upwind_order         = 5       ! 0, 1, 3, 5
   integer         :: upwind_order_h       = -1      ! 0, 1, 3, 5
   integer         :: upwind_order_v       = -1      ! 0, 1, 3, 5
-  real(r8)        :: upwind_wgt           = 1
+  real(r8)        :: upwind_wgt           = 0.5_r8
 
   character(30)   :: time_scheme          = 'wrfrk3'
   logical         :: save_dyn_calc        = .true.

@@ -525,33 +525,35 @@ contains
 
     call perf_start('calc_div')
 
-    associate (mesh  => block%mesh         , &
-               u_lon => dstate%u_lon       , & ! in
-               v_lat => dstate%v_lat       , & ! in
-               div   => block%aux%div      , & ! out
-               divx  => block%aux%g1_3d_lon, & ! working array
-               divy  => block%aux%g1_3d_lat, & ! working array
-               div2  => block%aux%div2     )   ! out
+    associate (mesh  => block%mesh        , &
+               u_lon => dstate%u_lon      , & ! in
+               v_lat => dstate%v_lat      , & ! in
+               div   => block%aux%div     , & ! out
+               divx  => block%aux%g_3d_lon, & ! working array
+               divy  => block%aux%g_3d_lat, & ! working array
+               div2  => block%aux%div2    )   ! out
     call div_operator(u_lon, v_lat, div, with_halo=.true.)
     if (div_damp_order == 4) then
       do k = mesh%full_kds, mesh%full_kde
         do j = mesh%full_jds_no_pole, mesh%full_jde_no_pole
-          do i = mesh%half_ids, mesh%half_ide
+          do i = mesh%half_ids, mesh%half_ide + 1
             divx%d(i,j,k) = (div%d(i+1,j,k) - div%d(i,j,k)) / mesh%de_lon(j)
           end do
         end do
       end do
-      call fill_halo(divx, async=.true.)
       do k = mesh%full_kds, mesh%full_kde
-        do j = mesh%half_jds, mesh%half_jde
+        do j = mesh%half_jds, mesh%half_jde + merge(0, 1, mesh%has_north_pole())
           do i = mesh%full_ids, mesh%full_ide
             divy%d(i,j,k) = (div%d(i,j+1,k) - div%d(i,j,k)) / mesh%de_lat(j)
           end do
         end do
       end do
-      call fill_halo(divy, async=.true.)
       call div_operator(divx, divy, div2)
+      call filter_run(block%small_filter, div2)
       call fill_halo(div2, west_halo=.false., south_halo=.false.)
+    else
+      call filter_run(block%small_filter, div)
+      call fill_halo(div, west_halo=.false., south_halo=.false.)
     end if
     end associate
 
@@ -820,7 +822,7 @@ contains
         end do
       end do
     end do
-    if (substep == total_substeps) call fill_halo(pv)
+    if (.not. save_dyn_calc .or. substep == total_substeps) call fill_halo(pv)
     end associate
 
     call perf_stop('calc_pv')
@@ -1058,7 +1060,8 @@ contains
                pv_lat  => block%aux%pv_lat , & ! in
                dudt    => dtend%dudt       , & ! out
                dvdt    => dtend%dvdt       )   ! out
-    if (substep == total_substeps .or. .not. save_dyn_calc) then
+    select case (coriolis_scheme)
+    case (1)
       call wait_halo(pv_lon)
       call wait_halo(pv_lat)
       do k = mesh%full_kds, mesh%full_kde
@@ -1101,7 +1104,7 @@ contains
           end do
         end do
       end do
-    else
+    case (2)
       do k = mesh%full_kds, mesh%full_kde
         do j = mesh%half_jds, mesh%half_jde
           do i = mesh%full_ids, mesh%full_ide
@@ -1116,7 +1119,7 @@ contains
           end do
         end do
       end do
-    end if
+    end select
     end associate
 
     call perf_stop('calc_coriolis')

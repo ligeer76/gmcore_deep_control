@@ -82,11 +82,13 @@ module latlon_field_types_mod
     procedure :: init   => latlon_field2d_init
     procedure :: clear  => latlon_field2d_clear
     procedure :: copy   => latlon_field2d_copy
-    procedure :: sum    => latlon_field2d_sum
-    procedure :: absmax => latlon_field2d_absmax
     procedure, private :: latlon_field2d_link_2d
     procedure, private :: latlon_field2d_link_3d
     generic :: link => latlon_field2d_link_2d, latlon_field2d_link_3d
+    procedure :: sum    => latlon_field2d_sum
+    procedure :: add    => latlon_field2d_add
+    procedure :: sub    => latlon_field2d_sub
+    procedure :: absmax => latlon_field2d_absmax
     final latlon_field2d_final
   end type latlon_field2d_type
 
@@ -100,14 +102,17 @@ module latlon_field_types_mod
     procedure, private :: latlon_field3d_copy_2d
     procedure, private :: latlon_field3d_copy_3d
     procedure, private :: latlon_field3d_copy_4d
-    generic :: copy    => latlon_field3d_copy_2d, latlon_field3d_copy_3d, latlon_field3d_copy_4d
+    generic   :: copy  => latlon_field3d_copy_2d, latlon_field3d_copy_3d, latlon_field3d_copy_4d
     procedure, private :: latlon_field3d_link_3d
     procedure, private :: latlon_field3d_link_4d
-    generic :: link    => latlon_field3d_link_3d, latlon_field3d_link_4d
+    generic   :: link  => latlon_field3d_link_3d, latlon_field3d_link_4d
     procedure :: sum   => latlon_field3d_sum
     procedure :: add   => latlon_field3d_add
+    procedure :: sub   => latlon_field3d_sub
     procedure :: mul   => latlon_field3d_mul
-    procedure :: div   => latlon_field3d_div
+    procedure, private :: latlon_field3d_div_1
+    procedure, private :: latlon_field3d_div_2
+    generic   :: div   => latlon_field3d_div_1, latlon_field3d_div_2
     procedure :: min   => latlon_field3d_min
     procedure :: max   => latlon_field3d_max
     final latlon_field3d_final
@@ -136,6 +141,15 @@ module latlon_field_types_mod
     module procedure append_field3d
     module procedure append_field4d
   end interface append_field
+
+  interface get_index_range
+    module procedure get_index_range_2d_1
+    module procedure get_index_range_2d_2
+    module procedure get_index_range_3d_1
+    module procedure get_index_range_3d_2
+    module procedure get_index_range_4d_1
+    module procedure get_index_range_4d_2
+  end interface get_index_range
 
 contains
 
@@ -296,32 +310,11 @@ contains
     type(latlon_field2d_type), intent(in) :: other
     logical, intent(in), optional :: with_halo
 
-    logical with_halo_opt
     integer i, j, is, ie, js, je
 
     if (this%loc /= other%loc) call log_error('Location does not match!', __FILE__, __LINE__)
 
-    with_halo_opt = .false.; if (present(with_halo)) with_halo_opt = with_halo
-
-    if (with_halo_opt) then
-      is = merge(max(this%mesh%full_ims, other%mesh%full_ims), &
-                 max(this%mesh%half_ims, other%mesh%half_ims), this%full_lon)
-      ie = merge(min(this%mesh%full_ime, other%mesh%full_ime), &
-                 min(this%mesh%half_ime, other%mesh%half_ime), this%full_lon)
-      js = merge(max(this%mesh%full_jms, other%mesh%full_jms), &
-                 max(this%mesh%half_jms, other%mesh%half_jms), this%full_lat)
-      je = merge(min(this%mesh%full_jme, other%mesh%full_jme), &
-                 max(this%mesh%half_jme, other%mesh%half_jme), this%full_lat)
-    else
-      is = merge(max(this%mesh%full_ids, other%mesh%full_ids), &
-                 max(this%mesh%half_ids, other%mesh%half_ids), this%full_lon)
-      ie = merge(min(this%mesh%full_ide, other%mesh%full_ide), &
-                 min(this%mesh%half_ide, other%mesh%half_ide), this%full_lon)
-      js = merge(max(this%mesh%full_jds, other%mesh%full_jds), &
-                 max(this%mesh%half_jds, other%mesh%half_jds), this%full_lat)
-      je = merge(min(this%mesh%full_jde, other%mesh%full_jde), &
-                 min(this%mesh%half_jde, other%mesh%half_jde), this%full_lat)
-    end if
+    call get_index_range(is, ie, js, je, this, other, with_halo=with_halo)
 
     do j = js, je
       do i = is, ie
@@ -330,36 +323,6 @@ contains
     end do
 
   end subroutine latlon_field2d_copy
-
-  real(r8) function latlon_field2d_sum(this) result(res)
-
-    class(latlon_field2d_type), intent(in) :: this
-
-    integer is, ie, js, je
-
-    is = merge(this%mesh%full_ids, this%mesh%half_ids, this%full_lon)
-    ie = merge(this%mesh%full_ide, this%mesh%half_ide, this%full_lon)
-    js = merge(this%mesh%full_jds, this%mesh%half_jds, this%full_lat)
-    je = merge(this%mesh%full_jde, this%mesh%half_jde, this%full_lat)
-
-    res = global_sum(proc%comm_model, sum(this%d(is:ie,js:je)))
-
-  end function latlon_field2d_sum
-
-  real(r8) function latlon_field2d_absmax(this) result(res)
-
-    class(latlon_field2d_type), intent(in) :: this
-
-    integer is, ie, js, je
-
-    is = merge(this%mesh%full_ids, this%mesh%half_ids, this%full_lon)
-    ie = merge(this%mesh%full_ide, this%mesh%half_ide, this%full_lon)
-    js = merge(this%mesh%full_jds, this%mesh%half_jds, this%full_lat)
-    je = merge(this%mesh%full_jde, this%mesh%half_jde, this%full_lat)
-
-    res = global_max(proc%comm_model, maxval(abs(this%d(is:ie,js:je))))
-
-  end function latlon_field2d_absmax
 
   subroutine latlon_field2d_link_2d(this, other)
 
@@ -432,6 +395,76 @@ contains
     this%initialized    = .true.
 
   end subroutine latlon_field2d_link_3d
+
+  real(r8) function latlon_field2d_sum(this) result(res)
+
+    class(latlon_field2d_type), intent(in) :: this
+
+    integer is, ie, js, je
+
+    is = merge(this%mesh%full_ids, this%mesh%half_ids, this%full_lon)
+    ie = merge(this%mesh%full_ide, this%mesh%half_ide, this%full_lon)
+    js = merge(this%mesh%full_jds, this%mesh%half_jds, this%full_lat)
+    je = merge(this%mesh%full_jde, this%mesh%half_jde, this%full_lat)
+
+    res = global_sum(proc%comm_model, sum(this%d(is:ie,js:je)))
+
+  end function latlon_field2d_sum
+
+  subroutine latlon_field2d_add(this, other, with_halo)
+
+    class(latlon_field2d_type), intent(inout) :: this
+    type(latlon_field2d_type), intent(in) :: other
+    logical, intent(in), optional :: with_halo
+
+    integer i, j, is, ie, js, je
+
+    if (this%loc /= other%loc) call log_error('Location does not match!', __FILE__, __LINE__)
+
+    call get_index_range(is, ie, js, je, this, other, with_halo=with_halo)
+
+    do j = js, je
+      do i = is, ie
+        this%d(i,j) = this%d(i,j) + other%d(i,j)
+      end do
+    end do
+
+  end subroutine latlon_field2d_add
+
+  subroutine latlon_field2d_sub(this, other, with_halo)
+
+    class(latlon_field2d_type), intent(inout) :: this
+    type(latlon_field2d_type), intent(in) :: other
+    logical, intent(in), optional :: with_halo
+
+    integer i, j, is, ie, js, je
+
+    if (this%loc /= other%loc) call log_error('Location does not match!', __FILE__, __LINE__)
+
+    call get_index_range(is, ie, js, je, this, other, with_halo=with_halo)
+
+    do j = js, je
+      do i = is, ie
+        this%d(i,j) = this%d(i,j) - other%d(i,j)
+      end do
+    end do
+
+  end subroutine latlon_field2d_sub
+
+  real(r8) function latlon_field2d_absmax(this) result(res)
+
+    class(latlon_field2d_type), intent(in) :: this
+
+    integer is, ie, js, je
+
+    is = merge(this%mesh%full_ids, this%mesh%half_ids, this%full_lon)
+    ie = merge(this%mesh%full_ide, this%mesh%half_ide, this%full_lon)
+    js = merge(this%mesh%full_jds, this%mesh%half_jds, this%full_lat)
+    je = merge(this%mesh%full_jde, this%mesh%half_jde, this%full_lat)
+
+    res = global_max(proc%comm_model, maxval(abs(this%d(is:ie,js:je))))
+
+  end function latlon_field2d_absmax
 
   subroutine latlon_field2d_final(this)
 
@@ -541,55 +574,9 @@ contains
     integer, intent(in) :: k
     logical, intent(in), optional :: with_halo
 
-    logical with_halo_opt
     integer i, j, is, ie, js, je
 
-    with_halo_opt = .false.; if (present(with_halo)) with_halo_opt = with_halo
-
-    select case (this%loc)
-    case ('cell')
-      if (with_halo_opt) then
-        is = this%mesh%full_ims; ie = this%mesh%full_ime
-        js = this%mesh%full_jms; je = this%mesh%full_jme
-      else
-        is = this%mesh%full_ids; ie = this%mesh%full_ide
-        js = this%mesh%full_jds; je = this%mesh%full_jde
-      end if
-    case ('lon')
-      if (with_halo_opt) then
-        is = this%mesh%half_ims; ie = this%mesh%half_ime
-        js = this%mesh%full_jms; je = this%mesh%full_jme
-      else
-        is = this%mesh%half_ids; ie = this%mesh%half_ide
-        js = this%mesh%full_jds; je = this%mesh%full_jde
-      end if
-    case ('lat')
-      if (with_halo_opt) then
-        is = this%mesh%full_ims; ie = this%mesh%full_ime
-        js = this%mesh%half_jms; je = this%mesh%half_jme
-      else
-        is = this%mesh%full_ids; ie = this%mesh%full_ide
-        js = this%mesh%half_jds; je = this%mesh%half_jde
-      end if
-    case ('lev')
-      if (with_halo_opt) then
-        is = this%mesh%full_ims; ie = this%mesh%full_ime
-        js = this%mesh%full_jms; je = this%mesh%full_jme
-      else
-        is = this%mesh%full_ids; ie = this%mesh%full_ide
-        js = this%mesh%full_jds; je = this%mesh%full_jde
-      end if
-    case ('vtx')
-      if (with_halo_opt) then
-        is = this%mesh%half_ims; ie = this%mesh%half_ime
-        js = this%mesh%half_jms; je = this%mesh%half_jme
-      else
-        is = this%mesh%half_ids; ie = this%mesh%half_ide
-        js = this%mesh%half_jds; je = this%mesh%half_jde
-      end if
-    case default
-      call log_error('Unhandled branch in latlon_field3d_copy!', __FILE__, __LINE__)
-    end select
+    call get_index_range(is, ie, js, je, this, other, with_halo=with_halo)
 
     do j = js, je
       do i = is, ie
@@ -605,67 +592,11 @@ contains
     type(latlon_field3d_type), intent(in) :: other
     logical, intent(in), optional :: with_halo
 
-    logical with_halo_opt
     integer i, j, k, is, ie, js, je, ks, ke
 
     if (this%loc /= other%loc) call log_error('Location does not match!', __FILE__, __LINE__)
 
-    with_halo_opt = .false.; if (present(with_halo)) with_halo_opt = with_halo
-
-    select case (this%loc)
-    case ('cell')
-      if (with_halo_opt) then
-        is = this%mesh%full_ims; ie = this%mesh%full_ime
-        js = this%mesh%full_jms; je = this%mesh%full_jme
-        ks = this%mesh%full_kms; ke = this%mesh%full_kme
-      else
-        is = this%mesh%full_ids; ie = this%mesh%full_ide
-        js = this%mesh%full_jds; je = this%mesh%full_jde
-        ks = this%mesh%full_kds; ke = this%mesh%full_kde
-      end if
-    case ('lon')
-      if (with_halo_opt) then
-        is = this%mesh%half_ims; ie = this%mesh%half_ime
-        js = this%mesh%full_jms; je = this%mesh%full_jme
-        ks = this%mesh%full_kms; ke = this%mesh%full_kme
-      else
-        is = this%mesh%half_ids; ie = this%mesh%half_ide
-        js = this%mesh%full_jds; je = this%mesh%full_jde
-        ks = this%mesh%full_kds; ke = this%mesh%full_kde
-      end if
-    case ('lat')
-      if (with_halo_opt) then
-        is = this%mesh%full_ims; ie = this%mesh%full_ime
-        js = this%mesh%half_jms; je = this%mesh%half_jme
-        ks = this%mesh%full_kms; ke = this%mesh%full_kme
-      else
-        is = this%mesh%full_ids; ie = this%mesh%full_ide
-        js = this%mesh%half_jds; je = this%mesh%half_jde
-        ks = this%mesh%full_kds; ke = this%mesh%full_kde
-      end if
-    case ('lev')
-      if (with_halo_opt) then
-        is = this%mesh%full_ims; ie = this%mesh%full_ime
-        js = this%mesh%full_jms; je = this%mesh%full_jme
-        ks = this%mesh%half_kms; ke = this%mesh%half_kme
-      else
-        is = this%mesh%full_ids; ie = this%mesh%full_ide
-        js = this%mesh%full_jds; je = this%mesh%full_jde
-        ks = this%mesh%half_kds; ke = this%mesh%half_kde
-      end if
-    case ('vtx')
-      if (with_halo_opt) then
-        is = this%mesh%half_ims; ie = this%mesh%half_ime
-        js = this%mesh%half_jms; je = this%mesh%half_jme
-        ks = this%mesh%full_kms; ke = this%mesh%full_kme
-      else
-        is = this%mesh%half_ids; ie = this%mesh%half_ide
-        js = this%mesh%half_jds; je = this%mesh%half_jde
-        ks = this%mesh%full_kds; ke = this%mesh%full_kde
-      end if
-    case default
-      call log_error('Unhandled branch in latlon_field3d_copy!', __FILE__, __LINE__)
-    end select
+    call get_index_range(is, ie, js, je, ks, ke, this, other, with_halo=with_halo)
 
     do k = ks, ke
       do j = js, je
@@ -684,27 +615,11 @@ contains
     integer, intent(in) :: m
     logical, intent(in), optional :: with_halo
 
-    logical with_halo_opt
     integer i, j, k, is, ie, js, je, ks, ke
 
     if (this%loc /= other%loc) call log_error('Location does not match!', __FILE__, __LINE__)
 
-    with_halo_opt = .false.; if (present(with_halo)) with_halo_opt = with_halo
-
-    select case (this%loc)
-    case ('cell')
-      if (with_halo_opt) then
-        is = this%mesh%full_ims; ie = this%mesh%full_ime
-        js = this%mesh%full_jms; je = this%mesh%full_jme
-        ks = this%mesh%full_kms; ke = this%mesh%full_kme
-      else
-        is = this%mesh%full_ids; ie = this%mesh%full_ide
-        js = this%mesh%full_jds; je = this%mesh%full_jde
-        ks = this%mesh%full_kds; ke = this%mesh%full_kde
-      end if
-    case default
-      call log_error('Unhandled branch in latlon_field3d_copy!', __FILE__, __LINE__)
-    end select
+    call get_index_range(is, ie, js, je, ks, ke, other, this, with_halo=with_halo)
 
     do k = ks, ke
       do j = js, je
@@ -739,67 +654,11 @@ contains
     type(latlon_field3d_type), intent(in) :: other
     logical, intent(in), optional :: with_halo
 
-    logical with_halo_opt
     integer i, j, k, is, ie, js, je, ks, ke
 
     if (this%loc /= other%loc) call log_error('Location does not match!', __FILE__, __LINE__)
 
-    with_halo_opt = .false.; if (present(with_halo)) with_halo_opt = with_halo
-
-    select case (this%loc)
-    case ('cell')
-      if (with_halo_opt) then
-        is = this%mesh%full_ims; ie = this%mesh%full_ime
-        js = this%mesh%full_jms; je = this%mesh%full_jme
-        ks = this%mesh%full_kms; ke = this%mesh%full_kme
-      else
-        is = this%mesh%full_ids; ie = this%mesh%full_ide
-        js = this%mesh%full_jds; je = this%mesh%full_jde
-        ks = this%mesh%full_kds; ke = this%mesh%full_kde
-      end if
-    case ('lon')
-      if (with_halo_opt) then
-        is = this%mesh%half_ims; ie = this%mesh%half_ime
-        js = this%mesh%full_jms; je = this%mesh%full_jme
-        ks = this%mesh%full_kms; ke = this%mesh%full_kme
-      else
-        is = this%mesh%half_ids; ie = this%mesh%half_ide
-        js = this%mesh%full_jds; je = this%mesh%full_jde
-        ks = this%mesh%full_kds; ke = this%mesh%full_kde
-      end if
-    case ('lat')
-      if (with_halo_opt) then
-        is = this%mesh%full_ims; ie = this%mesh%full_ime
-        js = this%mesh%half_jms; je = this%mesh%half_jme
-        ks = this%mesh%full_kms; ke = this%mesh%full_kme
-      else
-        is = this%mesh%full_ids; ie = this%mesh%full_ide
-        js = this%mesh%half_jds; je = this%mesh%half_jde
-        ks = this%mesh%full_kds; ke = this%mesh%full_kde
-      end if
-    case ('lev')
-      if (with_halo_opt) then
-        is = this%mesh%full_ims; ie = this%mesh%full_ime
-        js = this%mesh%full_jms; je = this%mesh%full_jme
-        ks = this%mesh%half_kms; ke = this%mesh%half_kme
-      else
-        is = this%mesh%full_ids; ie = this%mesh%full_ide
-        js = this%mesh%full_jds; je = this%mesh%full_jde
-        ks = this%mesh%half_kds; ke = this%mesh%half_kde
-      end if
-    case ('vtx')
-      if (with_halo_opt) then
-        is = this%mesh%half_ims; ie = this%mesh%half_ime
-        js = this%mesh%half_jms; je = this%mesh%half_jme
-        ks = this%mesh%full_kms; ke = this%mesh%full_kme
-      else
-        is = this%mesh%half_ids; ie = this%mesh%half_ide
-        js = this%mesh%half_jds; je = this%mesh%half_jde
-        ks = this%mesh%full_kds; ke = this%mesh%full_kde
-      end if
-    case default
-      call log_error('Unhandled branch in latlon_field3d_add!', __FILE__, __LINE__)
-    end select
+    call get_index_range(is, ie, js, je, ks, ke, this, other, with_halo=with_halo)
 
     do k = ks, ke
       do j = js, je
@@ -811,73 +670,39 @@ contains
 
   end subroutine latlon_field3d_add
 
+  subroutine latlon_field3d_sub(this, other, with_halo)
+
+    class(latlon_field3d_type), intent(inout) :: this
+    type(latlon_field3d_type), intent(in) :: other
+    logical, intent(in), optional :: with_halo
+
+    integer i, j, k, is, ie, js, je, ks, ke
+
+    if (this%loc /= other%loc) call log_error('Location does not match!', __FILE__, __LINE__)
+
+    call get_index_range(is, ie, js, je, ks, ke, this, other, with_halo=with_halo)
+
+    do k = ks, ke
+      do j = js, je
+        do i = is, ie
+          this%d(i,j,k) = this%d(i,j,k) - other%d(i,j,k)
+        end do
+      end do
+    end do
+
+  end subroutine latlon_field3d_sub
+
   subroutine latlon_field3d_mul(this, other, with_halo)
 
     class(latlon_field3d_type), intent(inout) :: this
     type(latlon_field3d_type), intent(in) :: other
     logical, intent(in), optional :: with_halo
 
-    logical with_halo_opt
     integer i, j, k, is, ie, js, je, ks, ke
 
     if (this%loc /= other%loc) call log_error('Location does not match!', __FILE__, __LINE__)
 
-    with_halo_opt = .false.; if (present(with_halo)) with_halo_opt = with_halo
-
-    select case (this%loc)
-    case ('cell')
-      if (with_halo_opt) then
-        is = this%mesh%full_ims; ie = this%mesh%full_ime
-        js = this%mesh%full_jms; je = this%mesh%full_jme
-        ks = this%mesh%full_kms; ke = this%mesh%full_kme
-      else
-        is = this%mesh%full_ids; ie = this%mesh%full_ide
-        js = this%mesh%full_jds; je = this%mesh%full_jde
-        ks = this%mesh%full_kds; ke = this%mesh%full_kde
-      end if
-    case ('lon')
-      if (with_halo_opt) then
-        is = this%mesh%half_ims; ie = this%mesh%half_ime
-        js = this%mesh%full_jms; je = this%mesh%full_jme
-        ks = this%mesh%full_kms; ke = this%mesh%full_kme
-      else
-        is = this%mesh%half_ids; ie = this%mesh%half_ide
-        js = this%mesh%full_jds; je = this%mesh%full_jde
-        ks = this%mesh%full_kds; ke = this%mesh%full_kde
-      end if
-    case ('lat')
-      if (with_halo_opt) then
-        is = this%mesh%full_ims; ie = this%mesh%full_ime
-        js = this%mesh%half_jms; je = this%mesh%half_jme
-        ks = this%mesh%full_kms; ke = this%mesh%full_kme
-      else
-        is = this%mesh%full_ids; ie = this%mesh%full_ide
-        js = this%mesh%half_jds; je = this%mesh%half_jde
-        ks = this%mesh%full_kds; ke = this%mesh%full_kde
-      end if
-    case ('lev')
-      if (with_halo_opt) then
-        is = this%mesh%full_ims; ie = this%mesh%full_ime
-        js = this%mesh%full_jms; je = this%mesh%full_jme
-        ks = this%mesh%half_kms; ke = this%mesh%half_kme
-      else
-        is = this%mesh%full_ids; ie = this%mesh%full_ide
-        js = this%mesh%full_jds; je = this%mesh%full_jde
-        ks = this%mesh%half_kds; ke = this%mesh%half_kde
-      end if
-    case ('vtx')
-      if (with_halo_opt) then
-        is = this%mesh%half_ims; ie = this%mesh%half_ime
-        js = this%mesh%half_jms; je = this%mesh%half_jme
-        ks = this%mesh%full_kms; ke = this%mesh%full_kme
-      else
-        is = this%mesh%half_ids; ie = this%mesh%half_ide
-        js = this%mesh%half_jds; je = this%mesh%half_jde
-        ks = this%mesh%full_kds; ke = this%mesh%full_kde
-      end if
-    case default
-      call log_error('Unhandled branch in latlon_field3d_mul!', __FILE__, __LINE__)
-    end select
+    call get_index_range(is, ie, js, je, ks, ke, this, other, with_halo=with_halo)
 
     do k = ks, ke
       do j = js, je
@@ -889,83 +714,51 @@ contains
 
   end subroutine latlon_field3d_mul
 
-  subroutine latlon_field3d_div(this, other, with_halo)
+  subroutine latlon_field3d_div_1(this, f2, with_halo)
 
     class(latlon_field3d_type), intent(inout) :: this
-    type(latlon_field3d_type), intent(in) :: other
+    type(latlon_field3d_type), intent(in) :: f2 ! Denorminator
     logical, intent(in), optional :: with_halo
 
-    logical with_halo_opt
     integer i, j, k, is, ie, js, je, ks, ke
 
-    if (this%loc /= other%loc) call log_error('Location does not match!', __FILE__, __LINE__)
+    if (this%loc /= f2%loc) call log_error('Location does not match!', __FILE__, __LINE__)
 
-    with_halo_opt = .false.; if (present(with_halo)) with_halo_opt = with_halo
-
-    select case (this%loc)
-    case ('cell')
-      if (with_halo_opt) then
-        is = this%mesh%full_ims; ie = this%mesh%full_ime
-        js = this%mesh%full_jms; je = this%mesh%full_jme
-        ks = this%mesh%full_kms; ke = this%mesh%full_kme
-      else
-        is = this%mesh%full_ids; ie = this%mesh%full_ide
-        js = this%mesh%full_jds; je = this%mesh%full_jde
-        ks = this%mesh%full_kds; ke = this%mesh%full_kde
-      end if
-    case ('lon')
-      if (with_halo_opt) then
-        is = this%mesh%half_ims; ie = this%mesh%half_ime
-        js = this%mesh%full_jms; je = this%mesh%full_jme
-        ks = this%mesh%full_kms; ke = this%mesh%full_kme
-      else
-        is = this%mesh%half_ids; ie = this%mesh%half_ide
-        js = this%mesh%full_jds; je = this%mesh%full_jde
-        ks = this%mesh%full_kds; ke = this%mesh%full_kde
-      end if
-    case ('lat')
-      if (with_halo_opt) then
-        is = this%mesh%full_ims; ie = this%mesh%full_ime
-        js = this%mesh%half_jms; je = this%mesh%half_jme
-        ks = this%mesh%full_kms; ke = this%mesh%full_kme
-      else
-        is = this%mesh%full_ids; ie = this%mesh%full_ide
-        js = this%mesh%half_jds; je = this%mesh%half_jde
-        ks = this%mesh%full_kds; ke = this%mesh%full_kde
-      end if
-    case ('lev')
-      if (with_halo_opt) then
-        is = this%mesh%full_ims; ie = this%mesh%full_ime
-        js = this%mesh%full_jms; je = this%mesh%full_jme
-        ks = this%mesh%half_kms; ke = this%mesh%half_kme
-      else
-        is = this%mesh%full_ids; ie = this%mesh%full_ide
-        js = this%mesh%full_jds; je = this%mesh%full_jde
-        ks = this%mesh%half_kds; ke = this%mesh%half_kde
-      end if
-    case ('vtx')
-      if (with_halo_opt) then
-        is = this%mesh%half_ims; ie = this%mesh%half_ime
-        js = this%mesh%half_jms; je = this%mesh%half_jme
-        ks = this%mesh%full_kms; ke = this%mesh%full_kme
-      else
-        is = this%mesh%half_ids; ie = this%mesh%half_ide
-        js = this%mesh%half_jds; je = this%mesh%half_jde
-        ks = this%mesh%full_kds; ke = this%mesh%full_kde
-      end if
-    case default
-      call log_error('Unhandled branch in latlon_field3d_div!', __FILE__, __LINE__)
-    end select
+    call get_index_range(is, ie, js, je, ks, ke, this, f2, with_halo=with_halo)
 
     do k = ks, ke
       do j = js, je
         do i = is, ie
-          this%d(i,j,k) = this%d(i,j,k) / other%d(i,j,k)
+          this%d(i,j,k) = this%d(i,j,k) / f2%d(i,j,k)
         end do
       end do
     end do
 
-  end subroutine latlon_field3d_div
+  end subroutine latlon_field3d_div_1
+
+  subroutine latlon_field3d_div_2(this, f1, f2, with_halo)
+
+    class(latlon_field3d_type), intent(inout) :: this
+    type(latlon_field3d_type), intent(in) :: f1 ! Numerator
+    type(latlon_field3d_type), intent(in) :: f2 ! Denominator
+    logical, intent(in), optional :: with_halo
+
+    integer i, j, k, is, ie, js, je, ks, ke
+
+    if (this%loc /= f1%loc) call log_error('Location does not match!', __FILE__, __LINE__)
+    if (this%loc /= f2%loc) call log_error('Location does not match!', __FILE__, __LINE__)
+
+    call get_index_range(is, ie, js, je, ks, ke, this, f1, f2, with_halo=with_halo)
+
+    do k = ks, ke
+      do j = js, je
+        do i = is, ie
+          this%d(i,j,k) = f1%d(i,j,k) / f2%d(i,j,k)
+        end do
+      end do
+    end do
+
+  end subroutine latlon_field3d_div_2
 
   real(r8) function latlon_field3d_min(this) result(res)
 
@@ -1178,27 +971,11 @@ contains
     integer, intent(in) :: m
     logical, intent(in), optional :: with_halo
 
-    logical with_halo_opt
     integer i, j, k, is, ie, js, je, ks, ke
 
     if (this%loc /= other%loc) call log_error('Location does not match!', __FILE__, __LINE__)
 
-    with_halo_opt = .false.; if (present(with_halo)) with_halo_opt = with_halo
-
-    select case (this%loc)
-    case ('cell')
-      if (with_halo_opt) then
-        is = this%mesh%full_ims; ie = this%mesh%full_ime
-        js = this%mesh%full_jms; je = this%mesh%full_jme
-        ks = this%mesh%full_kms; ke = this%mesh%full_kme
-      else
-        is = this%mesh%full_ids; ie = this%mesh%full_ide
-        js = this%mesh%full_jds; je = this%mesh%full_jde
-        ks = this%mesh%full_kds; ke = this%mesh%full_kde
-      end if
-    case default
-      call log_error('Unhandled branch in latlon_field4d_copy!', __FILE__, __LINE__)
-    end select
+    call get_index_range(is, ie, js, je, ks, ke, this, other, with_halo=with_halo)
 
     do k = ks, ke
       do j = js, je
@@ -1233,34 +1010,23 @@ contains
 
   end subroutine latlon_field4d_link
 
-  subroutine latlon_field4d_mul(this, idx4, other, with_halo)
+  subroutine latlon_field4d_mul(this, other, m, with_halo)
 
     class(latlon_field4d_type), intent(inout) :: this
-    integer, intent(in) :: idx4
     type(latlon_field3d_type), intent(in) :: other
+    integer, intent(in) :: m
     logical, intent(in), optional :: with_halo
 
-    logical with_halo_opt
     integer i, j, k, is, ie, js, je, ks, ke
 
     if (this%loc /= other%loc) call log_error('Location does not match!', __FILE__, __LINE__)
 
-    with_halo_opt = .false.; if (present(with_halo)) with_halo_opt = with_halo
-
-    if (with_halo_opt) then
-      is = this%mesh%full_ims; ie = this%mesh%full_ime
-      js = this%mesh%full_jms; je = this%mesh%full_jme
-      ks = this%mesh%full_kms; ke = this%mesh%full_kme
-    else
-      is = this%mesh%full_ids; ie = this%mesh%full_ide
-      js = this%mesh%full_jds; je = this%mesh%full_jde
-      ks = this%mesh%full_kds; ke = this%mesh%full_kde
-    end if
+    call get_index_range(is, ie, js, je, ks, ke, this, other, with_halo=with_halo)
 
     do k = ks, ke
       do j = js, je
         do i = is, ie
-          this%d(i,j,k,idx4) = this%d(i,j,k,idx4) * other%d(i,j,k)
+          this%d(i,j,k,m) = this%d(i,j,k,m) * other%d(i,j,k)
         end do
       end do
     end do
@@ -1274,22 +1040,11 @@ contains
     type(latlon_field3d_type), intent(in) :: other
     logical, intent(in), optional :: with_halo
 
-    logical with_halo_opt
     integer i, j, k, is, ie, js, je, ks, ke
 
     if (this%loc /= other%loc) call log_error('Location does not match!', __FILE__, __LINE__)
 
-    with_halo_opt = .false.; if (present(with_halo)) with_halo_opt = with_halo
-
-    if (with_halo_opt) then
-      is = this%mesh%full_ims; ie = this%mesh%full_ime
-      js = this%mesh%full_jms; je = this%mesh%full_jme
-      ks = this%mesh%full_kms; ke = this%mesh%full_kme
-    else
-      is = this%mesh%full_ids; ie = this%mesh%full_ide
-      js = this%mesh%full_jds; je = this%mesh%full_jde
-      ks = this%mesh%full_kds; ke = this%mesh%full_kde
-    end if
+    call get_index_range(is, ie, js, je, ks, ke, this, other, with_halo=with_halo)
 
     do k = ks, ke
       do j = js, je
@@ -1421,5 +1176,268 @@ contains
     call fields%append_ptr(ptr)
 
   end subroutine append_field4d
+
+  subroutine get_index_range_2d_1(is, ie, js, je, f1, f2, with_halo)
+
+    integer, intent(out) :: is, ie, js, je
+    type(latlon_field2d_type), intent(in) :: f1
+    type(latlon_field2d_type), intent(in) :: f2
+    logical, intent(in), optional :: with_halo
+
+    logical with_halo_opt
+
+    with_halo_opt = .false.; if (present(with_halo)) with_halo_opt = with_halo
+
+    if (with_halo_opt) then
+      if (f1%full_lon) then
+        is = max(f1%mesh%full_ims, f2%mesh%full_ims); ie = min(f1%mesh%full_ime, f2%mesh%full_ime)
+      else
+        is = max(f1%mesh%half_ims, f2%mesh%half_ims); ie = min(f1%mesh%half_ime, f2%mesh%half_ime)
+      end if
+      if (f1%full_lat) then
+        js = max(f1%mesh%full_jms, f2%mesh%full_jms); je = min(f1%mesh%full_jme, f2%mesh%full_jme)
+      else
+        js = max(f1%mesh%half_jms, f2%mesh%half_jms); je = min(f1%mesh%half_jme, f2%mesh%half_jme)
+      end if
+    else
+      if (f1%full_lon) then
+        is = max(f1%mesh%full_ids, f2%mesh%full_ids); ie = min(f1%mesh%full_ide, f2%mesh%full_ide)
+      else
+        is = max(f1%mesh%half_ids, f2%mesh%half_ids); ie = min(f1%mesh%half_ide, f2%mesh%half_ide)
+      end if
+      if (f1%full_lat) then
+        js = max(f1%mesh%full_jds, f2%mesh%full_jds); je = min(f1%mesh%full_jde, f2%mesh%full_jde)
+      else
+        js = max(f1%mesh%half_jds, f2%mesh%half_jds); je = min(f1%mesh%half_jde, f2%mesh%half_jde)
+      end if
+    end if
+
+  end subroutine get_index_range_2d_1
+
+  subroutine get_index_range_2d_2(is, ie, js, je, f1, f2, with_halo)
+
+    integer, intent(out) :: is, ie, js, je
+    type(latlon_field3d_type), intent(in) :: f1
+    type(latlon_field2d_type), intent(in) :: f2
+    logical, intent(in), optional :: with_halo
+
+    logical with_halo_opt
+
+    with_halo_opt = .false.; if (present(with_halo)) with_halo_opt = with_halo
+
+    if (with_halo_opt) then
+      if (f1%full_lon) then
+        is = max(f1%mesh%full_ims, f2%mesh%full_ims); ie = min(f1%mesh%full_ime, f2%mesh%full_ime)
+      else
+        is = max(f1%mesh%half_ims, f2%mesh%half_ims); ie = min(f1%mesh%half_ime, f2%mesh%half_ime)
+      end if
+      if (f1%full_lat) then
+        js = max(f1%mesh%full_jms, f2%mesh%full_jms); je = min(f1%mesh%full_jme, f2%mesh%full_jme)
+      else
+        js = max(f1%mesh%half_jms, f2%mesh%half_jms); je = min(f1%mesh%half_jme, f2%mesh%half_jme)
+      end if
+    else
+      if (f1%full_lon) then
+        is = max(f1%mesh%full_ids, f2%mesh%full_ids); ie = min(f1%mesh%full_ide, f2%mesh%full_ide)
+      else
+        is = max(f1%mesh%half_ids, f2%mesh%half_ids); ie = min(f1%mesh%half_ide, f2%mesh%half_ide)
+      end if
+      if (f1%full_lat) then
+        js = max(f1%mesh%full_jds, f2%mesh%full_jds); je = min(f1%mesh%full_jde, f2%mesh%full_jde)
+      else
+        js = max(f1%mesh%half_jds, f2%mesh%half_jds); je = min(f1%mesh%half_jde, f2%mesh%half_jde)
+      end if
+    end if
+
+  end subroutine get_index_range_2d_2
+
+  subroutine get_index_range_3d_1(is, ie, js, je, ks, ke, f1, f2, with_halo)
+
+    integer, intent(out) :: is, ie, js, je, ks, ke
+    type(latlon_field3d_type), intent(in) :: f1
+    type(latlon_field3d_type), intent(in) :: f2
+    logical, intent(in), optional :: with_halo
+
+    logical with_halo_opt
+
+    with_halo_opt = .false.; if (present(with_halo)) with_halo_opt = with_halo
+
+    if (with_halo_opt) then
+      if (f1%full_lon) then
+        is = max(f1%mesh%full_ims, f2%mesh%full_ims); ie = min(f1%mesh%full_ime, f2%mesh%full_ime)
+      else
+        is = max(f1%mesh%half_ims, f2%mesh%half_ims); ie = min(f1%mesh%half_ime, f2%mesh%half_ime)
+      end if
+      if (f1%full_lat) then
+        js = max(f1%mesh%full_jms, f2%mesh%full_jms); je = min(f1%mesh%full_jme, f2%mesh%full_jme)
+      else
+        js = max(f1%mesh%half_jms, f2%mesh%half_jms); je = min(f1%mesh%half_jme, f2%mesh%half_jme)
+      end if
+      if (f1%full_lev) then
+        ks = max(f1%mesh%full_kms, f2%mesh%full_kms); ke = min(f1%mesh%full_kme, f2%mesh%full_kme)
+      else
+        ks = max(f1%mesh%half_kms, f2%mesh%half_kms); ke = min(f1%mesh%half_kme, f2%mesh%half_kme)
+      end if
+    else
+      if (f1%full_lon) then
+        is = max(f1%mesh%full_ids, f2%mesh%full_ids); ie = min(f1%mesh%full_ide, f2%mesh%full_ide)
+      else
+        is = max(f1%mesh%half_ids, f2%mesh%half_ids); ie = min(f1%mesh%half_ide, f2%mesh%half_ide)
+      end if
+      if (f1%full_lat) then
+        js = max(f1%mesh%full_jds, f2%mesh%full_jds); je = min(f1%mesh%full_jde, f2%mesh%full_jde)
+      else
+        js = max(f1%mesh%half_jds, f2%mesh%half_jds); je = min(f1%mesh%half_jde, f2%mesh%half_jde)
+      end if
+      if (f1%full_lev) then
+        ks = max(f1%mesh%full_kds, f2%mesh%full_kds); ke = min(f1%mesh%full_kde, f2%mesh%full_kde)
+      else
+        ks = max(f1%mesh%half_kds, f2%mesh%half_kds); ke = min(f1%mesh%half_kde, f2%mesh%half_kde)
+      end if
+    end if
+
+  end subroutine get_index_range_3d_1
+
+  subroutine get_index_range_3d_2(is, ie, js, je, ks, ke, f1, f2, f3, with_halo)
+
+    integer, intent(out) :: is, ie, js, je, ks, ke
+    type(latlon_field3d_type), intent(in) :: f1
+    type(latlon_field3d_type), intent(in) :: f2
+    type(latlon_field3d_type), intent(in) :: f3
+    logical, intent(in), optional :: with_halo
+
+    logical with_halo_opt
+
+    with_halo_opt = .false.; if (present(with_halo)) with_halo_opt = with_halo
+
+    if (with_halo_opt) then
+      if (f1%full_lon) then
+        is = max(f1%mesh%full_ims, f2%mesh%full_ims, f3%mesh%full_ims); ie = min(f1%mesh%full_ime, f2%mesh%full_ime, f3%mesh%full_ime)
+      else
+        is = max(f1%mesh%half_ims, f2%mesh%half_ims, f3%mesh%half_ims); ie = min(f1%mesh%half_ime, f2%mesh%half_ime, f3%mesh%half_ime)
+      end if
+      if (f1%full_lat) then
+        js = max(f1%mesh%full_jms, f2%mesh%full_jms, f3%mesh%full_jms); je = min(f1%mesh%full_jme, f2%mesh%full_jme, f3%mesh%full_jme)
+      else
+        js = max(f1%mesh%half_jms, f2%mesh%half_jms, f3%mesh%half_jms); je = min(f1%mesh%half_jme, f2%mesh%half_jme, f3%mesh%half_jme)
+      end if
+      if (f1%full_lev) then
+        ks = max(f1%mesh%full_kms, f2%mesh%full_kms, f3%mesh%full_kms); ke = min(f1%mesh%full_kme, f2%mesh%full_kme, f3%mesh%full_kme)
+      else
+        ks = max(f1%mesh%half_kms, f2%mesh%half_kms, f3%mesh%half_kms); ke = min(f1%mesh%half_kme, f2%mesh%half_kme, f3%mesh%half_kme)
+      end if
+    else
+      if (f1%full_lon) then
+        is = max(f1%mesh%full_ids, f2%mesh%full_ids, f3%mesh%full_ids); ie = min(f1%mesh%full_ide, f2%mesh%full_ide, f3%mesh%full_ide)
+      else
+        is = max(f1%mesh%half_ids, f2%mesh%half_ids, f3%mesh%half_ids); ie = min(f1%mesh%half_ide, f2%mesh%half_ide, f3%mesh%half_ide)
+      end if
+      if (f1%full_lat) then
+        js = max(f1%mesh%full_jds, f2%mesh%full_jds, f3%mesh%full_jds); je = min(f1%mesh%full_jde, f2%mesh%full_jde, f3%mesh%full_jde)
+      else
+        js = max(f1%mesh%half_jds, f2%mesh%half_jds, f3%mesh%half_jds); je = min(f1%mesh%half_jde, f2%mesh%half_jde, f3%mesh%half_jde)
+      end if
+      if (f1%full_lev) then
+        ks = max(f1%mesh%full_kds, f2%mesh%full_kds, f3%mesh%full_kds); ke = min(f1%mesh%full_kde, f2%mesh%full_kde, f3%mesh%full_kde)
+      else
+        ks = max(f1%mesh%half_kds, f2%mesh%half_kds, f3%mesh%half_kds); ke = min(f1%mesh%half_kde, f2%mesh%half_kde, f3%mesh%half_kde)
+      end if
+    end if
+
+  end subroutine get_index_range_3d_2
+
+  subroutine get_index_range_4d_1(is, ie, js, je, ks, ke, f1, f2, with_halo)
+
+    integer, intent(out) :: is, ie, js, je, ks, ke
+    type(latlon_field4d_type), intent(in) :: f1
+    type(latlon_field3d_type), intent(in) :: f2
+    logical, intent(in), optional :: with_halo
+
+    logical with_halo_opt
+
+    with_halo_opt = .false.; if (present(with_halo)) with_halo_opt = with_halo
+
+    if (with_halo_opt) then
+      if (f1%full_lon) then
+        is = max(f1%mesh%full_ims, f2%mesh%full_ims); ie = min(f1%mesh%full_ime, f2%mesh%full_ime)
+      else
+        is = max(f1%mesh%half_ims, f2%mesh%half_ims); ie = min(f1%mesh%half_ime, f2%mesh%half_ime)
+      end if
+      if (f1%full_lat) then
+        js = max(f1%mesh%full_jms, f2%mesh%full_jms); je = min(f1%mesh%full_jme, f2%mesh%full_jme)
+      else
+        js = max(f1%mesh%half_jms, f2%mesh%half_jms); je = min(f1%mesh%half_jme, f2%mesh%half_jme)
+      end if
+      if (f1%full_lev) then
+        ks = max(f1%mesh%full_kms, f2%mesh%full_kms); ke = min(f1%mesh%full_kme, f2%mesh%full_kme)
+      else
+        ks = max(f1%mesh%half_kms, f2%mesh%half_kms); ke = min(f1%mesh%half_kme, f2%mesh%half_kme)
+      end if
+    else
+      if (f1%full_lon) then
+        is = max(f1%mesh%full_ids, f2%mesh%full_ids); ie = min(f1%mesh%full_ide, f2%mesh%full_ide)
+      else
+        is = max(f1%mesh%half_ids, f2%mesh%half_ids); ie = min(f1%mesh%half_ide, f2%mesh%half_ide)
+      end if
+      if (f1%full_lat) then
+        js = max(f1%mesh%full_jds, f2%mesh%full_jds); je = min(f1%mesh%full_jde, f2%mesh%full_jde)
+      else
+        js = max(f1%mesh%half_jds, f2%mesh%half_jds); je = min(f1%mesh%half_jde, f2%mesh%half_jde)
+      end if
+      if (f1%full_lev) then
+        ks = max(f1%mesh%full_kds, f2%mesh%full_kds); ke = min(f1%mesh%full_kde, f2%mesh%full_kde)
+      else
+        ks = max(f1%mesh%half_kds, f2%mesh%half_kds); ke = min(f1%mesh%half_kde, f2%mesh%half_kde)
+      end if
+    end if
+
+  end subroutine get_index_range_4d_1
+
+  subroutine get_index_range_4d_2(is, ie, js, je, ks, ke, f1, f2, with_halo)
+
+    integer, intent(out) :: is, ie, js, je, ks, ke
+    type(latlon_field4d_type), intent(in) :: f1
+    type(latlon_field4d_type), intent(in) :: f2
+    logical, intent(in), optional :: with_halo
+
+    logical with_halo_opt
+
+    with_halo_opt = .false.; if (present(with_halo)) with_halo_opt = with_halo
+
+    if (with_halo_opt) then
+      if (f1%full_lon) then
+        is = max(f1%mesh%full_ims, f2%mesh%full_ims); ie = min(f1%mesh%full_ime, f2%mesh%full_ime)
+      else
+        is = max(f1%mesh%half_ims, f2%mesh%half_ims); ie = min(f1%mesh%half_ime, f2%mesh%half_ime)
+      end if
+      if (f1%full_lat) then
+        js = max(f1%mesh%full_jms, f2%mesh%full_jms); je = min(f1%mesh%full_jme, f2%mesh%full_jme)
+      else
+        js = max(f1%mesh%half_jms, f2%mesh%half_jms); je = min(f1%mesh%half_jme, f2%mesh%half_jme)
+      end if
+      if (f1%full_lev) then
+        ks = max(f1%mesh%full_kms, f2%mesh%full_kms); ke = min(f1%mesh%full_kme, f2%mesh%full_kme)
+      else
+        ks = max(f1%mesh%half_kms, f2%mesh%half_kms); ke = min(f1%mesh%half_kme, f2%mesh%half_kme)
+      end if
+    else
+      if (f1%full_lon) then
+        is = max(f1%mesh%full_ids, f2%mesh%full_ids); ie = min(f1%mesh%full_ide, f2%mesh%full_ide)
+      else
+        is = max(f1%mesh%half_ids, f2%mesh%half_ids); ie = min(f1%mesh%half_ide, f2%mesh%half_ide)
+      end if
+      if (f1%full_lat) then
+        js = max(f1%mesh%full_jds, f2%mesh%full_jds); je = min(f1%mesh%full_jde, f2%mesh%full_jde)
+      else
+        js = max(f1%mesh%half_jds, f2%mesh%half_jds); je = min(f1%mesh%half_jde, f2%mesh%half_jde)
+      end if
+      if (f1%full_lev) then
+        ks = max(f1%mesh%full_kds, f2%mesh%full_kds); ke = min(f1%mesh%full_kde, f2%mesh%full_kde)
+      else
+        ks = max(f1%mesh%half_kds, f2%mesh%half_kds); ke = min(f1%mesh%half_kde, f2%mesh%half_kde)
+      end if
+    end if
+
+  end subroutine get_index_range_4d_2
 
 end module latlon_field_types_mod

@@ -48,6 +48,7 @@ module namelist_mod
   character(256)  :: restart_file         = 'N/A'
   character(256)  :: topo_file            = 'N/A'
   character(30 )  :: topo_type            = 'etopo1' ! etopo1, gmted, mola32
+  character(30 )  :: topo_regrid_type     = 'fill'   ! fill, bilin
   character(256)  :: bkg_file             = 'N/A'
   character(30 )  :: bkg_type             = 'era5'
 
@@ -108,14 +109,16 @@ module namelist_mod
   real(r8)        :: hybrid_coord_ncep_dppre  = 0
   real(r8)        :: hybrid_coord_ncep_dptop  = 0
 
-  integer         :: ke_scheme            = 2
-  real(r8)        :: ke_cell_wgt          = 0.5_r8
+  integer         :: coriolis_scheme      = 1
 
-  character(30)   :: pv_adv_scheme        = 'weno'   ! midpoint, upwind, weno
+  integer         :: ke_scheme            = 2
+  real(r8)        :: ke_cell_wgt          = 0.55_r8
+
+  character(30)   :: pv_adv_scheme        = 'upwind'   ! midpoint, upwind, weno
   logical         :: pv_pole_stokes       = .true.
-  integer         :: upwind_order_pv      = 5
-  real(r8)        :: upwind_wgt_pv        = 0.5_r8
-  integer         :: weno_order_pv        = 5
+  integer         :: upwind_order_pv      = 3
+  real(r8)        :: upwind_wgt_pv        = 1
+  integer         :: weno_order_pv        = 3
 
   character(8)    :: pgf_scheme           = ''       ! lin97, ptb
 
@@ -128,16 +131,16 @@ module namelist_mod
 
   character(8)    :: zonal_tridiag_solver = 'spk'   ! mkl, spk
 
-  integer         :: weno_order           = 5       ! 3, 5
-  integer         :: weno_order_h         = 5       ! 3, 5
-  integer         :: weno_order_v         = 5       ! 3, 5
-  integer         :: upwind_order         = 5       ! 0, 1, 3, 5
+  integer         :: weno_order           = 3       ! 3, 5
+  integer         :: weno_order_h         = 3       ! 3, 5
+  integer         :: weno_order_v         = 3       ! 3, 5
+  integer         :: upwind_order         = 3       ! 0, 1, 3, 5
   integer         :: upwind_order_h       = -1      ! 0, 1, 3, 5
   integer         :: upwind_order_v       = -1      ! 0, 1, 3, 5
-  real(r8)        :: upwind_wgt           = 0.5_r8
+  real(r8)        :: upwind_wgt           = 1
 
   character(30)   :: time_scheme          = 'wrfrk3'
-  logical         :: save_dyn_calc        = .true.
+  logical         :: save_dyn_calc        = .false.
 
   ! Filter settings
   real(r8)        :: filter_wave_speed    = 300.0_r8
@@ -152,8 +155,8 @@ module namelist_mod
   logical         :: use_zs_polar_filter  = .false.
   real(r8)        :: topo_max_slope       = 0.12_r8
   integer         :: topo_smooth_order    = 2
-  real(r8)        :: topo_smooth_coef     = 1.0e4_r8
-  integer         :: topo_smooth_cycles   = 500
+  real(r8)        :: topo_smooth_coef     = 1.0e6_r8
+  integer         :: topo_smooth_cycles   = 100
   logical         :: use_div_damp         = .false.
   integer         :: div_damp_cycles      = 1
   integer         :: div_damp_order       = 2
@@ -247,6 +250,7 @@ module namelist_mod
     init_hydrostatic_gz       , &
     topo_file                 , &
     topo_type                 , &
+    topo_regrid_type          , &
     bkg_file                  , &
     bkg_type                  , &
     tangent_wgt_scheme        , &
@@ -268,6 +272,7 @@ module namelist_mod
     hybrid_coord_ncep_dpsig   , &
     hybrid_coord_ncep_dppre   , &
     hybrid_coord_ncep_dptop   , &
+    coriolis_scheme           , &
     ke_scheme                 , &
     ke_cell_wgt               , &
     pv_adv_scheme             , &
@@ -466,6 +471,7 @@ contains
     if (pt_adv_scheme == 'ffsl') then
       write(*, *) 'ffsl_flux_type      = ', trim(ffsl_flux_type)
     end if
+      write(*, *) 'coriolis_scheme     = ', to_str(coriolis_scheme)
       write(*, *) 'ke_scheme           = ', to_str(ke_scheme)
     if (ke_scheme == 2) then
       write(*, *) 'ke_cell_wgt         = ', to_str(ke_cell_wgt, 2)
@@ -497,6 +503,7 @@ contains
       write(*, *) 'div_damp_coef2      = ', div_damp_coef2
       write(*, *) 'div_damp_coef4      = ', div_damp_coef4
       write(*, *) 'div_damp_top        = ', to_str(div_damp_top, 3)
+      write(*, *) 'div_damp_k0         = ', to_str(div_damp_k0)
       write(*, *) 'div_damp_pole       = ', to_str(div_damp_pole, 3)
       write(*, *) 'div_damp_lat0       = ', to_str(div_damp_lat0, 3)
     end if

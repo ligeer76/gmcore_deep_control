@@ -102,7 +102,6 @@ contains
         end do
       end do
       call filter_run(block%small_filter, dv)
-      call wait_halo(v)
       do k = mesh%full_kds, mesh%full_kde
         do j = mesh%half_jds, mesh%half_jde
           do i = mesh%full_ids, mesh%full_ide

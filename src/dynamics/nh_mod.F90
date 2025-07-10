@@ -69,27 +69,30 @@ contains
     type(dstate_type), intent(inout) :: dstate
     real(r8), intent(in) :: dt
 
-    associate (u_lon       => dstate%u_lon         , & ! in
-               v_lat       => dstate%v_lat         , & ! in
+    associate (mfx_lon     => block%aux%mfx_lon    , & ! in
+               mfy_lat     => block%aux%mfy_lat    , & ! in
                mfz_lev     => block%aux%mfz_lev    , & ! in
                dmg_lev     => dstate%dmg_lev       , & ! in
+               mfx_lev_lon => block%aux%mfx_lev_lon, & ! out
+               mfy_lev_lat => block%aux%mfy_lev_lat, & ! out
                u_lev_lon   => block%aux%u_lev_lon  , & ! out
                v_lev_lat   => block%aux%v_lev_lat  , & ! out
                mfz         => block%aux%mfz        , & ! out
-               mfx_lev_lon => block%aux%mfx_lev_lon, & ! out
-               mfy_lev_lat => block%aux%mfy_lev_lat, & ! out
                dmf_lev     => block%aux%dmf_lev    )   ! out
-    call interp_run(u_lon, u_lev_lon)
-    call fill_halo(u_lev_lon, async=.true.)
-    call interp_run(v_lat, v_lev_lat)
-    call fill_halo(v_lev_lat, async=.true.)
-    call interp_run(dmg_lev, mfx_lev_lon)
-    mfx_lev_lon%d = mfx_lev_lon%d * u_lev_lon%d
+    call interp_run(mfx_lon, mfx_lev_lon, extrap=.true., extrap_type=2)
     call fill_halo(mfx_lev_lon, async=.true.)
-    call interp_run(dmg_lev, mfy_lev_lat)
-    mfy_lev_lat%d = mfy_lev_lat%d * v_lev_lat%d
+    call interp_run(mfy_lat, mfy_lev_lat, extrap=.true., extrap_type=2)
     call fill_halo(mfy_lev_lat, async=.true.)
+    call interp_run(dmg_lev, u_lev_lon)
+    call u_lev_lon%div(mfx_lev_lon, u_lev_lon)
+    call fill_halo(u_lev_lon, async=.true.)
+    call interp_run(dmg_lev, v_lev_lat)
+    call v_lev_lat%div(mfy_lev_lat, v_lev_lat)
+    call fill_halo(v_lev_lat, async=.true.)
+
     call interp_run(mfz_lev, mfz)
+    call wait_halo(mfx_lev_lon)
+    call wait_halo(mfy_lev_lat)
     call block%adv_batch_nh%set_wind( &
       u                 =u_lev_lon  , &
       v                 =v_lev_lat  , &

@@ -199,7 +199,25 @@ contains
           end do
         end do
       case (3)
-        do k = mesh%half_kds + 1, mesh%half_kde - 1
+        ! ======================================================================
+        k = mesh%half_kds
+        qmfz%d(:,:,k) = 0
+        k = mesh%half_kds + 1
+        do j = mesh%full_jds, mesh%full_jde
+          do i = mesh%full_ids, mesh%full_ide
+            qmfz%d(i,j,k) = 0.5_r8 * (q%d(i,j,k-1) + q%d(i,j,k)) * mfz%d(i,j,k)
+          end do
+        end do
+        k = mesh%half_kde - 1
+        do j = mesh%full_jds, mesh%full_jde
+          do i = mesh%full_ids, mesh%full_ide
+            qmfz%d(i,j,k) = 0.5_r8 * (q%d(i,j,k-1) + q%d(i,j,k)) * mfz%d(i,j,k)
+          end do
+        end do
+        k = mesh%half_kde
+        qmfz%d(:,:,k) = 0
+        ! ======================================================================
+        do k = mesh%half_kds + 2, mesh%half_kde - 2
           do j = mesh%full_jds, mesh%full_jde
             do i = mesh%full_ids, mesh%full_ide
               qmfz%d(i,j,k) = upwind3(sign(1.0_r8, mfz%d(i,j,k)), upwind_wgt, q%d(i,j,k-2:k+1)) * mfz%d(i,j,k)
@@ -207,7 +225,27 @@ contains
           end do
         end do
       case (5)
-        do k = mesh%half_kds + 1, mesh%half_kde - 1
+        ! ======================================================================
+        k = mesh%half_kds
+        qmfz%d(:,:,k) = 0
+        do k = mesh%half_kds + 1, mesh%half_kds + 2
+          do j = mesh%full_jds, mesh%full_jde
+            do i = mesh%full_ids, mesh%full_ide
+              qmfz%d(i,j,k) = 0.5_r8 * (q%d(i,j,k-1) + q%d(i,j,k)) * mfz%d(i,j,k)
+            end do
+          end do
+        end do
+        do k = mesh%half_kde - 2, mesh%half_kde - 1
+          do j = mesh%full_jds, mesh%full_jde
+            do i = mesh%full_ids, mesh%full_ide
+              qmfz%d(i,j,k) = 0.5_r8 * (q%d(i,j,k-1) + q%d(i,j,k)) * mfz%d(i,j,k)
+            end do
+          end do
+        end do
+        k = mesh%half_kde
+        qmfz%d(:,:,k) = 0
+        ! ======================================================================
+        do k = mesh%half_kds + 3, mesh%half_kde - 3
           do j = mesh%full_jds, mesh%full_jde
             do i = mesh%full_ids, mesh%full_ide
               qmfz%d(i,j,k) = upwind5(sign(1.0_r8, mfz%d(i,j,k)), upwind_wgt, q%d(i,j,k-3:k+2)) * mfz%d(i,j,k)
@@ -234,7 +272,21 @@ contains
           end do
         end do
       case (3)
-        do k = mesh%full_kds, mesh%full_kde
+        ! ======================================================================
+        k = mesh%full_kds
+        do j = mesh%full_jds, mesh%full_jde
+          do i = mesh%full_ids, mesh%full_ide
+            qmfz%d(i,j,k) = 0.5_r8 * (q%d(i,j,k) + q%d(i,j,k+1)) * mfz%d(i,j,k)
+          end do
+        end do
+        k = mesh%full_kde
+        do j = mesh%full_jds, mesh%full_jde
+          do i = mesh%full_ids, mesh%full_ide
+            qmfz%d(i,j,k) = 0.5_r8 * (q%d(i,j,k) + q%d(i,j,k+1)) * mfz%d(i,j,k)
+          end do
+        end do
+        ! ======================================================================
+        do k = mesh%full_kds + 1, mesh%full_kde - 1
           do j = mesh%full_jds, mesh%full_jde
             do i = mesh%full_ids, mesh%full_ide
               qmfz%d(i,j,k) = upwind3(sign(1.0_r8, mfz%d(i,j,k)), upwind_wgt, q%d(i,j,k-1:k+2)) * mfz%d(i,j,k)
@@ -242,7 +294,23 @@ contains
           end do
         end do
       case (5)
-        do k = mesh%full_kds, mesh%full_kde
+        ! ======================================================================
+        do k = mesh%full_kds, mesh%full_kds + 1
+          do j = mesh%full_jds, mesh%full_jde
+            do i = mesh%full_ids, mesh%full_ide
+              qmfz%d(i,j,k) = 0.5_r8 * (q%d(i,j,k) + q%d(i,j,k+1)) * mfz%d(i,j,k)
+            end do
+          end do
+        end do
+        do k = mesh%full_kde - 1, mesh%full_kde
+          do j = mesh%full_jds, mesh%full_jde
+            do i = mesh%full_ids, mesh%full_ide
+              qmfz%d(i,j,k) = 0.5_r8 * (q%d(i,j,k) + q%d(i,j,k+1)) * mfz%d(i,j,k)
+            end do
+          end do
+        end do
+        ! ======================================================================
+        do k = mesh%full_kds + 2, mesh%full_kde - 2
           do j = mesh%full_jds, mesh%full_jde
             do i = mesh%full_ids, mesh%full_ide
               qmfz%d(i,j,k) = upwind5(sign(1.0_r8, mfz%d(i,j,k)), upwind_wgt, q%d(i,j,k-2:k+3)) * mfz%d(i,j,k)

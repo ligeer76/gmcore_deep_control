@@ -67,11 +67,12 @@ contains
 
   end subroutine interp_final
 
-  subroutine interp_run_3d(x, y, extrap)
+  subroutine interp_run_3d(x, y, extrap, extrap_type)
 
     type(latlon_field3d_type), intent(in   ) :: x
     type(latlon_field3d_type), intent(inout) :: y
     logical, intent(in), optional :: extrap
+    integer, intent(in), optional :: extrap_type
 
     logical extrap_opt
     real(r8) a, b, c, x1, x2, x3
@@ -234,60 +235,77 @@ contains
       !
       ! ----o--
       do k = x%mesh%half_kds + 1, x%mesh%half_kde - 1
-        a = x%mesh%full_dlev(k-1) / (x%mesh%full_dlev(k-1) + x%mesh%full_dlev(k))
-        b = x%mesh%full_dlev(k  ) / (x%mesh%full_dlev(k-1) + x%mesh%full_dlev(k))
+        a = x%mesh%full_dlev(k-1) / (2 * x%mesh%half_dlev(k))
+        b = x%mesh%full_dlev(k  ) / (2 * x%mesh%half_dlev(k))
         do j = x%mesh%full_jds, x%mesh%full_jde
           do i = x%mesh%half_ids, x%mesh%half_ide
             y%d(i,j,k) = a * x%d(i,j,k) + b * x%d(i,j,k-1)
           end do
         end do
       end do
-      k = x%mesh%half_kds
-      ! ---?--- 1
-      !
-      ! ===o=== 1   x1
-      !
-      ! -------
-      !
-      ! ===o=== 2   x2
-      !
-      ! -------
-      !
-      ! ===o=== 3   x3
-      x1 = x%mesh%full_lev(k  ) - x%mesh%half_lev(k)
-      x2 = x%mesh%full_lev(k+1) - x%mesh%half_lev(k)
-      x3 = x%mesh%full_lev(k+2) - x%mesh%half_lev(k)
-      a =  x2 * x3 / (x1**2 - x1 * x2 - x1 * x3 + x2 * x3)
-      b =  x1 * x3 / (x2**2 - x2 * x1 - x2 * x3 + x1 * x3)
-      c =  x1 * x2 / (x3**2 - x3 * x1 - x3 * x2 + x1 * x2)
-      do j = x%mesh%full_jds, x%mesh%full_jde
-        do i = x%mesh%half_ids, x%mesh%half_ide
-          y%d(i,j,k) = a * x%d(i,j,k) + b * x%d(i,j,k+1) + c * x%d(i,j,k+2)
+      select case (extrap_type)
+      case (1)
+        k = x%mesh%half_kds
+        ! ---?--- 1
+        !
+        ! ===o=== 1   x1
+        !
+        ! -------
+        !
+        ! ===o=== 2   x2
+        !
+        ! -------
+        !
+        ! ===o=== 3   x3
+        x1 = x%mesh%full_lev(k  ) - x%mesh%half_lev(k)
+        x2 = x%mesh%full_lev(k+1) - x%mesh%half_lev(k)
+        x3 = x%mesh%full_lev(k+2) - x%mesh%half_lev(k)
+        a =  x2 * x3 / (x1**2 - x1 * x2 - x1 * x3 + x2 * x3)
+        b =  x1 * x3 / (x2**2 - x2 * x1 - x2 * x3 + x1 * x3)
+        c =  x1 * x2 / (x3**2 - x3 * x1 - x3 * x2 + x1 * x2)
+        do j = x%mesh%full_jds, x%mesh%full_jde
+          do i = x%mesh%half_ids, x%mesh%half_ide
+            ! y%d(i,j,k) = a * x%d(i,j,k) + b * x%d(i,j,k+1) + c * x%d(i,j,k+2)
+            y%d(i,j,k) = 0.5_r8 * x%d(i,j,k)
+          end do
         end do
-      end do
-      k = x%mesh%half_kde
-      ! ===o=== NLEV - 2  x3
-      !
-      ! -------
-      !
-      ! ===o=== NLEV - 1  x2
-      !
-      ! -------
-      !
-      ! ===o=== NLEV      x1
-      !
-      ! ---?--- NLEV + 1
-      x1 = x%mesh%half_lev(k) - x%mesh%full_lev(k-1)
-      x2 = x%mesh%half_lev(k) - x%mesh%full_lev(k-2)
-      x3 = x%mesh%half_lev(k) - x%mesh%full_lev(k-3)
-      a =  x2 * x3 / (x1**2 - x1 * x2 - x1 * x3 + x2 * x3)
-      b =  x1 * x3 / (x2**2 - x2 * x1 - x2 * x3 + x1 * x3)
-      c =  x1 * x2 / (x3**2 - x3 * x1 - x3 * x2 + x1 * x2)
-      do j = x%mesh%full_jds, x%mesh%full_jde
-        do i = x%mesh%half_ids, x%mesh%half_ide
-          y%d(i,j,k) = a * x%d(i,j,k-1) + b * x%d(i,j,k-2) + c * x%d(i,j,k-3)
+        k = x%mesh%half_kde
+        ! ===o=== NLEV - 2  x3
+        !
+        ! -------
+        !
+        ! ===o=== NLEV - 1  x2
+        !
+        ! -------
+        !
+        ! ===o=== NLEV      x1
+        !
+        ! ---?--- NLEV + 1
+        x1 = x%mesh%half_lev(k) - x%mesh%full_lev(k-1)
+        x2 = x%mesh%half_lev(k) - x%mesh%full_lev(k-2)
+        x3 = x%mesh%half_lev(k) - x%mesh%full_lev(k-3)
+        a =  x2 * x3 / (x1**2 - x1 * x2 - x1 * x3 + x2 * x3)
+        b =  x1 * x3 / (x2**2 - x2 * x1 - x2 * x3 + x1 * x3)
+        c =  x1 * x2 / (x3**2 - x3 * x1 - x3 * x2 + x1 * x2)
+        do j = x%mesh%full_jds, x%mesh%full_jde
+          do i = x%mesh%half_ids, x%mesh%half_ide
+            y%d(i,j,k) = a * x%d(i,j,k-1) + b * x%d(i,j,k-2) + c * x%d(i,j,k-3)
+          end do
         end do
-      end do
+      case (2)
+        k = x%mesh%half_kds
+        do j = x%mesh%full_jds, x%mesh%full_jde
+          do i = x%mesh%half_ids, x%mesh%half_ide
+            y%d(i,j,k) = 0.5_r8 * x%d(i,j,k)
+          end do
+        end do
+        k = x%mesh%half_kde
+        do j = x%mesh%full_jds, x%mesh%full_jde
+          do i = x%mesh%half_ids, x%mesh%half_ide
+            y%d(i,j,k) = 0.5_r8 * x%d(i,j,k-1)
+          end do
+        end do
+      end select
     ! --------------------------------------------------------------------------
     case ('lat>lev_lat')
       ! -------
@@ -300,60 +318,78 @@ contains
       !
       ! -------
       do k = x%mesh%half_kds + 1, x%mesh%half_kde - 1
-        a = x%mesh%full_dlev(k-1) / (x%mesh%full_dlev(k-1) + x%mesh%full_dlev(k))
-        b = x%mesh%full_dlev(k  ) / (x%mesh%full_dlev(k-1) + x%mesh%full_dlev(k))
+        a = x%mesh%full_dlev(k-1) / (2 * x%mesh%half_dlev(k))
+        b = x%mesh%full_dlev(k  ) / (2 * x%mesh%half_dlev(k))
         do j = x%mesh%half_jds, x%mesh%half_jde
           do i = x%mesh%full_ids, x%mesh%full_ide
             y%d(i,j,k) = a * x%d(i,j,k) + b * x%d(i,j,k-1)
           end do
         end do
       end do
-      k = x%mesh%half_kds
-      ! ---?--- 1
-      !
-      ! ===o=== 1   x1
-      !
-      ! -------
-      !
-      ! ===o=== 2   x2
-      !
-      ! -------
-      !
-      ! ===o=== 3   x3
-      x1 = x%mesh%full_lev(k  ) - x%mesh%half_lev(k)
-      x2 = x%mesh%full_lev(k+1) - x%mesh%half_lev(k)
-      x3 = x%mesh%full_lev(k+2) - x%mesh%half_lev(k)
-      a =  x2 * x3 / (x1**2 - x1 * x2 - x1 * x3 + x2 * x3)
-      b =  x1 * x3 / (x2**2 - x2 * x1 - x2 * x3 + x1 * x3)
-      c =  x1 * x2 / (x3**2 - x3 * x1 - x3 * x2 + x1 * x2)
-      do j = x%mesh%half_jds, x%mesh%half_jde
-        do i = x%mesh%full_ids, x%mesh%full_ide
-          y%d(i,j,k) = a * x%d(i,j,k) + b * x%d(i,j,k+1) + c * x%d(i,j,k+2)
+      select case (extrap_type)
+      case (1)
+        k = x%mesh%half_kds
+        ! ---?--- 1
+        !
+        ! ===o=== 1   x1
+        !
+        ! -------
+        !
+        ! ===o=== 2   x2
+        !
+        ! -------
+        !
+        ! ===o=== 3   x3
+        x1 = x%mesh%full_lev(k  ) - x%mesh%half_lev(k)
+        x2 = x%mesh%full_lev(k+1) - x%mesh%half_lev(k)
+        x3 = x%mesh%full_lev(k+2) - x%mesh%half_lev(k)
+        a =  x2 * x3 / (x1**2 - x1 * x2 - x1 * x3 + x2 * x3)
+        b =  x1 * x3 / (x2**2 - x2 * x1 - x2 * x3 + x1 * x3)
+        c =  x1 * x2 / (x3**2 - x3 * x1 - x3 * x2 + x1 * x2)
+        do j = x%mesh%half_jds, x%mesh%half_jde
+          do i = x%mesh%full_ids, x%mesh%full_ide
+            ! y%d(i,j,k) = a * x%d(i,j,k) + b * x%d(i,j,k+1) + c * x%d(i,j,k+2)
+            y%d(i,j,k) = 0.5_r8 * x%d(i,j,k)
+          end do
         end do
-      end do
-      k = x%mesh%half_kde
-      ! ===o=== NLEV - 2  x3
-      !
-      ! -------
-      !
-      ! ===o=== NLEV - 1  x2
-      !
-      ! -------
-      !
-      ! ===o=== NLEV      x1
-      !
-      ! ---?--- NLEV + 1
-      x1 = x%mesh%half_lev(k) - x%mesh%full_lev(k-1)
-      x2 = x%mesh%half_lev(k) - x%mesh%full_lev(k-2)
-      x3 = x%mesh%half_lev(k) - x%mesh%full_lev(k-3)
-      a =  x2 * x3 / (x1**2 - x1 * x2 - x1 * x3 + x2 * x3)
-      b =  x1 * x3 / (x2**2 - x2 * x1 - x2 * x3 + x1 * x3)
-      c =  x1 * x2 / (x3**2 - x3 * x1 - x3 * x2 + x1 * x2)
-      do j = x%mesh%half_jds, x%mesh%half_jde
-        do i = x%mesh%full_ids, x%mesh%full_ide
-          y%d(i,j,k) = a * x%d(i,j,k-1) + b * x%d(i,j,k-2) + c * x%d(i,j,k-3)
+        k = x%mesh%half_kde
+        ! ===o=== NLEV - 2  x3
+        !
+        ! -------
+        !
+        ! ===o=== NLEV - 1  x2
+        !
+        ! -------
+        !
+        ! ===o=== NLEV      x1
+        !
+        ! ---?--- NLEV + 1
+        x1 = x%mesh%half_lev(k) - x%mesh%full_lev(k-1)
+        x2 = x%mesh%half_lev(k) - x%mesh%full_lev(k-2)
+        x3 = x%mesh%half_lev(k) - x%mesh%full_lev(k-3)
+        a =  x2 * x3 / (x1**2 - x1 * x2 - x1 * x3 + x2 * x3)
+        b =  x1 * x3 / (x2**2 - x2 * x1 - x2 * x3 + x1 * x3)
+        c =  x1 * x2 / (x3**2 - x3 * x1 - x3 * x2 + x1 * x2)
+        do j = x%mesh%half_jds, x%mesh%half_jde
+          do i = x%mesh%full_ids, x%mesh%full_ide
+            ! y%d(i,j,k) = a * x%d(i,j,k-1) + b * x%d(i,j,k-2) + c * x%d(i,j,k-3)
+            y%d(i,j,k) = 0.5_r8 * x%d(i,j,k-1)
+          end do
         end do
-      end do
+      case (2)
+        k = x%mesh%half_kds
+        do j = x%mesh%half_jds, x%mesh%half_jde
+          do i = x%mesh%full_ids, x%mesh%full_ide
+            y%d(i,j,k) = 0.5_r8 * x%d(i,j,k)
+          end do
+        end do
+        k = x%mesh%half_kde
+        do j = x%mesh%half_jds, x%mesh%half_jde
+          do i = x%mesh%full_ids, x%mesh%full_ide
+            y%d(i,j,k) = 0.5_r8 * x%d(i,j,k-1)
+          end do
+        end do
+      end select
     ! --------------------------------------------------------------------------
     case ('lev>lev_lon')
       do k = x%mesh%half_kds, x%mesh%half_kde

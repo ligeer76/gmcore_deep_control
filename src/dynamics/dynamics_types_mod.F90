@@ -109,21 +109,33 @@ module dynamics_types_mod
   type aux_array_type
     type(array_type) fields
     ! Smagorinsky damping variables
-    type(latlon_field3d_type) smag_t      ! tension strain
-    type(latlon_field3d_type) smag_s      ! shear strain on vertex
-    type(latlon_field3d_type) kmh         ! nonlinear diffusion coef
-    type(latlon_field3d_type) kmh_lon     ! nonlinear diffusion coef on zonal edge
-    type(latlon_field3d_type) kmh_lat     ! nonlinear diffusion coef on meridional edge
+    type(latlon_field3d_type) smag_t      ! Tension strain
+    type(latlon_field3d_type) smag_s      ! Shear strain on vertex
+    type(latlon_field3d_type) kmh         ! Nonlinear diffusion coef
+    type(latlon_field3d_type) kmh_lon     ! Nonlinear diffusion coef on zonal edge
+    type(latlon_field3d_type) kmh_lat     ! Nonlinear diffusion coef on meridional edge
+    type(latlon_field3d_type) kmh_lev     ! Nonlinear diffusion coef on half level
+    type(latlon_field3d_type) dudx, dudy
+    type(latlon_field3d_type) dvdx, dvdy
+    type(latlon_field3d_type) dwdx, dwdy
+    type(latlon_field3d_type) dptdx, dptdy
     ! Laplacian damping variables
-    type(latlon_field2d_type) g1_2d
-    type(latlon_field2d_type) g2_2d
+    type(latlon_field2d_type) g_2d
     type(latlon_field2d_type) fx_2d
     type(latlon_field2d_type) fy_2d
-    type(latlon_field2d_type) dxdt_2d
-    type(latlon_field3d_type) g1_3d, g1_3d_lon, g1_3d_lat, g1_3d_lev
-    type(latlon_field3d_type) g2_3d, g2_3d_lon, g2_3d_lat, g2_3d_lev
-    type(latlon_field3d_type) fx_3d, fx_3d_lon, fx_3d_lat, fx_3d_lev
-    type(latlon_field3d_type) fy_3d, fy_3d_lon, fy_3d_lat, fy_3d_lev
+    type(latlon_field2d_type) df_2d
+    type(latlon_field3d_type) g_3d
+    type(latlon_field3d_type) fx_3d
+    type(latlon_field3d_type) fy_3d
+    type(latlon_field3d_type) g_3d_lon
+    type(latlon_field3d_type) fx_3d_lon
+    type(latlon_field3d_type) fy_3d_lon
+    type(latlon_field3d_type) g_3d_lat
+    type(latlon_field3d_type) fx_3d_lat
+    type(latlon_field3d_type) fy_3d_lat
+    type(latlon_field3d_type) g_3d_lev
+    type(latlon_field3d_type) fx_3d_lev
+    type(latlon_field3d_type) fy_3d_lev
     ! Other variables
     type(latlon_field3d_type) u           ! Zonal wind speed at cell center (m s-1)
     type(latlon_field3d_type) v           ! Meridional wind speed at cell center (m s-1)
@@ -349,7 +361,7 @@ contains
         mesh            =mesh                                                , &
         halo            =halo                                                , &
         halo_diagonal   =.true.                                              , &
-        output          ='h0'                                                , &
+        output          ='h1'                                                , &
         restart         =.true.                                              , &
         field           =this%mgs                                            )
     end if
@@ -457,7 +469,7 @@ contains
         loc             ='lev'                                               , &
         mesh            =mesh                                                , &
         halo            =halo                                                , &
-        output          ='h0'                                                , &
+        output          ='h1'                                                , &
         restart         =.false.                                             , &
         field           =this%p_lev                                          )
     end if
@@ -897,7 +909,7 @@ contains
         loc             ='cell'                                              , &
         mesh            =mesh                                                , &
         halo            =halo                                                , &
-        output          ='h1'                                                , &
+        output          ='h0'                                                , &
         restart         =.false.                                             , &
         field           =this%kmh                                            )
       call append_field(this%fields                                          , &
@@ -920,9 +932,103 @@ contains
         output          ='h1'                                                , &
         restart         =.false.                                             , &
         field           =this%kmh_lat                                        )
+      if (nonhydrostatic) then
+        call append_field(this%fields                                        , &
+          name          ='kmh_lev'                                           , &
+          long_name     ='Horizontal eddy viscosity for Smagorinsky damping' , &
+          units         ='s-1'                                               , &
+          loc           ='lev'                                               , &
+          mesh          =mesh                                                , &
+          halo          =halo                                                , &
+          output        ='h1'                                                , &
+          restart       =.false.                                             , &
+          field         =this%kmh_lev                                        )
+      end if
+      call append_field(this%fields                                          , &
+        name            ='dudx'                                              , &
+        long_name       ='dudx'                                              , &
+        units           ='s-1'                                               , &
+        loc             ='cell'                                              , &
+        mesh            =mesh                                                , &
+        halo            =halo                                                , &
+        output          ='h1'                                                , &
+        restart         =.false.                                             , &
+        field           =this%dudx                                           )
+      call append_field(this%fields                                          , &
+        name            ='dudy'                                              , &
+        long_name       ='dudy'                                              , &
+        units           ='s-1'                                               , &
+        loc             ='vtx'                                               , &
+        mesh            =mesh                                                , &
+        halo            =halo                                                , &
+        output          ='h1'                                                , &
+        restart         =.false.                                             , &
+        field           =this%dudy                                           )
+      call append_field(this%fields                                          , &
+        name            ='dvdx'                                              , &
+        long_name       ='dvdx'                                              , &
+        units           ='s-1'                                               , &
+        loc             ='vtx'                                               , &
+        mesh            =mesh                                                , &
+        halo            =halo                                                , &
+        output          ='h1'                                                , &
+        restart         =.false.                                             , &
+        field           =this%dvdx                                           )
+      call append_field(this%fields                                          , &
+        name            ='dvdy'                                              , &
+        long_name       ='dvdy'                                              , &
+        units           ='s-1'                                               , &
+        loc             ='cell'                                              , &
+        mesh            =mesh                                                , &
+        halo            =halo                                                , &
+        output          ='h1'                                                , &
+        restart         =.false.                                             , &
+        field           =this%dvdy                                           )
+      if (nonhydrostatic) then
+        call append_field(this%fields                                        , &
+          name          ='dwdx'                                              , &
+          long_name     ='dwdx'                                              , &
+          units         ='s-1'                                               , &
+          loc           ='lev_lon'                                           , &
+          mesh          =mesh                                                , &
+          halo          =halo                                                , &
+          output        ='h1'                                                , &
+          restart       =.false.                                             , &
+          field         =this%dwdx                                           )
+        call append_field(this%fields                                        , &
+          name          ='dwdy'                                              , &
+          long_name     ='dwdy'                                              , &
+          units         ='s-1'                                               , &
+          loc           ='lev_lat'                                           , &
+          mesh          =mesh                                                , &
+          halo          =halo                                                , &
+          output        ='h1'                                                , &
+          restart       =.false.                                             , &
+          field         =this%dwdy                                           )
+      end if
+      call append_field(this%fields                                          , &
+        name            ='dptdx'                                             , &
+        long_name       ='dptdx'                                             , &
+        units           ='K m-1'                                             , &
+        loc             ='lon'                                               , &
+        mesh            =mesh                                                , &
+        halo            =halo                                                , &
+        output          ='h1'                                                , &
+        restart         =.false.                                             , &
+        field           =this%dptdx                                          )
+      call append_field(this%fields                                          , &
+        name            ='dptdy'                                             , &
+        long_name       ='dptdy'                                             , &
+        units           ='K m-1'                                             , &
+        loc             ='lat'                                               , &
+        mesh            =mesh                                                , &
+        halo            =halo                                                , &
+        output          ='h1'                                                , &
+        restart         =.false.                                             , &
+        field           =this%dptdy                                          )
     end if
     call append_field(this%fields                                            , &
-      name              ='g1_2d'                                             , &
+      name              ='g_2d'                                              , &
       long_name         ='Temporal array for 2D Laplacian damping'           , &
       units             =''                                                  , &
       loc               ='cell'                                              , &
@@ -930,17 +1036,7 @@ contains
       halo              =halo                                                , &
       output            =''                                                  , &
       restart           =.false.                                             , &
-      field             =this%g1_2d                                          )
-    call append_field(this%fields                                            , &
-      name              ='g2_2d'                                             , &
-      long_name         ='Temporal array for 2D Laplacian damping'           , &
-      units             =''                                                  , &
-      loc               ='cell'                                              , &
-      mesh              =mesh                                                , &
-      halo              =halo                                                , &
-      output            =''                                                  , &
-      restart           =.false.                                             , &
-      field             =this%g2_2d                                          )
+      field             =this%g_2d                                           )
     call append_field(this%fields                                            , &
       name              ='fx_2d'                                             , &
       long_name         ='Temporal array for 2D Laplacian damping'           , &
@@ -962,7 +1058,7 @@ contains
       restart           =.false.                                             , &
       field             =this%fy_2d                                          )
     call append_field(this%fields                                            , &
-      name              ='dxdt_2d'                                           , &
+      name              ='df_2d'                                             , &
       long_name         ='Temporal array for 2D Laplacian damping'           , &
       units             =''                                                  , &
       loc               ='cell'                                              , &
@@ -970,10 +1066,10 @@ contains
       halo              =filter_halo                                         , &
       output            =''                                                  , &
       restart           =.false.                                             , &
-      field             =this%dxdt_2d                                        )
+      field             =this%df_2d                                          )
     if (use_laplace_damp .or. use_sponge_layer) then
       call append_field(this%fields                                          , &
-        name            ='g1_3d'                                             , &
+        name            ='g_3d'                                              , &
         long_name       ='Temporal array for 3D Laplacian damping'           , &
         units           =''                                                  , &
         loc             ='cell'                                              , &
@@ -981,17 +1077,7 @@ contains
         halo            =halo                                                , &
         output          =''                                                  , &
         restart         =.false.                                             , &
-        field           =this%g1_3d                                          )
-      call append_field(this%fields                                          , &
-        name            ='g2_3d'                                             , &
-        long_name       ='Temporal array for 3D Laplacian damping'           , &
-        units           =''                                                  , &
-        loc             ='cell'                                              , &
-        mesh            =mesh                                                , &
-        halo            =halo                                                , &
-        output          =''                                                  , &
-        restart         =.false.                                             , &
-        field           =this%g2_3d                                          )
+        field           =this%g_3d                                           )
       call append_field(this%fields                                          , &
         name            ='fx_3d'                                             , &
         long_name       ='Temporal array for 3D Laplacian damping'           , &
@@ -1015,7 +1101,7 @@ contains
     end if
     if (use_laplace_damp .or. use_sponge_layer .or. (use_div_damp .and. div_damp_order == 4)) then
       call append_field(this%fields                                          , &
-        name            ='g1_3d_lon'                                         , &
+        name            ='g_3d_lon'                                          , &
         long_name       ='Temporal array for 3D Laplacian damping'           , &
         units           =''                                                  , &
         loc             ='lon'                                               , &
@@ -1023,17 +1109,7 @@ contains
         halo            =halo                                                , &
         output          =''                                                  , &
         restart         =.false.                                             , &
-        field           =this%g1_3d_lon                                      )
-      call append_field(this%fields                                          , &
-        name            ='g2_3d_lon'                                         , &
-        long_name       ='Temporal array for 3D Laplacian damping'           , &
-        units           =''                                                  , &
-        loc             ='lon'                                               , &
-        mesh            =mesh                                                , &
-        halo            =halo                                                , &
-        output          =''                                                  , &
-        restart         =.false.                                             , &
-        field           =this%g2_3d_lon                                      )
+        field           =this%g_3d_lon                                       )
       call append_field(this%fields                                          , &
         name            ='fx_3d_lon'                                         , &
         long_name       ='Temporal array for 3D Laplacian damping'           , &
@@ -1055,7 +1131,7 @@ contains
         restart         =.false.                                             , &
         field           =this%fy_3d_lon                                      )
       call append_field(this%fields                                          , &
-        name            ='g1_3d_lat'                                         , &
+        name            ='g_3d_lat'                                          , &
         long_name       ='Temporal array for 3D Laplacian damping'           , &
         units           =''                                                  , &
         loc             ='lat'                                               , &
@@ -1063,17 +1139,7 @@ contains
         halo            =halo                                                , &
         output          =''                                                  , &
         restart         =.false.                                             , &
-        field           =this%g1_3d_lat                                      )
-      call append_field(this%fields                                          , &
-        name            ='g2_3d_lat'                                         , &
-        long_name       ='Temporal array for 3D Laplacian damping'           , &
-        units           =''                                                  , &
-        loc             ='lat'                                               , &
-        mesh            =mesh                                                , &
-        halo            =halo                                                , &
-        output          =''                                                  , &
-        restart         =.false.                                             , &
-        field           =this%g2_3d_lat                                      )
+        field           =this%g_3d_lat                                       )
       call append_field(this%fields                                          , &
         name            ='fx_3d_lat'                                         , &
         long_name       ='Temporal array for 3D Laplacian damping'           , &
@@ -1095,7 +1161,7 @@ contains
         restart         =.false.                                             , &
         field           =this%fy_3d_lat                                      )
       call append_field(this%fields                                          , &
-        name            ='g1_3d_lev'                                         , &
+        name            ='g_3d_lev'                                          , &
         long_name       ='Temporal array for 3D Laplacian damping'           , &
         units           =''                                                  , &
         loc             ='lev'                                               , &
@@ -1103,17 +1169,7 @@ contains
         halo            =halo                                                , &
         output          =''                                                  , &
         restart         =.false.                                             , &
-        field           =this%g1_3d_lev                                      )
-      call append_field(this%fields                                          , &
-        name            ='g2_3d_lev'                                         , &
-        long_name       ='Temporal array for 3D Laplacian damping'           , &
-        units           =''                                                  , &
-        loc             ='lev'                                               , &
-        mesh            =mesh                                                , &
-        halo            =halo                                                , &
-        output          =''                                                  , &
-        restart         =.false.                                             , &
-        field           =this%g2_3d_lev                                      )
+        field           =this%g_3d_lev                                       )
       call append_field(this%fields                                          , &
         name            ='fx_3d_lev'                                         , &
         long_name       ='Temporal array for 3D Laplacian damping'           , &
@@ -1167,7 +1223,7 @@ contains
         loc             ='cell'                                              , &
         mesh            =mesh                                                , &
         halo            =halo                                                , &
-        output          ='h0'                                                , &
+        output          ='h1'                                                , &
         restart         =.false.                                             , &
         field           =this%rhod                                           )
     end if
@@ -1412,8 +1468,8 @@ contains
         long_name       ='Divergence'                                        , &
         units           ='s-1'                                               , &
         loc             ='cell'                                              , &
-        mesh            =mesh                                                , &
-        halo            =halo                                                , &
+        mesh            =filter_mesh                                         , &
+        halo            =filter_halo                                         , &
         output          ='h0'                                                , &
         restart         =.false.                                             , &
         field           =this%div                                            )
@@ -1424,8 +1480,8 @@ contains
         long_name       ='Gradient of divergence'                            , &
         units           ='m-1 s-1'                                           , &
         loc             ='cell'                                              , &
-        mesh            =mesh                                                , &
-        halo            =halo                                                , &
+        mesh            =filter_mesh                                         , &
+        halo            =filter_halo                                         , &
         output          ='h0'                                                , &
         restart         =.false.                                             , &
         field           =this%div2                                           )
@@ -1658,7 +1714,7 @@ contains
         restart         =.false.                                             , &
         field           =this%dudt_damp                                      )
     end if
-    if (use_laplace_damp .or. use_sponge_layer .or. use_vor_damp .or. use_smag_damp) then
+    if (use_laplace_damp .or. use_sponge_layer .or. use_div_damp .or. use_vor_damp .or. use_smag_damp) then
       call append_field(this%fields                                          , &
         name            ='dvdt_damp'                                         , &
         long_name       ='Tendency of meridional wind due to damping'        , &
@@ -1670,7 +1726,7 @@ contains
         restart         =.false.                                             , &
         field           =this%dvdt_damp                                      )
     end if
-    if (use_laplace_damp .and. nonhydrostatic) then
+    if ((use_laplace_damp .or. use_smag_damp) .and. nonhydrostatic) then
       call append_field(this%fields                                          , &
         name            ='dwdt_damp'                                         , &
         long_name       ='Tendency of vertical wind due to damping'          , &

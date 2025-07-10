@@ -225,16 +225,18 @@ contains
         end do
       end do
       ! ------------------------------------------------------------------------
-      call fill_halo(new_dstate%u_lon, south_halo=.false., north_halo=.false.)
-      do j = mesh%full_jds_no_pole, mesh%full_jde_no_pole
-        c = exp_two_values(1.0_r8, 0.0_r8, 90.0_r8, 60.0_r8, abs(mesh%full_lat_deg(j)))
-        do k = mesh%full_kds, mesh%full_kde
-          tmp = new_dstate%u_lon%d(mesh%half_ids-1:mesh%half_ide+1,j,k)
-          do i = mesh%half_ids, mesh%half_ide
-            new_dstate%u_lon%d(i,j,k) = (1 - 0.5_r8 * c) * new_dstate%u_lon%d(i,j,k) + 0.25_r8 * c * (tmp(i-1) + tmp(i+1))
+      if (substep == total_substeps) then
+        call fill_halo(new_dstate%u_lon, south_halo=.false., north_halo=.false.)
+        do j = mesh%full_jds_no_pole, mesh%full_jde_no_pole
+          c = exp_two_values(1.0_r8, 0.0_r8, 90.0_r8, 60.0_r8, abs(mesh%full_lat_deg(j)))
+          do k = mesh%full_kds, mesh%full_kde
+            tmp = new_dstate%u_lon%d(mesh%half_ids-1:mesh%half_ide+1,j,k)
+            do i = mesh%half_ids, mesh%half_ide
+              new_dstate%u_lon%d(i,j,k) = (1 - 0.5_r8 * c) * new_dstate%u_lon%d(i,j,k) + 0.25_r8 * c * (tmp(i-1) + tmp(i+1))
+            end do
           end do
         end do
-      end do
+      end if
       ! ------------------------------------------------------------------------
       call fill_halo(new_dstate%u_lon, async=.true.)
       do k = mesh%full_kds, mesh%full_kde
@@ -265,16 +267,18 @@ contains
         end do
       end if
       ! ------------------------------------------------------------------------
-      call fill_halo(new_dstate%v_lat, south_halo=.false., north_halo=.false.)
-      do j = mesh%half_jds, mesh%half_jde
-        c = exp_two_values(1.0_r8, 0.0_r8, 90.0_r8, 60.0_r8, abs(mesh%half_lat_deg(j)))
-        do k = mesh%full_kds, mesh%full_kde
-          tmp = new_dstate%v_lat%d(mesh%full_ids-1:mesh%full_ide+1,j,k)
-          do i = mesh%full_ids, mesh%full_ide
-            new_dstate%v_lat%d(i,j,k) = (1 - 0.5_r8 * c) * new_dstate%v_lat%d(i,j,k) + 0.25_r8 * c * (tmp(i-1) + tmp(i+1))
+      if (substep == total_substeps) then
+        call fill_halo(new_dstate%v_lat, south_halo=.false., north_halo=.false.)
+        do j = mesh%half_jds, mesh%half_jde
+          c = exp_two_values(1.0_r8, 0.0_r8, 90.0_r8, 60.0_r8, abs(mesh%half_lat_deg(j)))
+          do k = mesh%full_kds, mesh%full_kde
+            tmp = new_dstate%v_lat%d(mesh%full_ids-1:mesh%full_ide+1,j,k)
+            do i = mesh%full_ids, mesh%full_ide
+              new_dstate%v_lat%d(i,j,k) = (1 - 0.5_r8 * c) * new_dstate%v_lat%d(i,j,k) + 0.25_r8 * c * (tmp(i-1) + tmp(i+1))
+            end do
           end do
         end do
-      end do
+      end if
       ! ------------------------------------------------------------------------
       call fill_halo(new_dstate%v_lat, async=.true.)
     end if

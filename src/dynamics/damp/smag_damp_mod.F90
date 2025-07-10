@@ -14,8 +14,10 @@ module smag_damp_mod
   use const_mod
   use math_mod
   use namelist_mod
+  use latlon_operators_mod
   use latlon_parallel_mod
   use block_mod
+  use interp_mod
   use tracer_mod
   use filter_mod
   use perf_mod
@@ -40,11 +42,10 @@ contains
 
     allocate(decay_from_top(global_mesh%full_nlev))
 
-    k0 = 8
+    k0 = 6
     do k = global_mesh%full_kds, global_mesh%full_kde
-      decay_from_top(k) = exp_two_values(5.0_r8, 1.0_r8, 1.0_r8, real(k0, r8), real(k, r8))
+      decay_from_top(k) = exp_two_values(50.0_r8, 1.0_r8, 1.0_r8, real(k0, r8), real(k, r8))
     end do
-    ! FIXME: Disable the decay for the time being.
     decay_from_top = 1
 
   end subroutine smag_damp_init
@@ -64,38 +65,41 @@ contains
     integer i, j, k, m
     real(r8) ls2
 
-    call wait_halo(dstate%u_lon)
-    call wait_halo(dstate%v_lat)
-    call wait_halo(dstate%pt   )
-
     call perf_start('smag_damp_run')
 
     associate (mesh      => block%mesh          , &
+               dudx      => block%aux%dudx      , & ! working array
+               dudy      => block%aux%dudy      , & ! working array
+               dvdx      => block%aux%dvdx      , & ! working array
+               dvdy      => block%aux%dvdy      , & ! working array
+               dwdx      => block%aux%dwdx      , & ! working array
+               dwdy      => block%aux%dwdy      , & ! working array
+               dptdx     => block%aux%dptdx     , & ! working array
+               dptdy     => block%aux%dptdy     , & ! working array
                smag_t    => block%aux%smag_t    , & ! working array
                smag_s    => block%aux%smag_s    , & ! working array
+               kmh       => block%aux%kmh       , & ! working array
                kmh_lon   => block%aux%kmh_lon   , & ! working array
                kmh_lat   => block%aux%kmh_lat   , & ! working array
-               kmh       => block%aux%kmh       , & ! working array
-               dmg       => dstate%dmg          , & ! working array
+               kmh_lev   => block%aux%kmh_lev   , & ! working array
                dudt      => block%aux%dudt_damp , & ! working array
                dvdt      => block%aux%dvdt_damp , & ! working array
+               dwdt      => block%aux%dwdt_damp , & ! working array
                dptdt     => block%aux%dptdt_damp, & ! working array
                u         => dstate%u_lon        , & ! inout
                v         => dstate%v_lat        , & ! inout
+               w         => dstate%w_lev        , & ! inout
                pt        => dstate%pt           )   ! inout
     ! Horizontal tension strain on centers
     ! ∂u   ∂v
     ! -- - --
     ! ∂x   ∂y
+    call divx_operator(u, dudx, with_halo=.true.)
+    call divy_operator(v, dvdy, with_halo=.true.)
     do k = mesh%full_kds, mesh%full_kde
       do j = mesh%full_jds_no_pole, mesh%full_jde_no_pole + merge(0, 1, mesh%has_north_pole())
         do i = mesh%full_ids, mesh%full_ide + 1
-          smag_t%d(i,j,k) = (                       &
-            u%d(i,j,k) - u%d(i-1,j,k)               &
-          ) / mesh%de_lon(j) - (                    &
-            v%d(i,j  ,k) * mesh%half_cos_lat(j  ) - &
-            v%d(i,j-1,k) * mesh%half_cos_lat(j-1)   &
-          ) / mesh%le_lon(j) / mesh%full_cos_lat(j)
+          smag_t%d(i,j,k) = dudx%d(i,j,k) - dvdy%d(i,j,k)
         end do
       end do
     end do
@@ -104,22 +108,19 @@ contains
     ! ∂u   ∂v
     ! -- + --
     ! ∂y   ∂x
+    call divy_operator(u, dudy, with_halo=.true.)
+    call divx_operator(v, dvdx, with_halo=.true.)
     do k = mesh%full_kds, mesh%full_kde
       do j = mesh%half_jds - merge(0, 1, mesh%has_south_pole()), mesh%half_jde
         do i = mesh%half_ids - 1, mesh%half_ide
-          smag_s%d(i,j,k) = (                       &
-            v%d(i+1,j,k) - v%d(i,j,k)               &
-          ) / mesh%le_lat(j) + (                    &
-            u%d(i,j+1,k) * mesh%full_cos_lat(j+1) - &
-            u%d(i,j  ,k) * mesh%full_cos_lat(j  )   &
-          ) / mesh%de_lat(j) / mesh%half_cos_lat(j)
+          smag_s%d(i,j,k) = dudy%d(i,j,k) + dvdx%d(i,j,k)
         end do
       end do
     end do
 
     do k = mesh%full_kds, mesh%full_kde
       do j = mesh%full_jds_no_pole, mesh%full_jde_no_pole
-        ls2 = smag_damp_coef / (1 / mesh%de_lon(j)**2 + 1 / mesh%le_lon(j)**2) * decay_from_top(k)
+        ls2 = smag_damp_coef / (1.0_r8 / mesh%de_lon(j)**2 + 1.0_r8 / mesh%le_lon(j)**2) * decay_from_top(k)
         do i = mesh%half_ids, mesh%half_ide
           kmh_lon%d(i,j,k) = ls2 * sqrt(                             &
             0.5_r8 * (smag_t%d(i,j,k)**2 + smag_t%d(i+1,j  ,k)**2) + &
@@ -129,9 +130,21 @@ contains
       end do
     end do
 
+    call grad_operator(u, dudx, dudy, with_halo=.true.)
+    call div_operator(dudx, dudy, dudt)
+    call filter_run(block%small_filter, dudt)
+    do k = mesh%full_kds, mesh%full_kde
+      do j = mesh%full_jds_no_pole, mesh%full_jde_no_pole
+        do i = mesh%half_ids, mesh%half_ide
+          u%d(i,j,k) = u%d(i,j,k) + dt * kmh_lon%d(i,j,k) * dudt%d(i,j,k)
+        end do
+      end do
+    end do
+    call fill_halo(u, async=.true.)
+
     do k = mesh%full_kds, mesh%full_kde
       do j = mesh%half_jds, mesh%half_jde
-        ls2 = smag_damp_coef / (1 / mesh%le_lat(j)**2 + 1 / mesh%de_lat(j)**2) * decay_from_top(k)
+        ls2 = smag_damp_coef / (1.0_r8 / mesh%de_lat(j)**2 + 1.0_r8 / mesh%le_lat(j)**2) * decay_from_top(k)
         do i = mesh%full_ids, mesh%full_ide
           kmh_lat%d(i,j,k) = ls2 * sqrt(                             &
             0.5_r8 * (smag_t%d(i,j,k)**2 + smag_t%d(i  ,j+1,k)**2) + &
@@ -141,9 +154,21 @@ contains
       end do
     end do
 
+    call grad_operator(v, dvdx, dvdy, with_halo=.true.)
+    call div_operator(dvdx, dvdy, dvdt)
+    call filter_run(block%small_filter, dvdt)
+    do k = mesh%full_kds, mesh%full_kde
+      do j = mesh%half_jds, mesh%half_jde
+        do i = mesh%full_ids, mesh%full_ide
+          v%d(i,j,k) = v%d(i,j,k) + dt * kmh_lat%d(i,j,k) * dvdt%d(i,j,k)
+        end do
+      end do
+    end do
+    call fill_halo(v, async=.true.)
+
     do k = mesh%full_kds, mesh%full_kde
       do j = mesh%full_jds_no_pole, mesh%full_jde_no_pole
-        ls2 = smag_damp_coef / (1 / mesh%de_lon(j)**2 + 1 / mesh%le_lon(j)**2) * decay_from_top(k)
+        ls2 = smag_damp_coef / (1.0_r8 / mesh%de_lon(j)**2 + 1.0_r8 / mesh%le_lon(j)**2) * decay_from_top(k)
         do i = mesh%full_ids, mesh%full_ide
           kmh%d(i,j,k) = ls2 * sqrt(                          &
             smag_t%d(i,j,k)**2 + 0.25_r8 * (                  &
@@ -155,83 +180,32 @@ contains
       end do
     end do
 
-    do k = mesh%full_kds, mesh%full_kde
-      do j = mesh%full_jds_no_pole, mesh%full_jde_no_pole
-        do i = mesh%half_ids, mesh%half_ide
-          dudt%d(i,j,k) = kmh_lon%d(i,j,k) * (                                           &
-            (u%d(i-1,j,k) - 2 * u%d(i,j,k) + u%d(i+1,j,k)) / mesh%de_lon(j)**2 +         &
-            ((u%d(i,j+1,k) - u%d(i,j  ,k)) / mesh%de_lat(j  ) * mesh%half_cos_lat(j  ) - &
-             (u%d(i,j  ,k) - u%d(i,j-1,k)) / mesh%de_lat(j-1) * mesh%half_cos_lat(j-1)   &
-            ) / mesh%le_lon(j) / mesh%full_cos_lat(j)                                    &
-          )
-        end do
-      end do
-    end do
-    call filter_run(block%small_filter, dudt)
-    do k = mesh%full_kds, mesh%full_kde
-      do j = mesh%full_jds_no_pole, mesh%full_jde_no_pole
-        do i = mesh%half_ids, mesh%half_ide
-          u%d(i,j,k) = u%d(i,j,k) + dt * dudt%d(i,j,k)
-        end do
-      end do
-    end do
-    call fill_halo(u, async=.true.)
-
-    do k = mesh%full_kds, mesh%full_kde
-      do j = mesh%half_jds, mesh%half_jde
-        if (j == global_mesh%half_jds .or. j == global_mesh%half_jde) then
-          do i = mesh%full_ids, mesh%full_ide
-            dvdt%d(i,j,k) = kmh_lat%d(i,j,k) * (                                 &
-              (v%d(i-1,j,k) - 2 * v%d(i,j,k) + v%d(i+1,j,k)) / mesh%le_lat(j)**2 &
-            )
-          end do
-        else
-          do i = mesh%full_ids, mesh%full_ide
-            dvdt%d(i,j,k) = kmh_lat%d(i,j,k) * (                                           &
-              (v%d(i-1,j,k) - 2 * v%d(i,j,k) + v%d(i+1,j,k)) / mesh%le_lat(j)**2 +         &
-              ((v%d(i,j+1,k) - v%d(i,j  ,k)) / mesh%le_lon(j+1) * mesh%full_cos_lat(j+1) - &
-               (v%d(i,j  ,k) - v%d(i,j-1,k)) / mesh%le_lon(j  ) * mesh%full_cos_lat(j  )   &
-              ) / mesh%de_lat(j) / mesh%half_cos_lat(j)                                    &
-            )
-          end do
-        end if
-      end do
-    end do
-    call filter_run(block%small_filter, dvdt)
-    do k = mesh%full_kds, mesh%full_kde
-      do j = mesh%half_jds, mesh%half_jde
-        do i = mesh%full_ids, mesh%full_ide
-          v%d(i,j,k) = v%d(i,j,k) + dt * dvdt%d(i,j,k)
-        end do
-      end do
-    end do
-    call fill_halo(v, async=.true.)
-
-    do k = mesh%full_kds, mesh%full_kde
-      do j = mesh%full_jds_no_pole, mesh%full_jde_no_pole
-        do i = mesh%full_ids, mesh%full_ide
-          dptdt%d(i,j,k) = kmh%d(i,j,k) * (                               &
-            (dmg%d(i-1,j,k) * pt%d(i-1,j,k) - 2 *                         &
-             dmg%d(i  ,j,k) * pt%d(i  ,j,k) +                             &
-             dmg%d(i+1,j,k) * pt%d(i+1,j,k)) / mesh%de_lon(j)**2 +        &
-            ((dmg%d(i,j+1,k) * pt%d(i,j+1,k) - dmg%d(i,j,k) * pt%d(i,j,k) &
-             ) / mesh%de_lat(j  ) * mesh%half_cos_lat(j  ) -              &
-             (dmg%d(i,j,k) * pt%d(i,j,k) - dmg%d(i,j-1,k) * pt%d(i,j-1,k) &
-             ) / mesh%de_lat(j-1) * mesh%half_cos_lat(j-1)                &
-            ) / mesh%le_lon(j) / mesh%full_cos_lat(j)                     &
-          ) / dmg%d(i,j,k)
-        end do
-      end do
-    end do
+    call grad_operator(pt, dptdx, dptdy, with_halo=.true.)
+    call div_operator(dptdx, dptdy, dptdt)
     call filter_run(block%small_filter, dptdt)
     do k = mesh%full_kds, mesh%full_kde
       do j = mesh%full_jds_no_pole, mesh%full_jde_no_pole
         do i = mesh%full_ids, mesh%full_ide
-          pt%d(i,j,k) = pt%d(i,j,k) + dt * dptdt%d(i,j,k)
+          pt%d(i,j,k) = pt%d(i,j,k) + dt * kmh%d(i,j,k) * dptdt%d(i,j,k)
         end do
       end do
     end do
     call fill_halo(pt, async=.true.)
+
+    if (nonhydrostatic) then
+      call interp_run(kmh, kmh_lev)
+      call grad_operator(w, dwdx, dwdy, with_halo=.true.)
+      call div_operator(dwdx, dwdy, dwdt)
+      call filter_run(block%small_filter, dwdt)
+      do k = mesh%half_kds + 1, mesh%half_kde
+        do j = mesh%full_jds_no_pole, mesh%full_jde_no_pole
+          do i = mesh%full_ids, mesh%full_ide
+            w%d(i,j,k) = w%d(i,j,k) + dt * kmh_lev%d(i,j,k) * dwdt%d(i,j,k)
+          end do
+        end do
+      end do
+      call fill_halo(w, async=.true.)
+    end if
     end associate
 
     call perf_stop('smag_damp_run')

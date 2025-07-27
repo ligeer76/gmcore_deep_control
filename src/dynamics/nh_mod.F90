@@ -202,7 +202,6 @@ contains
                adv_w_lev    => block%aux%adv_w_lev     , & ! in
                old_p        => old_dstate%p            , & ! in
                star_p       => star_dstate%p           , & ! in
-               star_p_lev   => star_dstate%p_lev       , & ! in
                old_w_lev    => old_dstate%w_lev        , & ! in
                star_w_lev   => star_dstate%w_lev       , & ! in
                new_w_lev    => new_dstate%w_lev        , & ! out

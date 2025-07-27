@@ -278,7 +278,7 @@ def plot_contour_map(ax, var,
 		circle = mpath.Path(verts * radius + center)
 		ax.set_boundary(circle, transform=ax.transAxes)
 
-def plot_time_series(ax, time, var, ylim=None, label=None, color='black', font_size=8):
+def plot_time_series(ax, time, var, ylim=None, label=None, color=None, font_size=8):
 	ax.plot(time, var, '-', color=color, label=label)
 	ax.tick_params(axis='both', labelsize=font_size)
 	if ylim is not None: ax.set_ylim(ylim)

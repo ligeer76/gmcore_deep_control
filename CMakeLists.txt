@@ -369,7 +369,6 @@ target_sources(gmcore PRIVATE
   src/utils/restart_mod.F90
   src/utils/sphere_geometry_mod.F90
   src/utils/time_mod.F90
-  src/utils/time_mod.F90
   src/utils/tridiag_mkl_mod.F90
   src/utils/tridiag_mod.F90
   src/utils/tridiag_spk_mod.F90

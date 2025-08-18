@@ -267,6 +267,12 @@ contains
       end do
       allocate(idx(ntracers))
       do iblk = 1, size(blocks)
+        if (allocated(blocks(iblk)%adv_batches)) then
+          do i = 1, size(blocks(iblk)%adv_batches)
+            call blocks(iblk)%adv_batches(i)%clear()
+          end do
+          deallocate(blocks(iblk)%adv_batches)
+        end if
         allocate(blocks(iblk)%adv_batches(nbatches))
         do i = 1, nbatches
           associate (batch => blocks(iblk)%adv_batches(i))

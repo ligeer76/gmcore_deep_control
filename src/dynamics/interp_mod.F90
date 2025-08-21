@@ -13,6 +13,7 @@ module interp_mod
   use namelist_mod
   use latlon_mesh_mod, mesh_type => latlon_mesh_type
   use latlon_field_types_mod
+  use latlon_parallel_mod
 
   implicit none
 
@@ -69,7 +70,7 @@ contains
 
   subroutine interp_run_3d(x, y, extrap, extrap_type)
 
-    type(latlon_field3d_type), intent(in   ) :: x
+    type(latlon_field3d_type), intent(inout) :: x
     type(latlon_field3d_type), intent(inout) :: y
     logical, intent(in), optional :: extrap
     integer, intent(in), optional :: extrap_type
@@ -79,6 +80,8 @@ contains
     integer i, j, k
 
     extrap_opt = .true.; if (present(extrap)) extrap_opt = extrap
+
+    call wait_halo(x)
 
     select case (trim(x%loc) // '>' // trim(y%loc))
     ! --------------------------------------------------------------------------
@@ -418,11 +421,12 @@ contains
 
   subroutine average_run_3d(x, y)
 
-    type(latlon_field3d_type), intent(in   ) :: x
+    type(latlon_field3d_type), intent(inout) :: x
     type(latlon_field3d_type), intent(inout) :: y
 
     integer i, j, k
 
+    call wait_halo(x)
 
     select case (trim(x%loc) // '>' // trim(y%loc))
     ! --------------------------------------------------------------------------

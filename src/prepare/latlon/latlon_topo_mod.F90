@@ -225,7 +225,7 @@ contains
                fx   => block%aux%fx_2d, &
                fy   => block%aux%fy_2d, &
                df   => block%aux%df_2d)
-    c0 = (-1)**(topo_smooth_order / 2 + 1) * topo_smooth_coef
+    c0 = (-1)**(topo_smooth_order / 2) * topo_smooth_coef
     do cyc = 1, topo_smooth_cycles
       call f%copy(gzs, with_halo=.true.)
       do k = 1, (topo_smooth_order - 2) / 2
@@ -239,7 +239,7 @@ contains
           if (abs(dzsdx%d(i,j)) < topo_max_slope) then
             fx%d(i,j) = abs(dzsdx%d(i,j)) / topo_max_slope * fx%d(i,j)
           end if
-          fx%d(i,j) = max(0.0_r8, min(lnd%d(i,j), lnd%d(i+1,j))) * fx%d(i,j)
+          fx%d(i,j) = c0 * max(0.0_r8, min(lnd%d(i,j), lnd%d(i+1,j))) * fx%d(i,j)
         end do
       end do
       do j = mesh%half_jds - merge(0, 1, mesh%has_south_pole()), mesh%half_jde
@@ -247,7 +247,7 @@ contains
           if (abs(dzsdy%d(i,j)) < topo_max_slope) then
             fy%d(i,j) = abs(dzsdy%d(i,j)) / topo_max_slope * fy%d(i,j)
           end if
-          fy%d(i,j) = max(0.0_r8, min(lnd%d(i,j), lnd%d(i,j+1))) * fy%d(i,j)
+          fy%d(i,j) = c0 * max(0.0_r8, min(lnd%d(i,j), lnd%d(i,j+1))) * fy%d(i,j)
         end do
       end do
       if (topo_smooth_order > 2) then
@@ -262,19 +262,9 @@ contains
           end do
         end do
       end if
-      do j = mesh%full_jds_no_pole, mesh%full_jde_no_pole
-        do i = mesh%half_ids - 1, mesh%full_ide
-          fx%d(i,j) = c0 * fx%d(i,j)
-        end do
-      end do
-      do j = mesh%half_jds - merge(0, 1, mesh%has_south_pole()), mesh%half_jde
-        do i = mesh%full_ids, mesh%full_ide
-          fy%d(i,j) = c0 * fy%d(i,j)
-        end do
-      end do
       call div_operator(fx, fy, df)
       call filter_run(block%small_filter, df)
-      call gzs%add(df)
+      call gzs%sub(df)
       call fill_halo(gzs)
       call calc_zs_slope(gzs, dzsdx, dzsdy)
     end do

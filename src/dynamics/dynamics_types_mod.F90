@@ -1726,7 +1726,7 @@ contains
         restart         =.false.                                             , &
         field           =this%dvdt_damp                                      )
     end if
-    if ((use_laplace_damp .or. use_smag_damp) .and. nonhydrostatic) then
+    if ((use_laplace_damp .or. use_sponge_layer .or. use_smag_damp) .and. nonhydrostatic) then
       call append_field(this%fields                                          , &
         name            ='dwdt_damp'                                         , &
         long_name       ='Tendency of vertical wind due to damping'          , &

@@ -51,7 +51,8 @@ module laplace_damp_mod
     module procedure laplace_damp_3d
   end interface laplace_damp
 
-  real(r8), allocatable, dimension(:), target :: sponge_layer
+  real(r8), allocatable :: full_sponge_layer(:)
+  real(r8), allocatable :: half_sponge_layer(:)
 
 contains
 
@@ -61,17 +62,22 @@ contains
 
     call laplace_damp_final()
 
-    allocate(sponge_layer(global_mesh%full_nlev))
-
+    allocate(full_sponge_layer(global_mesh%full_nlev))
     do k = global_mesh%full_kds, global_mesh%full_kde
-      sponge_layer(k) = exp_two_values(1.0_r8, 0.0_r8, 1.0_r8, real(sponge_layer_k0, r8), real(k, r8))
+      full_sponge_layer(k) = exp_two_values(1.0_r8, 0.0_r8, 1.0_r8, real(sponge_layer_k0, r8), real(k, r8))
+    end do
+
+    allocate(half_sponge_layer(global_mesh%half_nlev))
+    do k = global_mesh%half_kds, global_mesh%half_kde
+      half_sponge_layer(k) = exp_two_values(1.0_r8, 0.0_r8, 1.0_r8, real(sponge_layer_k0, r8), real(k, r8))
     end do
 
   end subroutine laplace_damp_init
 
   subroutine laplace_damp_final()
 
-    if (allocated(sponge_layer)) deallocate(sponge_layer)
+    if (allocated(full_sponge_layer)) deallocate(full_sponge_layer)
+    if (allocated(half_sponge_layer)) deallocate(half_sponge_layer)
 
   end subroutine laplace_damp_final
 
@@ -108,7 +114,6 @@ contains
     integer, intent(in) :: order
     real(r8), intent(in) :: coef
 
-    real(r8) work(f%mesh%full_ids:f%mesh%full_ide), pole
     real(r8) c0
     integer i, j, l
 
@@ -116,7 +121,7 @@ contains
 
     call perf_start('laplace_damp_2d')
 
-    c0 = (-1)**(order / 2 + 1) * coef
+    c0 = (-1)**(order / 2) * coef
 
     select case (f%loc)
     case ('cell')
@@ -132,6 +137,16 @@ contains
         call fill_halo(g)
       end do
       call grad_operator(g, fx, fy, with_halo=.true.)
+      do j = mesh%full_jds_no_pole, mesh%full_jde_no_pole
+        do i = mesh%half_ids - 1, mesh%half_ide
+          fx%d(i,j) = c0 * fx%d(i,j)
+        end do
+      end do
+      do j = mesh%half_jds - merge(0, 1, mesh%has_south_pole()), mesh%half_jde
+        do i = mesh%full_ids, mesh%full_ide
+          fy%d(i,j) = c0 * fy%d(i,j)
+        end do
+      end do
       if (order > 2) then
         do j = mesh%full_jds_no_pole, mesh%full_jde_no_pole
           do i = mesh%half_ids - 1, mesh%half_ide
@@ -144,19 +159,9 @@ contains
           end do
         end do
       end if
-      do j = mesh%full_jds_no_pole, mesh%full_jde_no_pole
-        do i = mesh%half_ids - 1, mesh%half_ide
-          fx%d(i,j) = c0 * fx%d(i,j)
-        end do
-      end do
-      do j = mesh%half_jds - merge(0, 1, mesh%has_south_pole()), mesh%half_jde
-        do i = mesh%full_ids, mesh%full_ide
-          fy%d(i,j) = c0 * fy%d(i,j)
-        end do
-      end do
       call div_operator(fx, fy, df)
       call filter_run(block%small_filter, df)
-      call f%add(df)
+      call f%sub(df)
       end associate
     end select
 
@@ -176,8 +181,7 @@ contains
     logical, intent(in), optional :: use_sponge_layer
 
     logical use_sponge_layer_opt
-    real(r8) work(f%mesh%full_ids:f%mesh%full_ide,f%mesh%full_nlev), pole(f%mesh%full_nlev)
-    real(r8) c0
+    real(r8) c0, cz
     integer i, j, k, l
 
     use_sponge_layer_opt = .false.; if (present(use_sponge_layer)) use_sponge_layer_opt = use_sponge_layer
@@ -186,7 +190,7 @@ contains
 
     call perf_start('laplace_damp_3d')
 
-    c0 = (-1)**(order / 2 + 1) * coef
+    c0 = (-1)**(order / 2) * coef
 
     select case (f%loc)
     case ('cell')
@@ -201,6 +205,19 @@ contains
         call fill_halo(g)
       end do
       call grad_operator(g, fx, fy, with_halo=.true.)
+      do k = mesh%full_kds, mesh%full_kde
+        cz = merge(full_sponge_layer(k), 1.0_r8, use_sponge_layer_opt)
+        do j = mesh%full_jds_no_pole, mesh%full_jde_no_pole
+          do i = mesh%half_ids - 1, mesh%half_ide
+            fx%d(i,j,k) = c0 * cz * fx%d(i,j,k)
+          end do
+        end do
+        do j = mesh%half_jds - merge(0, 1, mesh%has_south_pole()), mesh%half_jde
+          do i = mesh%full_ids, mesh%full_ide
+            fy%d(i,j,k) = c0 * cz * fy%d(i,j,k)
+          end do
+        end do
+      end do
       if (order > 2) then
         do k = mesh%full_kds, mesh%full_kde
           do j = mesh%full_jds_no_pole, mesh%full_jde_no_pole
@@ -215,23 +232,9 @@ contains
           end do
         end do
       end if
-      do k = mesh%full_kds, mesh%full_kde
-        do j = mesh%full_jds_no_pole, mesh%full_jde_no_pole
-          do i = mesh%half_ids - 1, mesh%half_ide
-            fx%d(i,j,k) = c0 * fx%d(i,j,k)
-          end do
-        end do
-      end do
-      do k = mesh%full_kds, mesh%full_kde
-        do j = mesh%half_jds - merge(0, 1, mesh%has_south_pole()), mesh%half_jde
-          do i = mesh%full_ids, mesh%full_ide
-            fy%d(i,j,k) = c0 * fy%d(i,j,k)
-          end do
-        end do
-      end do
       call div_operator(fx, fy, df)
       call filter_run(block%small_filter, df)
-      call f%add(df)
+      call f%sub(df)
       end associate
     case ('lon')
       associate (mesh => block%mesh         , &
@@ -245,6 +248,19 @@ contains
         call fill_halo(g)
       end do
       call grad_operator(g, fx, fy, with_halo=.true.)
+      do k = mesh%full_kds, mesh%full_kde
+        cz = merge(full_sponge_layer(k), 1.0_r8, use_sponge_layer_opt)
+        do j = mesh%full_jds_no_pole, mesh%full_jde_no_pole
+          do i = mesh%full_ids, mesh%full_ide + 1
+            fx%d(i,j,k) = c0 * cz * fx%d(i,j,k)
+          end do
+        end do
+        do j = mesh%half_jds - merge(0, 1, mesh%has_south_pole()), mesh%half_jde
+          do i = mesh%half_ids, mesh%half_ide
+            fy%d(i,j,k) = c0 * cz * fy%d(i,j,k)
+          end do
+        end do
+      end do
       if (order > 2) then
         do k = mesh%full_kds, mesh%full_kde
           do j = mesh%full_jds_no_pole, mesh%full_jde_no_pole
@@ -259,23 +275,9 @@ contains
           end do
         end do
       end if
-      do k = mesh%full_kds, mesh%full_kde
-        do j = mesh%full_jds_no_pole, mesh%full_jde_no_pole
-          do i = mesh%full_ids, mesh%full_ide + 1
-            fx%d(i,j,k) = c0 * fx%d(i,j,k)
-          end do
-        end do
-      end do
-      do k = mesh%full_kds, mesh%full_kde
-        do j = mesh%half_jds - merge(0, 1, mesh%has_south_pole()), mesh%half_jde
-          do i = mesh%half_ids, mesh%half_ide
-            fy%d(i,j,k) = c0 * fy%d(i,j,k)
-          end do
-        end do
-      end do
       call div_operator(fx, fy, df)
       call filter_run(block%small_filter, df)
-      call f%add(df)
+      call f%sub(df)
       end associate
     case ('lat')
       associate (mesh => block%mesh         , &
@@ -289,6 +291,19 @@ contains
         call fill_halo(g)
       end do
       call grad_operator(g, fx, fy, with_halo=.true.)
+      do k = mesh%full_kds, mesh%full_kde
+        cz = merge(full_sponge_layer(k), 1.0_r8, use_sponge_layer_opt)
+        do j = mesh%half_jds, mesh%half_jde
+          do i = mesh%half_ids - 1, mesh%half_ide
+            fx%d(i,j,k) = c0 * cz * fx%d(i,j,k)
+          end do
+        end do
+        do j = mesh%full_jds_no_pole, mesh%full_jde_no_pole + merge(0, 1, mesh%has_north_pole())
+          do i = mesh%full_ids, mesh%full_ide
+            fy%d(i,j,k) = c0 * cz * fy%d(i,j,k)
+          end do
+        end do
+      end do
       if (order > 2) then
         do k = mesh%full_kds, mesh%full_kde
           do j = mesh%half_jds, mesh%half_jde
@@ -303,23 +318,9 @@ contains
           end do
         end do
       end if
-      do k = mesh%full_kds, mesh%full_kde
-        do j = mesh%half_jds, mesh%half_jde
-          do i = mesh%half_ids - 1, mesh%half_ide
-            fx%d(i,j,k) = c0 * fx%d(i,j,k)
-          end do
-        end do
-      end do
-      do k = mesh%full_kds, mesh%full_kde
-        do j = mesh%full_jds_no_pole, mesh%full_jde_no_pole + merge(0, 1, mesh%has_north_pole())
-          do i = mesh%full_ids, mesh%full_ide
-            fy%d(i,j,k) = c0 * fy%d(i,j,k)
-          end do
-        end do
-      end do
       call div_operator(fx, fy, df)
       call filter_run(block%small_filter, df)
-      call f%add(df)
+      call f%sub(df)
       end associate
     case ('lev')
       associate (mesh => block%mesh         , &
@@ -333,6 +334,19 @@ contains
         call fill_halo(g)
       end do
       call grad_operator(g, fx, fy, with_halo=.true.)
+      do k = mesh%half_kds, mesh%half_kde
+        cz = merge(half_sponge_layer(k), 1.0_r8, use_sponge_layer_opt)
+        do j = mesh%full_jds_no_pole, mesh%full_jde_no_pole
+          do i = mesh%half_ids - 1, mesh%half_ide
+            fx%d(i,j,k) = c0 * cz * fx%d(i,j,k)
+          end do
+        end do
+        do j = mesh%half_jds - merge(0, 1, mesh%has_south_pole()), mesh%half_jde
+          do i = mesh%full_ids, mesh%full_ide
+            fy%d(i,j,k) = c0 * cz * fy%d(i,j,k)
+          end do
+        end do
+      end do
       if (order > 2) then
         do k = mesh%half_kds, mesh%half_kde
           do j = mesh%full_jds_no_pole, mesh%full_jde_no_pole
@@ -347,21 +361,10 @@ contains
           end do
         end do
       end if
-      do k = mesh%half_kds, mesh%half_kde
-        do j = mesh%full_jds_no_pole, mesh%full_jde_no_pole
-          do i = mesh%half_ids - 1, mesh%half_ide
-            fx%d(i,j,k) = c0 * fx%d(i,j,k)
-          end do
-        end do
-        do j = mesh%half_jds - merge(0, 1, mesh%has_south_pole()), mesh%half_jde
-          do i = mesh%full_ids, mesh%full_ide
-            fy%d(i,j,k) = c0 * fy%d(i,j,k)
-          end do
-        end do
-      end do
       call div_operator(fx, fy, df)
       call filter_run(block%small_filter, df)
-      call f%add(df)
+      if (f%name == 'gz_lev') df%d(:,:,mesh%half_kde) = 0
+      call f%sub(df)
       end associate
     end select
 

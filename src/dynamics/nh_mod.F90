@@ -93,6 +93,8 @@ contains
     call interp_run(mfz_lev, mfz)
     call wait_halo(mfx_lev_lon)
     call wait_halo(mfy_lev_lat)
+    call wait_halo(u_lev_lon)
+    call wait_halo(v_lev_lat)
     call block%adv_batch_nh%set_wind( &
       u                 =u_lev_lon  , &
       v                 =v_lev_lat  , &
@@ -115,6 +117,8 @@ contains
     real(r8), intent(in) :: dt
 
     integer i, j, k
+
+    call wait_halo(q_lev)
 
     associate (mesh     => block%mesh             , &
                dmf_lev  => block%aux%dmf_lev      , & ! in

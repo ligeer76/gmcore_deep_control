@@ -98,25 +98,14 @@ contains
 
     integer i, ierr
 
-    if (allocated(proc%ngb            )) deallocate(proc%ngb            )
-    if (allocated(proc%grid_proc_idmap)) deallocate(proc%grid_proc_idmap)
-    if (allocated(proc%global_grid_id )) deallocate(proc%global_grid_id )
-    if (allocated(proc%local_grid_id  )) deallocate(proc%local_grid_id  )
     if (allocated(blocks)) then
       do i = 1, size(blocks)
         call blocks(i)%clear()
       end do
       deallocate(blocks)
     end if
-    if (proc%group      /= MPI_GROUP_NULL) call MPI_GROUP_FREE(proc%group     , ierr)
-    if (proc%cart_group /= MPI_GROUP_NULL) call MPI_GROUP_FREE(proc%cart_group, ierr)
-    if (proc%comm_model /= MPI_COMM_NULL .and. proc%comm_model /= MPI_COMM_WORLD) then
-      call MPI_COMM_FREE (proc%comm_model, ierr)
-    end if
-    if (proc%comm_io    /= MPI_COMM_NULL .and. proc%comm_io    /= MPI_COMM_WORLD) then
-      call MPI_COMM_FREE (proc%comm_io   , ierr)
-    end if
 
+    call proc%clear()
     call MPI_FINALIZE(ierr)
 
   end subroutine process_final
@@ -157,6 +146,9 @@ contains
         proc%ngb(north)%lon_hw = 0
       end if
     end if
+
+    ! To avoid array out-of-bounds in FFSL, set minimal zonal halo width to 4.
+    lon_hw = max(5, lon_hw)
 
     if (lon_hw > blocks(1)%mesh%full_nlon .and. proc%is_model()) then
       call log_error('Too large zonal halo width ' // to_str(lon_hw) // '!', __FILE__, __LINE__)

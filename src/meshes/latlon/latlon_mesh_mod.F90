@@ -125,8 +125,6 @@ contains
     logical, intent(in), optional :: keep_lev
 
     integer nlev_opt, id_opt, lon_hw_opt, lat_hw_opt, lev_hw_opt
-    logical keep_lev_opt
-    real(8) dlat0
     real(16) x(3), y(3), z(3)
     integer i, j, ierr
 
@@ -206,6 +204,7 @@ contains
       if (this%full_lat(j) >= -pi05 .and. this%full_lat(j) <= pi05) then
         this%full_cos_lat(j) = cos(this%full_lat(j))
         this%full_sin_lat(j) = sin(this%full_lat(j))
+        if (abs(this%full_lat(j)) < eps) this%full_sin_lat(j) = 0
       end if
     end do
     do j = this%half_jms, this%half_jme
@@ -213,7 +212,7 @@ contains
       if (this%half_lat(j) >= -pi05 .and. this%half_lat(j) <= pi05) then
         this%half_cos_lat(j) = cos(this%half_lat(j))
         this%half_sin_lat(j) = sin(this%half_lat(j))
-        if (abs(this%half_lat(j)) < eps) this%half_sin_lat(j) = eps
+        if (abs(this%half_lat(j)) < eps) this%half_sin_lat(j) = 0
       end if
     end do
 
@@ -414,9 +413,9 @@ contains
     this%full_ide  = ide
     this%half_ids  = ids
     this%half_ide  = ide
-    this%full_nlat = jde - jds + 1
     this%full_jds  = jds
     this%full_jde  = jde
+    this%full_nlat = this%full_jde - this%full_jds + 1
     this%half_jds  = jds
     this%half_jde  = merge(jde - 1, jde, this%has_north_pole())
     this%half_nlat = this%half_jde - this%half_jds + 1

@@ -63,12 +63,12 @@ contains
     integer, intent(in) :: work(:)
     integer, intent(out) :: value
 
-#ifdef ENSURE_ORDER
+#ifdef CHECK_PARALLEL
     integer allvalue(global_mesh%full_nlon)
 #endif
     integer ierr
 
-#ifdef ENSURE_ORDER
+#ifdef CHECK_PARALLEL
     if (zonal_circle%np == 1) then
       value = sum(work)
     else
@@ -88,12 +88,12 @@ contains
     real(4), intent(in) :: work(:)
     real(4), intent(out) :: value
 
-#ifdef ENSURE_ORDER
+#ifdef CHECK_PARALLEL
     real(4) allvalue(global_mesh%full_nlon)
 #endif
     integer ierr
 
-#ifdef ENSURE_ORDER
+#ifdef CHECK_PARALLEL
     if (zonal_circle%np == 1) then
       value = sum(work)
     else
@@ -113,12 +113,12 @@ contains
     real(8), intent(in) :: work(:)
     real(8), intent(out) :: value
 
-#ifdef ENSURE_ORDER
+#ifdef CHECK_PARALLEL
     real(8) allvalue(global_mesh%full_nlon)
 #endif
     integer ierr
 
-#ifdef ENSURE_ORDER
+#ifdef CHECK_PARALLEL
     if (zonal_circle%np == 1) then
       value = sum(work)
     else
@@ -138,12 +138,12 @@ contains
     real(4), intent(in) :: work(:,:)
     real(4), intent(out) :: value(:)
 
-#ifdef ENSURE_ORDER
+#ifdef CHECK_PARALLEL
     real(4) allvalue(global_mesh%full_nlon,size(value))
 #endif
     integer ierr
 
-#ifdef ENSURE_ORDER
+#ifdef CHECK_PARALLEL
     if (zonal_circle%np == 1) then
       value = sum(work, dim=1)
     else
@@ -163,12 +163,12 @@ contains
     real(8), intent(in) :: work(:,:)
     real(8), intent(out) :: value(:)
 
-#ifdef ENSURE_ORDER
+#ifdef CHECK_PARALLEL
     real(8) allvalue(global_mesh%full_nlon,size(value))
 #endif
     integer ierr
 
-#ifdef ENSURE_ORDER
+#ifdef CHECK_PARALLEL
     if (zonal_circle%np == 1) then
       value = sum(work, dim=1)
     else

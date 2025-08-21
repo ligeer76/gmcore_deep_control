@@ -338,6 +338,8 @@ contains
 
     integer i, j, k
 
+    call wait_halo(dstate%gz_lev)
+
     call perf_start('calc_rhod')
 
     associate (mesh   => block%mesh    , &
@@ -814,15 +816,15 @@ contains
                dmg_vtx => block%aux%dmg_vtx, & ! in
                vor     => block%aux%vor    , & ! in
                pv      => block%aux%pv     )   ! out
-    call calc_vor(block, dstate, with_halo=substep<total_substeps)
+    call calc_vor(block, dstate)
     do k = mesh%full_kds, mesh%full_kde
-      do j = mesh%half_jds - merge(0, 1, mesh%has_south_pole()), mesh%half_jde
-        do i = mesh%half_ids - 1, mesh%half_ide
+      do j = mesh%half_jds, mesh%half_jde
+        do i = mesh%half_ids, mesh%half_ide
           pv%d(i,j,k) = (vor%d(i,j,k) + mesh%f_lat(j)) / dmg_vtx%d(i,j,k)
         end do
       end do
     end do
-    if (.not. save_dyn_calc .or. substep == total_substeps) call fill_halo(pv)
+    call fill_halo(pv)
     end associate
 
     call perf_stop('calc_pv')
@@ -858,10 +860,8 @@ contains
         end do
       end do
     end do
-    if (substep == total_substeps .or. .not. save_dyn_calc) then
-      call fill_halo(pv_lon, east_halo=.false., south_halo=.false., async=.true.)
-      call fill_halo(pv_lat, west_halo=.false., north_halo=.false., async=.true.)
-    end if
+    call fill_halo(pv_lon, east_halo=.false., south_halo=.false., async=.true.)
+    call fill_halo(pv_lat, west_halo=.false., north_halo=.false., async=.true.)
     end associate
 
     call perf_stop('interp_pv_midpoint')
@@ -876,9 +876,7 @@ contains
     integer, intent(in) :: substep
 
     real(r8) b
-    integer upwind_order, i, j, k
-
-    upwind_order = merge(1, upwind_order_pv, save_dyn_calc .and. substep < total_substeps)
+    integer i, j, k
 
     call perf_start('interp_pv_upwind')
 
@@ -890,7 +888,7 @@ contains
                pv     => block%aux%pv    , & ! in
                pv_lon => block%aux%pv_lon, & ! out
                pv_lat => block%aux%pv_lat)   ! out
-    select case (upwind_order)
+    select case (upwind_order_pv)
     case (1)
       do k = mesh%full_kds, mesh%full_kde
         do j = mesh%full_jds_no_pole, mesh%full_jde_no_pole
@@ -961,9 +959,7 @@ contains
     integer, intent(in) :: substep
 
     real(r8) b
-    integer weno_order, i, j, k
-
-    weno_order = merge(1, weno_order_pv, save_dyn_calc .and. substep < total_substeps)
+    integer i, j, k
 
     call perf_start('interp_pv_weno')
 
@@ -975,7 +971,7 @@ contains
                pv     => block%aux%pv    , & ! in
                pv_lon => block%aux%pv_lon, & ! out
                pv_lat => block%aux%pv_lat)   ! out
-    select case (weno_order)
+    select case (weno_order_pv)
     case (1)
       do k = mesh%full_kds, mesh%full_kde
         do j = mesh%full_jds_no_pole, mesh%full_jde_no_pole
@@ -1049,6 +1045,9 @@ contains
     real(r8) tmp
     integer i, j, k
 
+    call wait_halo(block%aux%pv_lon)
+    call wait_halo(block%aux%pv_lat)
+
     call perf_start('calc_coriolis')
 
     associate (mesh    => block%mesh       , &
@@ -1062,8 +1061,6 @@ contains
                dvdt    => dtend%dvdt       )   ! out
     select case (coriolis_scheme)
     case (1)
-      call wait_halo(pv_lon)
-      call wait_halo(pv_lat)
       do k = mesh%full_kds, mesh%full_kde
         do j = mesh%half_jds, mesh%half_jde
           do i = mesh%full_ids, mesh%full_ide

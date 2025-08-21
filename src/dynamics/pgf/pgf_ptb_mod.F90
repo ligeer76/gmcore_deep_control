@@ -130,6 +130,8 @@ contains
     real(r8) L, tmp1, tmp2, tmp3, tmp4, tmp
     integer i, j, k
 
+    if (nonhydrostatic) call wait_halo(dstate%p_lev)
+
     associate (mesh   => block%mesh            , &
                pro    => ref_profiles(block%id), & ! in
                qm     => tracers(block%id)%qm  , & ! in
@@ -144,7 +146,6 @@ contains
                gz     => dstate%gz             , & ! in
                dudt   => dtend%dudt            , & ! out
                dvdt   => dtend%dvdt            )   ! out
-    if (nonhydrostatic) call wait_halo(p_lev)
     do k = mesh%full_kds, mesh%full_kde
       do j = mesh%full_jds, mesh%full_jde + merge(0, 1, mesh%has_north_pole())
         do i = mesh%full_ids, mesh%full_ide + 1

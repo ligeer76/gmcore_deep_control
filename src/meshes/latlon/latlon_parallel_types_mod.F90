@@ -93,6 +93,8 @@ module latlon_parallel_types_mod
     procedure :: is_root => process_is_root
     procedure :: is_model => process_is_model
     procedure :: is_io => process_is_io
+    procedure :: clear => process_clear
+    final :: process_final
   end type process_type
 
   type(process_type) proc
@@ -243,5 +245,35 @@ contains
     res = this%type == proc_type_io
 
   end function process_is_io
+
+  subroutine process_clear(this)
+
+    class(process_type), intent(inout) :: this
+
+    integer ierr
+
+    if (allocated(this%ngb            )) deallocate(this%ngb            )
+    if (allocated(this%grid_proc_idmap)) deallocate(this%grid_proc_idmap)
+    if (allocated(this%global_grid_id )) deallocate(this%global_grid_id )
+    if (allocated(this%local_grid_id  )) deallocate(this%local_grid_id  )
+
+    if (this%group      /= MPI_GROUP_NULL) call MPI_GROUP_FREE(this%group     , ierr)
+    if (this%cart_group /= MPI_GROUP_NULL) call MPI_GROUP_FREE(this%cart_group, ierr)
+    if (this%comm_model /= MPI_COMM_NULL .and. this%comm_model /= MPI_COMM_WORLD) then
+      call MPI_COMM_FREE (this%comm_model, ierr)
+    end if
+    if (this%comm_io    /= MPI_COMM_NULL .and. this%comm_io    /= MPI_COMM_WORLD) then
+      call MPI_COMM_FREE (this%comm_io   , ierr)
+    end if
+
+  end subroutine process_clear
+
+  subroutine process_final(this)
+
+    type(process_type), intent(inout) :: this
+
+    call this%clear()
+
+  end subroutine process_final
 
 end module latlon_parallel_types_mod

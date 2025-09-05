@@ -357,6 +357,7 @@ target_sources(gmcore PRIVATE
   src/utils/regrid_mod.F90
   src/utils/block_mod.F90
   src/utils/const_mod.F90
+  src/utils/array_utils_mod.F90
   src/utils/debug_mod.F90
   src/utils/formula_mod.F90
   src/utils/gas_mod.F90

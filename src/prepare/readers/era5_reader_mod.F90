@@ -3,6 +3,7 @@ module era5_reader_mod
   use fiona
   use flogger
   use const_mod
+  use array_utils_mod
   use namelist_mod
   use time_mod
   use formula_mod
@@ -40,7 +41,7 @@ contains
     real(r8), intent(in) :: min_lat_in
     real(r8), intent(in) :: max_lat_in
 
-    integer i, j, k, k0
+    integer i, j, k
     character(50) level_name, time_name, time_units
     real(r8) min_lat, max_lat, time_value
 
@@ -96,16 +97,16 @@ contains
 
     ! Reverse vertical order.
     if (era5_lev(1) > era5_lev(2)) then
-      era5_lev = era5_lev(era5_nlev:1:-1)
-      era5_u   = era5_u  (:,:,era5_nlev:1:-1)
-      era5_v   = era5_v  (:,:,era5_nlev:1:-1)
-      era5_t   = era5_t  (:,:,era5_nlev:1:-1)
-      era5_z   = era5_z  (:,:,era5_nlev:1:-1)
-      if (allocated(era5_qv)) era5_qv = era5_qv(:,:,era5_nlev:1:-1)
-      if (allocated(era5_qc)) era5_qc = era5_qc(:,:,era5_nlev:1:-1)
-      if (allocated(era5_qi)) era5_qi = era5_qi(:,:,era5_nlev:1:-1)
-      if (allocated(era5_qr)) era5_qr = era5_qr(:,:,era5_nlev:1:-1)
-      if (allocated(era5_qs)) era5_qs = era5_qs(:,:,era5_nlev:1:-1)
+      call reverse_array(era5_lev)
+      call reverse_array(era5_u  , 3)
+      call reverse_array(era5_v  , 3)
+      call reverse_array(era5_t  , 3)
+      call reverse_array(era5_z  , 3)
+      if (allocated(era5_qv)) call reverse_array(era5_qv, 3)
+      if (allocated(era5_qc)) call reverse_array(era5_qc, 3)
+      if (allocated(era5_qi)) call reverse_array(era5_qi, 3)
+      if (allocated(era5_qr)) call reverse_array(era5_qr, 3)
+      if (allocated(era5_qs)) call reverse_array(era5_qs, 3)
     end if
 
     do j = 1, era5_nlat

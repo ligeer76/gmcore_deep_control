@@ -147,7 +147,7 @@ contains
       end if
     end if
 
-    ! To avoid array out-of-bounds in FFSL, set minimal zonal halo width to 4.
+    ! To avoid array out-of-bounds in FFSL, set minimal zonal halo width to 5.
     lon_hw = max(5, lon_hw)
 
     if (lon_hw > blocks(1)%mesh%full_nlon .and. proc%is_model()) then

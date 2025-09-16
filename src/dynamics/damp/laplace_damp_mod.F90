@@ -51,8 +51,8 @@ module laplace_damp_mod
     module procedure laplace_damp_3d
   end interface laplace_damp
 
-  real(r8), allocatable :: full_sponge_layer(:)
-  real(r8), allocatable :: half_sponge_layer(:)
+  real(r8), allocatable :: full_lev_coef(:)
+  real(r8), allocatable :: half_lev_coef(:)
 
 contains
 
@@ -62,34 +62,35 @@ contains
 
     call laplace_damp_final()
 
-    allocate(full_sponge_layer(global_mesh%full_nlev))
+    allocate(full_lev_coef(global_mesh%full_nlev))
     do k = global_mesh%full_kds, global_mesh%full_kde
-      full_sponge_layer(k) = exp_two_values(1.0_r8, 0.0_r8, 1.0_r8, real(sponge_layer_k0, r8), real(k, r8))
+      full_lev_coef(k) = exp_two_values(1.0_r8, 0.0_r8, 1.0_r8, real(sponge_layer_k0, r8), real(k, r8))
     end do
 
-    allocate(half_sponge_layer(global_mesh%half_nlev))
+    allocate(half_lev_coef(global_mesh%half_nlev))
     do k = global_mesh%half_kds, global_mesh%half_kde
-      half_sponge_layer(k) = exp_two_values(1.0_r8, 0.0_r8, 1.0_r8, real(sponge_layer_k0, r8), real(k, r8))
+      half_lev_coef(k) = exp_two_values(1.0_r8, 0.0_r8, 1.0_r8, real(sponge_layer_k0, r8), real(k, r8))
     end do
 
   end subroutine laplace_damp_init
 
   subroutine laplace_damp_final()
 
-    if (allocated(full_sponge_layer)) deallocate(full_sponge_layer)
-    if (allocated(half_sponge_layer)) deallocate(half_sponge_layer)
+    if (allocated(full_lev_coef)) deallocate(full_lev_coef)
+    if (allocated(half_lev_coef)) deallocate(half_lev_coef)
 
   end subroutine laplace_damp_final
 
-  subroutine laplace_damp_run(block, dstate)
+  subroutine laplace_damp_run(block, dstate, dt)
 
     type(block_type), intent(inout) :: block
     type(dstate_type), intent(inout) :: dstate
+    real(r8), intent(in) :: dt
 
-    call laplace_damp(block, dstate%u_lon, laplace_damp_order, laplace_damp_coef, block%aux%dudt_damp)
-    call laplace_damp(block, dstate%v_lat, laplace_damp_order, laplace_damp_coef, block%aux%dvdt_damp)
+    call laplace_damp(block, dstate%u_lon, laplace_damp_order, laplace_damp_coef * dt, block%aux%dudt_damp)
+    call laplace_damp(block, dstate%v_lat, laplace_damp_order, laplace_damp_coef * dt, block%aux%dvdt_damp)
     if (nonhydrostatic) then
-      call laplace_damp(block, dstate%w_lev, laplace_damp_order, laplace_damp_coef, block%aux%dwdt_damp)
+      call laplace_damp(block, dstate%w_lev, laplace_damp_order, laplace_damp_coef * dt, block%aux%dwdt_damp)
     end if
 
   end subroutine laplace_damp_run
@@ -206,7 +207,7 @@ contains
       end do
       call grad_operator(g, fx, fy, with_halo=.true.)
       do k = mesh%full_kds, mesh%full_kde
-        cz = merge(full_sponge_layer(k), 1.0_r8, use_sponge_layer_opt)
+        cz = merge(full_lev_coef(k), 1.0_r8, use_sponge_layer_opt)
         do j = mesh%full_jds_no_pole, mesh%full_jde_no_pole
           do i = mesh%half_ids - 1, mesh%half_ide
             fx%d(i,j,k) = c0 * cz * fx%d(i,j,k)
@@ -249,7 +250,7 @@ contains
       end do
       call grad_operator(g, fx, fy, with_halo=.true.)
       do k = mesh%full_kds, mesh%full_kde
-        cz = merge(full_sponge_layer(k), 1.0_r8, use_sponge_layer_opt)
+        cz = merge(full_lev_coef(k), 1.0_r8, use_sponge_layer_opt)
         do j = mesh%full_jds_no_pole, mesh%full_jde_no_pole
           do i = mesh%full_ids, mesh%full_ide + 1
             fx%d(i,j,k) = c0 * cz * fx%d(i,j,k)
@@ -292,7 +293,7 @@ contains
       end do
       call grad_operator(g, fx, fy, with_halo=.true.)
       do k = mesh%full_kds, mesh%full_kde
-        cz = merge(full_sponge_layer(k), 1.0_r8, use_sponge_layer_opt)
+        cz = merge(full_lev_coef(k), 1.0_r8, use_sponge_layer_opt)
         do j = mesh%half_jds, mesh%half_jde
           do i = mesh%half_ids - 1, mesh%half_ide
             fx%d(i,j,k) = c0 * cz * fx%d(i,j,k)
@@ -335,7 +336,7 @@ contains
       end do
       call grad_operator(g, fx, fy, with_halo=.true.)
       do k = mesh%half_kds, mesh%half_kde
-        cz = merge(half_sponge_layer(k), 1.0_r8, use_sponge_layer_opt)
+        cz = merge(half_lev_coef(k), 1.0_r8, use_sponge_layer_opt)
         do j = mesh%full_jds_no_pole, mesh%full_jde_no_pole
           do i = mesh%half_ids - 1, mesh%half_ide
             fx%d(i,j,k) = c0 * cz * fx%d(i,j,k)

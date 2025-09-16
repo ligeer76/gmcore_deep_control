@@ -35,7 +35,7 @@ module namelist_mod
   ! 2 : Update dynamics and tracers after advection.
   ! 3 : Update dynamics and tracers after physics.
   ! 14: Update modified potential temperature in RK substeps and others like 1.
-  integer         :: pdc_type             = 1
+  integer         :: pdc_type             = 14
 
   character(256)  :: case_desc            = 'N/A'
   character(256)  :: case_name            = 'N/A'
@@ -147,7 +147,7 @@ module namelist_mod
   real(r8)        :: filter_coef_a        = 3.5_r8
   real(r8)        :: filter_coef_b        = 0.5_r8
   real(r8)        :: filter_coef_c        = 0.3_r8
-  real(r8)        :: filter_gauss_sigma   = 8.0_r8
+  real(r8)        :: filter_gauss_sigma   = 8.8_r8
   real(r8)        :: filter_min_width     = 0.0_r8
 
   ! Damping settings
@@ -185,6 +185,9 @@ module namelist_mod
   logical         :: use_sponge_layer     = .false.
   integer         :: sponge_layer_k0      = 6
   real(r8)        :: sponge_layer_coef    = 1.0e6_r8
+  logical         :: use_pole_damp        = .true.
+  real(r8)        :: pole_damp_coef       = 0.25_r8
+  real(r8)        :: pole_damp_lat0       = 60
 
   ! Input settings
   integer         :: input_ngroups        = 0
@@ -343,6 +346,9 @@ module namelist_mod
     use_sponge_layer          , &
     sponge_layer_k0           , &
     sponge_layer_coef         , &
+    use_pole_damp             , &
+    pole_damp_coef            , &
+    pole_damp_lat0            , &
     input_ngroups             , &
     output_h0                 , &
     append_h0                 , &
@@ -541,6 +547,11 @@ contains
       write(*, *) 'sponge_layer_k0     = ', to_str(sponge_layer_k0)
       write(*, *) 'sponge_layer_coef   = ', sponge_layer_coef
     end if
+      write(*, *) 'use_pole_damp       = ', to_str(use_pole_damp)
+    if (use_pole_damp) then
+      write(*, *) 'pole_damp_coef      = ', pole_damp_coef
+      write(*, *) 'pole_damp_lat0      = ', pole_damp_lat0
+    end if
       write(*, *) '========================================================='
 
   end subroutine print_namelist
@@ -590,6 +601,11 @@ contains
     if (use_sponge_layer) then
       call fiona_add_att(tag, 'sponge_layer_k0', sponge_layer_k0)
       call fiona_add_att(tag, 'sponge_layer_coef', sponge_layer_coef)
+    end if
+    call fiona_add_att(tag, 'use_pole_damp', merge(1, 0, use_pole_damp))
+    if (use_pole_damp) then
+      call fiona_add_att(tag, 'pole_damp_coef', pole_damp_coef)
+      call fiona_add_att(tag, 'pole_damp_lat0', pole_damp_lat0)
     end if
 
   end subroutine namelist_add_atts

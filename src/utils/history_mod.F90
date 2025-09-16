@@ -416,10 +416,11 @@ contains
     ! Global attributes
     call fiona_add_att('h2', 'planet', planet)
     ! Dimensions
-    call fiona_add_dim('h2', 'time' , add_var=.true.)
-    call fiona_add_dim('h2', 'lon'  , size=regrid_global_mesh%full_nlon, add_var=.true., decomp=.true.)
-    call fiona_add_dim('h2', 'lat'  , size=regrid_global_mesh%full_nlat, add_var=.true., decomp=.true.)
-    call fiona_add_dim('h2', 'lev'  , long_name='Pressure level', units='Pa', size=regrid_global_mesh%full_nlev, add_var=.true., decomp=.false.)
+    call fiona_add_dim('h2', 'time', add_var=.true.)
+    call fiona_add_dim('h2', 'lon' , size=regrid_global_mesh%full_nlon, add_var=.true., decomp=.true.)
+    call fiona_add_dim('h2', 'lat' , size=regrid_global_mesh%full_nlat, add_var=.true., decomp=.true.)
+    call fiona_add_dim('h2', 'lev' , long_name='Pressure level', units='Pa', size=regrid_global_mesh%full_nlev, add_var=.true., decomp=.false.)
+    call fiona_add_var('h2', 'area', long_name='Cell area'     , units='m2', dim_names=['lat'], dtype=output_h0_dtype)
 
     do i = 1, regrids(1)%nfields
       call fiona_add_var('h2', regrids(1)%fields(i)%name, regrids(1)%fields(i)%long_name, regrids(1)%fields(i)%units, &
@@ -446,9 +447,12 @@ contains
       call fiona_start_output('h2', dble(elapsed_seconds), new_file=.not.append_h0, tag=curr_time%format('%Y-%m-%d_%H_%M'))
     end if
 
-    call fiona_output('h2', 'lon', regrid_global_mesh%full_lon_deg(1:regrid_global_mesh%full_nlon), only_root=.true.)
-    call fiona_output('h2', 'lat', regrid_global_mesh%full_lat_deg(1:regrid_global_mesh%full_nlat), only_root=.true.)
-    call fiona_output('h2', 'lev', regrid_global_mesh%full_lev(1:regrid_global_mesh%full_nlev)    , only_root=.true.)
+    if (first_call .or. time_has_alert('h0_new_file')) then
+      call fiona_output('h2', 'lon' , regrid_global_mesh%full_lon_deg(1:regrid_global_mesh%full_nlon), only_root=.true.)
+      call fiona_output('h2', 'lat' , regrid_global_mesh%full_lat_deg(1:regrid_global_mesh%full_nlat), only_root=.true.)
+      call fiona_output('h2', 'lev' , regrid_global_mesh%full_lev    (1:regrid_global_mesh%full_nlev), only_root=.true.)
+      call fiona_output('h2', 'area', regrid_global_mesh%area_cell   (1:regrid_global_mesh%full_nlat), only_root=.true.)
+    end if
 
     is = regrids(1)%mesh%full_ids; ie = regrids(1)%mesh%full_ide
     js = regrids(1)%mesh%full_jds; je = regrids(1)%mesh%full_jde
@@ -465,6 +469,8 @@ contains
       time2 = MPI_WTIME()
       call log_notice('Done write h2 file cost ' // to_str(time2 - time1, 5) // ' seconds.')
     end if
+
+    first_call = .false.
 
   end subroutine history_write_h2
 

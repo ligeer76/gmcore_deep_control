@@ -516,16 +516,20 @@ contains
               qmfy%d(i,j,k) = 0
             else if (cfly%d(i,j,k) > 0) then
               ju = j
+#ifdef CHECK_PARALLEL
               if (ju - 2 < qy%mesh%full_jms .or. ju + 2 > qy%mesh%full_jme) then
                 call log_error('Upstream point exceeds the bounds!', __FILE__, __LINE__)
               end if
+#endif
               qr = ppm3(cfly%d(i,j,k), qy%d(i,ju-2,k), qy%d(i,ju-1,k), qy%d(i,ju,k), qy%d(i,ju+1,k), qy%d(i,ju+2,k))
               qmfy%d(i,j,k) = mfy%d(i,j,k) * qr
             else if (cfly%d(i,j,k) < 0) then
               ju = j + 1
+#ifdef CHECK_PARALLEL
               if (ju - 2 < qy%mesh%full_jms .or. ju + 2 > qy%mesh%full_jme) then
                 call log_error('Upstream point exceeds the bounds!', __FILE__, __LINE__)
               end if
+#endif
               qr = ppm3(cfly%d(i,j,k), qy%d(i,ju-2,k), qy%d(i,ju-1,k), qy%d(i,ju,k), qy%d(i,ju+1,k), qy%d(i,ju+2,k))
               qmfy%d(i,j,k) = mfy%d(i,j,k) * qr
             end if
@@ -625,7 +629,7 @@ contains
             else if (cflz%d(i,j,k) > 0) then
               ku = k - ci - 1
 #ifdef CHECK_PARALLEL
-              if (ku - 2 < q%mesh%half_kms .or. ku + 2 > q%mesh%half_kme) then
+              if (ku - 2 < q%mesh%full_kms .or. ku + 2 > q%mesh%full_kme) then
                 call log_error('Upstream point exceeds the bounds!', __FILE__, __LINE__)
               end if
 #endif
@@ -634,7 +638,7 @@ contains
             else
               ku = k - ci
 #ifdef CHECK_PARALLEL
-              if (ku - 2 < q%mesh%half_kms .or. ku + 2 > q%mesh%half_kme) then
+              if (ku - 2 < q%mesh%full_kms .or. ku + 2 > q%mesh%full_kme) then
                 call log_error('Upstream point exceeds the bounds!', __FILE__, __LINE__)
               end if
 #endif
@@ -654,10 +658,20 @@ contains
               qmfz%d(i,j,k) = 0
             else if (cflz%d(i,j,k) > 0) then
               ku = k - ci
+#ifdef CHECK_PARALLEL
+              if (ku - 2 < q%mesh%half_kms .or. ku + 2 > q%mesh%half_kme) then
+                call log_error('Upstream point exceeds the bounds!', __FILE__, __LINE__)
+              end if
+#endif
               qr = ppm3(cf, q%d(i,j,ku-2), q%d(i,j,ku-1), q%d(i,j,ku), q%d(i,j,ku+1), q%d(i,j,ku+2))
               qmfz%d(i,j,k) = mfz_frac%d(i,j,k) * qr + sum(m%d(i,j,ku+1:k) * q%d(i,j,ku+1:k)) / dt
             else
               ku = k - ci + 1
+#ifdef CHECK_PARALLEL
+              if (ku - 2 < q%mesh%half_kms .or. ku + 2 > q%mesh%half_kme) then
+                call log_error('Upstream point exceeds the bounds!', __FILE__, __LINE__)
+              end if
+#endif
               qr = ppm3(cf, q%d(i,j,ku-2), q%d(i,j,ku-1), q%d(i,j,ku), q%d(i,j,ku+1), q%d(i,j,ku+2))
               qmfz%d(i,j,k) = mfz_frac%d(i,j,k) * qr - sum(m%d(i,j,k+1:ku-1) * q%d(i,j,k+1:ku-1)) / dt
             end if

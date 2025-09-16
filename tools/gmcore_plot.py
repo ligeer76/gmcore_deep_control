@@ -242,6 +242,8 @@ def plot_contour_map(ax, var,
 			exit(1)
 	if add_cyclic_point: var, lon = cutil.add_cyclic_point(var, coord=lon)
 	# Use transform_first as in https://scitools.org.uk/cartopy/docs/latest/gallery/scalar_data/contour_transforms.html to avoid failure in contouring.
+	if isinstance(ax.projection, ccrs.NorthPolarStereo) or isinstance(ax.projection, ccrs.SouthPolarStereo):
+		transform_first = False
 	lon2d, lat2d = np.meshgrid(lon, lat) # Needs 2D coordinates for transform_first=True.
 	im = ax.contourf(lon2d, lat2d, var, transform=ccrs.PlateCarree(), cmap=cmap, levels=levels, extend='both', transform_first=transform_first)
 	if with_contour:

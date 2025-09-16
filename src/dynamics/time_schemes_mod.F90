@@ -156,7 +156,7 @@ contains
     integer, intent(in) :: substep
 
     integer i, j, k
-    real(r8) c
+    real(r8) c, lat0
     real(r8) tmp(block%mesh%full_ids-1:block%mesh%full_ide+1)
 
     associate (mesh   => block%mesh  , &
@@ -225,14 +225,15 @@ contains
         end do
       end do
       ! ------------------------------------------------------------------------
-      if (substep == total_substeps) then
+      if (substep == total_substeps .and. use_pole_damp) then
         call fill_halo(new_dstate%u_lon, south_halo=.false., north_halo=.false.)
+        lat0 = abs(global_mesh%full_lat_deg(2))
         do j = mesh%full_jds_no_pole, mesh%full_jde_no_pole
-          c = exp_two_values(1.0_r8, 0.0_r8, 90.0_r8, 60.0_r8, abs(mesh%full_lat_deg(j)))
+          c = exp_two_values(1.0_r8, 0.0_r8, lat0, pole_damp_lat0, abs(mesh%full_lat_deg(j)))
           do k = mesh%full_kds, mesh%full_kde
             tmp = new_dstate%u_lon%d(mesh%half_ids-1:mesh%half_ide+1,j,k)
             do i = mesh%half_ids, mesh%half_ide
-              new_dstate%u_lon%d(i,j,k) = (1 - 0.5_r8 * c) * new_dstate%u_lon%d(i,j,k) + 0.25_r8 * c * (tmp(i-1) + tmp(i+1))
+              new_dstate%u_lon%d(i,j,k) = (1 - 2 * pole_damp_coef * c) * new_dstate%u_lon%d(i,j,k) + pole_damp_coef * c * (tmp(i-1) + tmp(i+1))
             end do
           end do
         end do
@@ -267,14 +268,15 @@ contains
         end do
       end if
       ! ------------------------------------------------------------------------
-      if (substep == total_substeps) then
+      if (substep == total_substeps .and. use_pole_damp) then
         call fill_halo(new_dstate%v_lat, south_halo=.false., north_halo=.false.)
+        lat0 = abs(global_mesh%half_lat_deg(1))
         do j = mesh%half_jds, mesh%half_jde
-          c = exp_two_values(1.0_r8, 0.0_r8, 90.0_r8, 60.0_r8, abs(mesh%half_lat_deg(j)))
+          c = exp_two_values(1.0_r8, 0.0_r8, lat0, pole_damp_lat0, abs(mesh%half_lat_deg(j)))
           do k = mesh%full_kds, mesh%full_kde
             tmp = new_dstate%v_lat%d(mesh%full_ids-1:mesh%full_ide+1,j,k)
             do i = mesh%full_ids, mesh%full_ide
-              new_dstate%v_lat%d(i,j,k) = (1 - 0.5_r8 * c) * new_dstate%v_lat%d(i,j,k) + 0.25_r8 * c * (tmp(i-1) + tmp(i+1))
+              new_dstate%v_lat%d(i,j,k) = (1 - 2 * pole_damp_coef * c) * new_dstate%v_lat%d(i,j,k) + pole_damp_coef * c * (tmp(i-1) + tmp(i+1))
             end do
           end do
         end do

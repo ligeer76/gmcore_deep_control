@@ -144,7 +144,7 @@ subroutine simple_physics(pcols, pver, dtime, lat, t, q, u, v, pmid, pint, pdel,
   real(r8) C                                    ! Drag coefficient for sensible heat and evaporation
   real(r8) T00                                  ! Horizontal mean T at surface for moist baro test
   real(r8) u0                                   ! Zonal wind constant for moist baro test
-  real(r8) latw                                 ! halfwidth for  for baro test
+  real(r8) latw                                 ! Halfwidth for baro test
   real(r8) eta0                                 ! Center of jets (hybrid) for baro test
   real(r8) etav                                 ! Auxiliary variable for baro test
   real(r8) q0                                   ! Maximum specific humidity for baro test
@@ -186,8 +186,6 @@ subroutine simple_physics(pcols, pver, dtime, lat, t, q, u, v, pmid, pint, pdel,
   ! Variable for Dry Mass Adjustment, this dry air adjustment is necessary to
   ! conserve the mass of the dry air
 
-  real(r8) qini(pcols,pver)                     ! Initial specific humidity
-
   gravit   = 9.80616_r8                         ! Gravity (9.80616 m/s^2)
   rair     = 287.0_r8                           ! Gas constant for dry air: 287 J/(kg K)
   cpair    = 1.0045e3_r8                        ! Specific heat of dry air: here we use 1004.5 J/(kg K)
@@ -214,7 +212,7 @@ subroutine simple_physics(pcols, pver, dtime, lat, t, q, u, v, pmid, pint, pdel,
   pblconst = 10000._r8                          ! Constant for the calculation of the decay of diffusivity
   T00      = 288.0_r8                           ! Horizontal mean T at surface for moist baro test
   u0       = 35.0_r8                            ! Zonal wind constant for moist baro test
-  latw     = 2 * pi / 9.0_r8                    ! Halfwidth for  for baro test
+  latw     = 2 * pi / 9.0_r8                    ! Halfwidth for baro test
   eta0     = 0.252_r8                           ! Center of jets (hybrid) for baro test
   etav     = (1 - eta0) * 0.5_r8 * pi           ! Auxiliary variable for baro test
   q0       = 0.021_r8                           ! Maximum specific humidity for baro test
@@ -227,9 +225,6 @@ subroutine simple_physics(pcols, pver, dtime, lat, t, q, u, v, pmid, pint, pdel,
     za(i)        = rair / gravit * t(i,pver) * (1 + zvir * q(i,pver)) * 0.5_r8 * dlnpint
     zi(i,pver+1) = 0
   end do
-
-  ! Set Initial Specific Humidity
-  qini(:pcols,:pver) = q(:pcols,:pver)
 
   ! Set Sea Surface Temperature (constant for tropical cyclone)
   ! Tsurf needs to be dependent on latitude for moist baroclinic wave test

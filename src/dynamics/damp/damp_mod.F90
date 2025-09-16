@@ -56,7 +56,7 @@ contains
     integer j, m
 
     if (use_laplace_damp) then
-      call laplace_damp_run(block, dstate)
+      call laplace_damp_run(block, dstate, dt)
     end if
     if (use_vor_damp) then
       do j = 1, vor_damp_cycles

@@ -64,6 +64,7 @@ contains
 
     integer nblk, iblk, icol, i, j
     integer , allocatable :: ncol(:)
+    integer , allocatable :: gid (:,:)
     real(r8), allocatable :: lon (:,:)
     real(r8), allocatable :: lat (:,:)
     real(r8), allocatable :: area(:,:)
@@ -77,6 +78,7 @@ contains
     nblk = size(blocks)
     allocate(ncol(nblk))
     ncol = blocks(:)%mesh%full_nlon * blocks(:)%mesh%full_nlat
+    allocate(gid (maxval(ncol),nblk))
     allocate(lon (maxval(ncol),nblk))
     allocate(lat (maxval(ncol),nblk))
     allocate(area(maxval(ncol),nblk))
@@ -89,6 +91,7 @@ contains
           lon (icol,iblk) = mesh%full_lon (i)
           lat (icol,iblk) = mesh%full_lat (j)
           area(icol,iblk) = mesh%area_cell(j)
+          gid (icol,iblk) = (j - 1) * global_mesh%full_nlon + i
           icol = icol + 1
         end do
       end do
@@ -99,7 +102,7 @@ contains
     allocate(mesh(nblk))
     do iblk = 1, nblk
       associate (dmesh => blocks(iblk)%mesh)
-      call mesh(iblk)%init(ncol(iblk), nlev, lon(:,iblk), lat(:,iblk), &
+      call mesh(iblk)%init(ncol(iblk), nlev, gid(:,iblk), lon(:,iblk), lat(:,iblk), &
                            blocks(iblk)%mesh%full_lev , &
                            blocks(iblk)%mesh%half_lev , &
                            blocks(iblk)%mesh%full_dlev, &
@@ -113,7 +116,7 @@ contains
       mesh(iblk)%lev_count = [dmesh%full_nlon,dmesh%full_nlat,dmesh%half_nlev,1]
       end associate
     end do
-    deallocate(ncol, lon, lat, area)
+    deallocate(ncol, gid, lon, lat, area)
 
     select case (physics_suite)
     case ('simple_physics:v6', 'simple_physics:kessler')
@@ -281,6 +284,11 @@ contains
         do j = mesh%full_jds, mesh%full_jde
           do i = mesh%full_ids, mesh%full_ide
             q%d(i,j,k,m) = q%d(i,j,k,m) + dt * dqdt_phys%d(i,j,k,m) / dmg%d(i,j,k)
+            if (q%d(i,j,k,m) < 0) then
+              call log_warning('Tracer mixing ratio is negative after physics update at grid (' // &
+                to_str(i) // ', ' // to_str(j) // ', ' // to_str(k) // ')!', __FILE__, __LINE__)
+              q%d(i,j,k,m) = 0
+            end if
           end do
         end do
       end do

@@ -47,7 +47,7 @@ module latlon_field_types_mod
 
   integer :: field_unique_id = 0
 
-  type latlon_field_meta_type
+  type, abstract :: latlon_field_meta_type
     character(field_name_len     ) :: name      = 'N/A'
     character(field_long_name_len) :: long_name = 'N/A'
     character(field_units_len    ) :: units     = 'N/A'

@@ -169,7 +169,8 @@ module namelist_mod
   logical         :: use_vor_damp         = .false.
   integer         :: vor_damp_cycles      = 1
   integer         :: vor_damp_order       = 2
-  real(r8)        :: vor_damp_coef2       = 0.05_r8
+  real(r8)        :: vor_damp_coef2       = 0.0005_r8
+  real(r8)        :: vor_damp_pole        = 100
   real(r8)        :: vor_damp_lat0        = 80
   logical         :: use_rayleigh_damp_w  = .false.
   real(r8)        :: rayleigh_damp_w_coef = 0.2       ! s-1
@@ -187,7 +188,7 @@ module namelist_mod
   real(r8)        :: sponge_layer_coef    = 1.0e6_r8
   logical         :: use_pole_damp        = .true.
   real(r8)        :: pole_damp_coef       = 0.25_r8
-  real(r8)        :: pole_damp_lat0       = 60
+  real(r8)        :: pole_damp_lat0       = 80
 
   ! Input settings
   integer         :: input_ngroups        = 0
@@ -331,6 +332,7 @@ module namelist_mod
     vor_damp_cycles           , &
     vor_damp_order            , &
     vor_damp_coef2            , &
+    vor_damp_pole             , &
     vor_damp_lat0             , &
     use_rayleigh_damp_w       , &
     rayleigh_damp_w_coef      , &
@@ -518,6 +520,7 @@ contains
       write(*, *) 'vor_damp_cycles     = ', to_str(vor_damp_cycles)
       write(*, *) 'vor_damp_order      = ', to_str(vor_damp_order)
       write(*, *) 'vor_damp_coef2      = ', vor_damp_coef2
+      write(*, *) 'vor_damp_pole       = ', to_str(vor_damp_pole, 3)
       write(*, *) 'vor_damp_lat0       = ', to_str(vor_damp_lat0, 3)
     end if
     if (nonhydrostatic) then
@@ -578,15 +581,16 @@ contains
     call fiona_add_att(tag, 'use_div_damp', merge(1, 0, use_div_damp))
     if (use_div_damp) then
       call fiona_add_att(tag, 'div_damp_coef2', div_damp_coef2)
-      call fiona_add_att(tag, 'div_damp_top', div_damp_top)
-      call fiona_add_att(tag, 'div_damp_k0', div_damp_k0)
-      call fiona_add_att(tag, 'div_damp_pole', div_damp_pole)
-      call fiona_add_att(tag, 'div_damp_lat0', div_damp_lat0)
+      call fiona_add_att(tag, 'div_damp_top'  , div_damp_top)
+      call fiona_add_att(tag, 'div_damp_k0'   , div_damp_k0)
+      call fiona_add_att(tag, 'div_damp_pole' , div_damp_pole)
+      call fiona_add_att(tag, 'div_damp_lat0' , div_damp_lat0)
     end if
     call fiona_add_att(tag, 'use_vor_damp', merge(1, 0, use_vor_damp))
     if (use_vor_damp) then
       call fiona_add_att(tag, 'vor_damp_coef2', vor_damp_coef2)
-      call fiona_add_att(tag, 'vor_damp_lat0', vor_damp_lat0)
+      call fiona_add_att(tag, 'vor_damp_pole' , vor_damp_pole)
+      call fiona_add_att(tag, 'vor_damp_lat0' , vor_damp_lat0)
     end if
     call fiona_add_att(tag, 'use_smag_damp', merge(1, 0, use_smag_damp))
     if (use_smag_damp) then

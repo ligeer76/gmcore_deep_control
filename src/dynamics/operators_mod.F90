@@ -551,7 +551,7 @@ contains
         end do
       end do
       call div_operator(divx, divy, div2)
-      call filter_run(block%small_filter, div2)
+      call filter_run(block%big_filter, div2)
       call fill_halo(div2, west_halo=.false., south_halo=.false.)
     else
       call filter_run(block%small_filter, div)

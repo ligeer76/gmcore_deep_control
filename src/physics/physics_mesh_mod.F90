@@ -31,6 +31,7 @@ module physics_mesh_mod
     real(r8), allocatable, dimension(:) :: area ! Cell area (m2)
     real(r8), allocatable, dimension(:) :: sin_lat
     real(r8), allocatable, dimension(:) :: cos_lat
+    integer , allocatable, dimension(:) :: gid  ! Global column ID
   contains
     procedure :: init => physics_mesh_init
     procedure :: clear => physics_mesh_clear
@@ -39,11 +40,12 @@ module physics_mesh_mod
 
 contains
 
-  subroutine physics_mesh_init(this, ncol, nlev, lon, lat, lev, ilev, dlev, area, ptop, ztop)
+  subroutine physics_mesh_init(this, ncol, nlev, gid, lon, lat, lev, ilev, dlev, area, ptop, ztop)
 
     class(physics_mesh_type), intent(inout) :: this
     integer , intent(in) :: ncol
     integer , intent(in) :: nlev
+    integer , intent(in) :: gid (ncol)
     real(r8), intent(in) :: lon (ncol)
     real(r8), intent(in) :: lat (ncol)
     real(r8), intent(in) :: lev (nlev)
@@ -65,6 +67,7 @@ contains
     allocate(this%area   (ncol  )); this%area    = area
     allocate(this%sin_lat(ncol  )); this%sin_lat = sin(lat)
     allocate(this%cos_lat(ncol  )); this%cos_lat = cos(lat)
+    allocate(this%gid    (ncol  )); this%gid     = gid
     if (present(ptop)) this%ptop = ptop
     if (present(ztop)) this%ztop = ztop
 
@@ -89,6 +92,7 @@ contains
     if (allocated(this%area   )) deallocate(this%area   )
     if (allocated(this%sin_lat)) deallocate(this%sin_lat)
     if (allocated(this%cos_lat)) deallocate(this%cos_lat)
+    if (allocated(this%gid    )) deallocate(this%gid    )
 
   end subroutine physics_mesh_clear
 

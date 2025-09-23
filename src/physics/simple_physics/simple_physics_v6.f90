@@ -197,14 +197,14 @@ subroutine simple_physics(pcols, pver, dtime, lat, t, q, u, v, pmid, pint, pdel,
   omega    = 7.29212d-5                         ! Reference rotation rate of the Earth (s^-1)
   pi       = 4 * atan(1.0_r8)
 
-  C        = 0.0011_r8                          ! From Simth and Vogl 2008
+  C        = 0.0011_r8                          ! From Smith and Vogl 2008
   SST_TC   = 302.15_r8                          ! Constant Value for SST
   T0       = 273.16_r8                          ! control temp for calculation of qsat
   e0       = 610.78_r8                          ! saturation vapor pressure at T0 for calculation of qsat
   rhow     = 1000.0_r8                          ! Density of Liquid Water
-  Cd0      = 0.0007_r8                          ! Constant for Cd calc. Simth and Vogl 2008
-  Cd1      = 0.000065_r8                        ! Constant for Cd calc. Simth and Vogl 2008
-  Cm       = 0.002_r8                           ! Constant for Cd calc. Simth and Vogl 2008
+  Cd0      = 0.0007_r8                          ! Constant for Cd calc. Smith and Vogl 2008
+  Cd1      = 0.000065_r8                        ! Constant for Cd calc. Smith and Vogl 2008
+  Cm       = 0.002_r8                           ! Constant for Cd calc. Smith and Vogl 2008
   v20      = 20.0_r8                            ! Threshold wind speed for calculating Cd from Smith and Vogl 2008
   p0       = 100000.0_r8                        ! Constant for potential temp calculation
   pbltop   = 85000._r8                          ! Top of boundary layer in p
@@ -293,7 +293,7 @@ subroutine simple_physics(pcols, pver, dtime, lat, t, q, u, v, pmid, pint, pdel,
     end if
   end do
 
-  if (TC_PBL_mod) then !Bryan TC PBL Modification
+  if (TC_PBL_mod) then ! Bryan TC PBL Modification
     do k = pver, 1, -1
       do i = 1, pcols
         dlnpint = log(pint(i,k+1)) - log(pint(i,k))
@@ -311,8 +311,8 @@ subroutine simple_physics(pcols, pver, dtime, lat, t, q, u, v, pmid, pint, pdel,
     do k = 1, pver
       do i = 1, pcols
         if (pint(i,k) >= pbltop) then
-          Km(i,k) = Cd(i)*wind(i)*za(i)
-          Ke(i,k) = C*wind(i)*za(i)
+          Km(i,k) = Cd(i) * wind(i) * za(i)
+          Ke(i,k) = C * wind(i) * za(i)
         else
           Km(i,k) = Cd(i) * wind(i) * za(i) * exp(-(pbltop - pint(i,k))**2 / pblconst**2)
           Ke(i,k) = C     * wind(i) * za(i) * exp(-(pbltop - pint(i,k))**2 / pblconst**2)

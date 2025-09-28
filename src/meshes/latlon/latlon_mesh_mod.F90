@@ -6,6 +6,14 @@
 ! GMCORE is distributed in the hope that it will be useful, but WITHOUT ANY
 ! WARRANTY. You may contact authors for helping or cooperation.
 ! ==============================================================================
+! History:
+!
+!   - 2025-09-27: Define edge lengthes first, then areas.
+!
+! Authors:
+!
+!   - Li Dong <dongli@lasg.ia.ac.cn>
+! ==============================================================================
 
 module latlon_mesh_mod
 
@@ -72,17 +80,8 @@ module latlon_mesh_mod
     real(8) area_pole_cap
     real(8), allocatable, dimension(:  ) :: area_cell
     real(8), allocatable, dimension(:  ) :: area_lon
-    real(8), allocatable, dimension(:  ) :: area_lon_west
-    real(8), allocatable, dimension(:  ) :: area_lon_east
-    real(8), allocatable, dimension(:  ) :: area_lon_north
-    real(8), allocatable, dimension(:  ) :: area_lon_south
     real(8), allocatable, dimension(:  ) :: area_lat
-    real(8), allocatable, dimension(:  ) :: area_lat_west
-    real(8), allocatable, dimension(:  ) :: area_lat_east
-    real(8), allocatable, dimension(:  ) :: area_lat_north
-    real(8), allocatable, dimension(:  ) :: area_lat_south
     real(8), allocatable, dimension(:  ) :: area_vtx
-    real(8), allocatable, dimension(:,:) :: area_subcell
     ! Edge length
     real(8), allocatable, dimension(:  ) :: de_lon
     real(8), allocatable, dimension(:  ) :: de_lat
@@ -216,159 +215,26 @@ contains
       end if
     end do
 
-    do j = this%full_jds, this%full_jde
-      if (this%is_south_pole(j)) then
-        this%area_cell(j) = radius**2 * this%dlon * (this%half_sin_lat(j) + 1.0d0)
-        this%area_subcell(2,j) = radius**2 * 0.5d0 * this%dlon * (this%half_sin_lat(j) + 1.0d0)
-      else if (this%is_north_pole(j)) then
-        this%area_cell(j) = radius**2 * this%dlon * (1.0 - this%half_sin_lat(j-1))
-        this%area_subcell(1,j) = radius**2 * 0.5d0 * this%dlon * (1.0d0 - this%half_sin_lat(j-1))
-      else
-        this%area_cell(j) = radius**2 * this%dlon * (this%half_sin_lat(j) - this%half_sin_lat(j-1))
-        this%area_subcell(1,j) = radius**2 * 0.5d0 * this%dlon * (this%full_sin_lat(j) - this%half_sin_lat(j-1))
-        this%area_subcell(2,j) = radius**2 * 0.5d0 * this%dlon * (this%half_sin_lat(j) - this%full_sin_lat(j))
-        !
-        !           1,j
-        !           /|
-        !          / |
-        !         /  |
-        !        /   |
-        !    1,j \   |
-        !         \  |
-        !          \ |
-        !           \|
-        !          1,j-1
-        !
-        call lonlat2xyz(radius, this%full_lon(1), this%full_lat(j  ), x(1), y(1), z(1))
-        call lonlat2xyz(radius, this%half_lon(1), this%half_lat(j-1), x(2), y(2), z(2))
-        call lonlat2xyz(radius, this%half_lon(1), this%half_lat(j  ), x(3), y(3), z(3))
-        this%area_lon_west(j) = spherical_area(radius, x, y, z, ierr)
-        if (ierr /= 0) then
-          call log_error(sphere_geometry_error_message(ierr), __FILE__, __LINE__)
-        end if
-        this%area_lon_east(j) = this%area_lon_west(j)
-        this%area_lon(j) = this%area_lon_west(j) + this%area_lon_east(j)
-        !
-        !          1,j
-        !           /\
-        !          /  \
-        !         /    \
-        !        /______\
-        !    1,j          2,j
-        !
-        call lonlat2xyz(radius, this%half_lon(1), this%half_lat(j  ), x(1), y(1), z(1))
-        call lonlat2xyz(radius, this%full_lon(1), this%full_lat(j  ), x(2), y(2), z(2))
-        call lonlat2xyz(radius, this%full_lon(2), this%full_lat(j  ), x(3), y(3), z(3))
-        this%area_lon_north(j) = spherical_area_with_last_small_arc(radius, x, y, z, ierr)
-        if (ierr /= 0) then
-          call log_error(sphere_geometry_error_message(ierr), __FILE__, __LINE__)
-        end if
-        !
-        !    1,j          2,j
-        !        --------
-        !        \      /
-        !         \    /
-        !          \  /
-        !           \/
-        !         1,j-1
-        !
-        call lonlat2xyz(radius, this%half_lon(1), this%half_lat(j-1), x(1), y(1), z(1))
-        call lonlat2xyz(radius, this%full_lon(2), this%full_lat(j  ), x(2), y(2), z(2))
-        call lonlat2xyz(radius, this%full_lon(1), this%full_lat(j  ), x(3), y(3), z(3))
-        this%area_lon_south(j) = spherical_area_with_last_small_arc(radius, x, y, z, ierr)
-        if (ierr /= 0) then
-          call log_error(sphere_geometry_error_message(ierr), __FILE__, __LINE__)
-        end if
-      end if
-    end do
-
-    ! Set cell areas exceed the Poles.
-    if (this%has_south_pole()) then
-      do j = this%full_jms, this%full_jds - 1
-        this%area_cell(j) = this%area_cell(2 - j)
-      end do
-    end if
-    if (this%has_north_pole()) then
-      do j = this%full_jde + 1, this%full_jme
-        this%area_cell(j) = this%area_cell(2 * this%full_jde - j)
-      end do
-    end if
-
-    do j = this%half_jds, this%half_jde
-      !
-      !          2,j+1
-      !           /|
-      !          / |
-      !         /  |
-      !        /   |
-      !    1,j \   |
-      !         \  |
-      !          \ |
-      !           \|
-      !           2,j
-      !
-      call lonlat2xyz(radius, this%half_lon(1), this%half_lat(j  ), x(1), y(1), z(1))
-      call lonlat2xyz(radius, this%full_lon(2), this%full_lat(j  ), x(2), y(2), z(2))
-      call lonlat2xyz(radius, this%full_lon(2), this%full_lat(j+1), x(3), y(3), z(3))
-      this%area_lat_west(j) = spherical_area(radius, x, y, z, ierr)
-      if (ierr /= 0) then
-        call log_error(sphere_geometry_error_message(ierr), __FILE__, __LINE__)
-      end if
-      this%area_lat_east(j) = this%area_lat_west(j)
-      !
-      !         2,j+1
-      !           /\
-      !          /  \
-      !         /    \
-      !        /______\
-      !    1,j          2,j
-      !
-      call lonlat2xyz(radius, this%full_lon(2), this%full_lat(j+1), x(1), y(1), z(1))
-      call lonlat2xyz(radius, this%half_lon(1), this%half_lat(j  ), x(2), y(2), z(2))
-      call lonlat2xyz(radius, this%half_lon(2), this%half_lat(j  ), x(3), y(3), z(3))
-      this%area_lat_north(j) = spherical_area_with_last_small_arc(radius, x, y, z, ierr)
-      if (ierr /= 0) then
-        call log_error(sphere_geometry_error_message(ierr), __FILE__, __LINE__)
-      end if
-      !
-      !    1,j          2,j
-      !        --------
-      !        \      /
-      !         \    /
-      !          \  /
-      !           \/
-      !          2,j
-      !
-      call lonlat2xyz(radius, this%full_lon(2), this%full_lat(j), x(1), y(1), z(1))
-      call lonlat2xyz(radius, this%half_lon(2), this%half_lat(j), x(2), y(2), z(2))
-      call lonlat2xyz(radius, this%half_lon(1), this%half_lat(j), x(3), y(3), z(3))
-      this%area_lat_south(j) = spherical_area_with_last_small_arc(radius, x, y, z, ierr)
-      if (ierr /= 0) then
-        call log_error(sphere_geometry_error_message(ierr), __FILE__, __LINE__)
-      end if
-      this%area_lat(j) = this%area_lat_north(j) + this%area_lat_south(j)
-    end do
-
-    do j = this%half_jds, this%half_jde
-      if (this%is_south_pole(j)) then
-        this%area_vtx(j) = this%area_lat_west(j) + this%area_lat_east(j) + this%area_lon_south(j+1)
-      else if (this%is_north_pole(j+1)) then
-        this%area_vtx(j) = this%area_lat_west(j) + this%area_lat_east(j) + this%area_lon_north(j)
-      else
-        this%area_vtx(j) = this%area_lat_west(j) + this%area_lat_east(j) + this%area_lon_south(j+1) + this%area_lon_north(j)
-      end if
-    end do
-
     this%area_pole_cap = 2 * pi * radius**2 * (1 - cos(0.5d0 * this%dlat))
 
     do j = this%full_jds_no_pole, this%full_jde_no_pole
       this%de_lon(j) = radius * this%full_cos_lat(j) * this%dlon
-      this%le_lon(j) = 2.0d0 * this%area_lon(j) / this%de_lon(j)
+      this%le_lon(j) = radius * this%dlat
+      this%area_lon(j) = this%le_lon(j) * this%de_lon(j) * 0.5d0
+      this%area_cell(j) = this%le_lon(j) * this%de_lon(j)
     end do
+    if (this%has_south_pole()) then
+      this%area_cell(this%full_jds) = this%area_pole_cap / nlon
+    end if
+    if (this%has_north_pole()) then
+      this%area_cell(this%full_jde) = this%area_pole_cap / nlon
+    end if
 
     do j = this%half_jds, this%half_jde
       this%le_lat(j) = radius * this%half_cos_lat(j) * this%dlon
-      this%de_lat(j) = 2.0d0 * this%area_lat(j) / this%le_lat(j)
+      this%de_lat(j) = radius * this%dlat
+      this%area_lat(j) = this%le_lat(j) * this%de_lat(j) * 0.5d0
+      this%area_vtx(j) = this%le_lat(j) * this%de_lat(j)
     end do
 
     do j = this%full_jds, this%full_jde
@@ -460,11 +326,6 @@ contains
       this%full_sin_lat  (j) = parent%full_sin_lat  (j)
       this%full_cos_lat  (j) = parent%full_cos_lat  (j)
       this%area_cell     (j) = parent%area_cell     (j)
-      this%area_subcell(:,j) = parent%area_subcell(:,j)
-      this%area_lon_west (j) = parent%area_lon_west (j)
-      this%area_lon_east (j) = parent%area_lon_east (j)
-      this%area_lon_north(j) = parent%area_lon_north(j)
-      this%area_lon_south(j) = parent%area_lon_south(j)
       this%area_lon      (j) = parent%area_lon      (j)
       this%le_lon        (j) = parent%le_lon        (j)
       this%de_lon        (j) = parent%de_lon        (j)
@@ -477,10 +338,6 @@ contains
       this%half_sin_lat  (j) = parent%half_sin_lat  (j)
       this%half_cos_lat  (j) = parent%half_cos_lat  (j)
       this%area_vtx      (j) = parent%area_vtx      (j)
-      this%area_lat_west (j) = parent%area_lat_west (j)
-      this%area_lat_east (j) = parent%area_lat_east (j)
-      this%area_lat_north(j) = parent%area_lat_north(j)
-      this%area_lat_south(j) = parent%area_lat_south(j)
       this%area_lat      (j) = parent%area_lat      (j)
       this%le_lat        (j) = parent%le_lat        (j)
       this%de_lat        (j) = parent%de_lat        (j)
@@ -565,17 +422,8 @@ contains
     allocate(this%half_lat_deg       (this%half_jms:this%half_jme)); this%half_lat_deg        = inf
     allocate(this%area_cell          (this%full_jms:this%full_jme)); this%area_cell           = 0
     allocate(this%area_lon           (this%full_jms:this%full_jme)); this%area_lon            = 0
-    allocate(this%area_lon_west      (this%full_jms:this%full_jme)); this%area_lon_west       = 0
-    allocate(this%area_lon_east      (this%full_jms:this%full_jme)); this%area_lon_east       = 0
-    allocate(this%area_lon_north     (this%full_jms:this%full_jme)); this%area_lon_north      = 0
-    allocate(this%area_lon_south     (this%full_jms:this%full_jme)); this%area_lon_south      = 0
     allocate(this%area_lat           (this%half_jms:this%half_jme)); this%area_lat            = 0
-    allocate(this%area_lat_west      (this%half_jms:this%half_jme)); this%area_lat_west       = 0
-    allocate(this%area_lat_east      (this%half_jms:this%half_jme)); this%area_lat_east       = 0
-    allocate(this%area_lat_north     (this%half_jms:this%half_jme)); this%area_lat_north      = 0
-    allocate(this%area_lat_south     (this%half_jms:this%half_jme)); this%area_lat_south      = 0
     allocate(this%area_vtx           (this%half_jms:this%half_jme)); this%area_vtx            = 0
-    allocate(this%area_subcell     (2,this%full_jms:this%full_jme)); this%area_subcell        = 0
     allocate(this%de_lon             (this%full_jms:this%full_jme)); this%de_lon              = 0
     allocate(this%de_lat             (this%half_jms:this%half_jme)); this%de_lat              = 0
     allocate(this%le_lat             (this%half_jms:this%half_jme)); this%le_lat              = 0
@@ -669,17 +517,8 @@ contains
     if (allocated(this%half_lat_deg  )) deallocate(this%half_lat_deg  )
     if (allocated(this%area_cell     )) deallocate(this%area_cell     )
     if (allocated(this%area_lon      )) deallocate(this%area_lon      )
-    if (allocated(this%area_lon_west )) deallocate(this%area_lon_west )
-    if (allocated(this%area_lon_east )) deallocate(this%area_lon_east )
-    if (allocated(this%area_lon_north)) deallocate(this%area_lon_north)
-    if (allocated(this%area_lon_south)) deallocate(this%area_lon_south)
     if (allocated(this%area_lat      )) deallocate(this%area_lat      )
-    if (allocated(this%area_lat_west )) deallocate(this%area_lat_west )
-    if (allocated(this%area_lat_east )) deallocate(this%area_lat_east )
-    if (allocated(this%area_lat_north)) deallocate(this%area_lat_north)
-    if (allocated(this%area_lat_south)) deallocate(this%area_lat_south)
     if (allocated(this%area_vtx      )) deallocate(this%area_vtx      )
-    if (allocated(this%area_subcell  )) deallocate(this%area_subcell  )
     if (allocated(this%de_lon        )) deallocate(this%de_lon        )
     if (allocated(this%de_lat        )) deallocate(this%de_lat        )
     if (allocated(this%le_lat        )) deallocate(this%le_lat        )

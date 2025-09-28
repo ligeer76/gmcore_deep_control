@@ -89,9 +89,7 @@ contains
       do k = x%mesh%full_kds, x%mesh%full_kde
         do j = x%mesh%full_jds_no_pole, x%mesh%full_jde_no_pole
           do i = x%mesh%half_ids, x%mesh%half_ide
-            y%d(i,j,k) = (x%mesh%area_lon_west(j) * x%d(i  ,j,k) + &
-                          x%mesh%area_lon_east(j) * x%d(i+1,j,k)   &
-                         ) / x%mesh%area_lon(j)
+            y%d(i,j,k) = 0.5_r8 * (x%d(i,j,k) + x%d(i+1,j,k))
           end do
         end do
       end do
@@ -100,9 +98,7 @@ contains
       do k = x%mesh%full_kds, x%mesh%full_kde
         do j = x%mesh%half_jds, x%mesh%half_jde
           do i = x%mesh%full_ids, x%mesh%full_ide
-            y%d(i,j,k) = (x%mesh%area_lat_north(j) * x%d(i,j+1,k) + &
-                          x%mesh%area_lat_south(j) * x%d(i,j  ,k)   &
-                         ) / x%mesh%area_lat(j)
+            y%d(i,j,k) = 0.5_r8 * (x%d(i,j+1,k) + x%d(i,j,k))
           end do
         end do
       end do
@@ -159,10 +155,10 @@ contains
       do k = x%mesh%full_kds, x%mesh%full_kde
         do j = x%mesh%half_jds - merge(0, 1, x%mesh%has_south_pole()), x%mesh%half_jde
           do i = x%mesh%half_ids - 1, x%mesh%half_ide
-            y%d(i,j,k) = (                                                   &
-              (x%d(i,j  ,k) + x%d(i+1,j  ,k)) * x%mesh%area_subcell(2,j  ) + &
-              (x%d(i,j+1,k) + x%d(i+1,j+1,k)) * x%mesh%area_subcell(1,j+1)   &
-            ) / x%mesh%area_vtx(j)
+            y%d(i,j,k) = 0.25_r8 * (          &
+              x%d(i,j  ,k) + x%d(i+1,j  ,k) + &
+              x%d(i,j+1,k) + x%d(i+1,j+1,k)   &
+            )
           end do
         end do
       end do
@@ -171,9 +167,7 @@ contains
       do k = x%mesh%full_kds, x%mesh%full_kde
         do j = x%mesh%full_jds_no_pole, x%mesh%full_jde_no_pole
           do i = x%mesh%full_ids, x%mesh%full_ide
-            y%d(i,j,k) = (x%mesh%area_lon_east(j) * x%d(i-1,j,k) + &
-                          x%mesh%area_lon_west(j) * x%d(i  ,j,k)   &
-                         ) / x%mesh%area_lon(j)
+            y%d(i,j,k) = 0.5_r8 * (x%d(i-1,j,k) + x%d(i,j,k))
           end do
         end do
       end do
@@ -192,9 +186,7 @@ contains
       do k = x%mesh%full_kds, x%mesh%full_kde
         do j = x%mesh%full_jds_no_pole, x%mesh%full_jde_no_pole
           do i = x%mesh%full_ids, x%mesh%full_ide
-            y%d(i,j,k) = (x%mesh%area_lat_south(j  ) * x%d(i,j  ,k) + &
-                          x%mesh%area_lat_north(j-1) * x%d(i,j-1,k)   &
-                         ) / (x%mesh%area_lat_south(j) + x%mesh%area_lat_north(j-1))
+            y%d(i,j,k) = 0.5_r8 * (x%d(i,j,k) + x%d(i,j-1,k))
           end do
         end do
       end do
@@ -398,9 +390,7 @@ contains
       do k = x%mesh%half_kds, x%mesh%half_kde
         do j = x%mesh%full_jds_no_pole, x%mesh%full_jde_no_pole
           do i = x%mesh%half_ids, x%mesh%half_ide
-            y%d(i,j,k) = (x%mesh%area_lon_west(j) * x%d(i  ,j,k) + &
-                          x%mesh%area_lon_east(j) * x%d(i+1,j,k)   &
-                         ) / x%mesh%area_lon(j)
+            y%d(i,j,k) = 0.5_r8 * (x%d(i,j,k) + x%d(i+1,j,k))
           end do
         end do
       end do
@@ -409,9 +399,7 @@ contains
       do k = x%mesh%half_kds, x%mesh%half_kde
         do j = x%mesh%half_jds, x%mesh%half_jde
           do i = x%mesh%full_ids, x%mesh%full_ide
-            y%d(i,j,k) = (x%mesh%area_lat_north(j) * x%d(i,j+1,k) + &
-                          x%mesh%area_lat_south(j) * x%d(i,j  ,k)   &
-                         ) / x%mesh%area_lat(j)
+            y%d(i,j,k) = 0.5_r8 * (x%d(i,j,k) + x%d(i,j+1,k))
           end do
         end do
       end do

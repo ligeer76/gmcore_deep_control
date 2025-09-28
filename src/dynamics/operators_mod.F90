@@ -407,11 +407,11 @@ contains
     do k = mesh%full_kds, mesh%full_kde
       do j = mesh%full_jds_no_pole, mesh%full_jde_no_pole + merge(0, 1, mesh%has_north_pole())
         do i = mesh%full_ids, mesh%full_ide + 1
-          ke%d(i,j,k) = (mesh%area_lon_west (j  ) * u%d(i-1,j  ,k)**2 + &
-                         mesh%area_lon_east (j  ) * u%d(i  ,j  ,k)**2 + &
-                         mesh%area_lat_north(j-1) * v%d(i  ,j-1,k)**2 + &
-                         mesh%area_lat_south(j  ) * v%d(i  ,j  ,k)**2   &
-                        ) / mesh%area_cell(j)
+          ke%d(i,j,k) = 0.25_r8 * (u%d(i-1,j  ,k)**2 + &
+                         u%d(i  ,j  ,k)**2 + &
+                         v%d(i  ,j-1,k)**2 + &
+                         v%d(i  ,j  ,k)**2   &
+                        )
         end do
       end do
     end do
@@ -477,34 +477,34 @@ contains
       do k = mesh%full_kds, mesh%full_kde
         do j = mesh%full_jds_no_pole, mesh%full_jde_no_pole + merge(0, 1, mesh%has_north_pole())
           do i = mesh%full_ids, mesh%full_ide + 1
-            ke_vtx(1) = (                                    &
-              mesh%area_lat_east (j  ) * v%d(i-1,j  ,k)**2 + &
-              mesh%area_lat_west (j  ) * v%d(i  ,j  ,k)**2 + &
-              mesh%area_lon_north(j  ) * u%d(i-1,j  ,k)**2 + &
-              mesh%area_lon_south(j+1) * u%d(i-1,j+1,k)**2   &
-            ) / mesh%area_vtx(j)
-            ke_vtx(2) = (                                    &
-              mesh%area_lat_east (j-1) * v%d(i-1,j-1,k)**2 + &
-              mesh%area_lat_west (j-1) * v%d(i  ,j-1,k)**2 + &
-              mesh%area_lon_north(j-1) * u%d(i-1,j-1,k)**2 + &
-              mesh%area_lon_south(j  ) * u%d(i-1,j  ,k)**2   &
-            ) / mesh%area_vtx(j-1)
-            ke_vtx(3) = (                                    &
-              mesh%area_lat_east (j-1) * v%d(i  ,j-1,k)**2 + &
-              mesh%area_lat_west (j-1) * v%d(i+1,j-1,k)**2 + &
-              mesh%area_lon_north(j-1) * u%d(i  ,j-1,k)**2 + &
-              mesh%area_lon_south(j  ) * u%d(i  ,j  ,k)**2   &
-            ) / mesh%area_vtx(j-1)
-            ke_vtx(4) = (                                    &
-              mesh%area_lat_east (j  ) * v%d(i  ,j  ,k)**2 + &
-              mesh%area_lat_west (j  ) * v%d(i+1,j  ,k)**2 + &
-              mesh%area_lon_north(j  ) * u%d(i  ,j  ,k)**2 + &
-              mesh%area_lon_south(j+1) * u%d(i  ,j+1,k)**2   &
-            ) / mesh%area_vtx(j)
-            ke%d(i,j,k) = (1.0_r8 - ke_cell_wgt) * (             &
-              (ke_vtx(1) + ke_vtx(4)) * mesh%area_subcell(2,j) + &
-              (ke_vtx(2) + ke_vtx(3)) * mesh%area_subcell(1,j)   &
-            ) / mesh%area_cell(j) + ke_cell_wgt * ke%d(i,j,k)
+            ke_vtx(1) = 0.25_r8 * (                          &
+              v%d(i-1,j  ,k)**2 + &
+              v%d(i  ,j  ,k)**2 + &
+              u%d(i-1,j  ,k)**2 + &
+              u%d(i-1,j+1,k)**2   &
+            )
+            ke_vtx(2) = 0.25_r8 * (                          &
+              v%d(i-1,j-1,k)**2 + &
+              v%d(i  ,j-1,k)**2 + &
+              u%d(i-1,j-1,k)**2 + &
+              u%d(i-1,j  ,k)**2   &
+            )
+            ke_vtx(3) = 0.25_r8 * (                                    &
+              v%d(i  ,j-1,k)**2 + &
+              v%d(i+1,j-1,k)**2 + &
+              u%d(i  ,j-1,k)**2 + &
+              u%d(i  ,j  ,k)**2   &
+            )
+            ke_vtx(4) = 0.25_r8 * (                                    &
+              v%d(i  ,j  ,k)**2 + &
+              v%d(i+1,j  ,k)**2 + &
+              u%d(i  ,j  ,k)**2 + &
+              u%d(i  ,j+1,k)**2   &
+            )
+            ke%d(i,j,k) = (1.0_r8 - ke_cell_wgt) * 0.25_r8 * (             &
+              (ke_vtx(1) + ke_vtx(4)) + &
+              (ke_vtx(2) + ke_vtx(3))   &
+            ) + ke_cell_wgt * ke%d(i,j,k)
           end do
         end do
       end do

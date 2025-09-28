@@ -153,8 +153,8 @@ contains
                dmydt    => batch%qy      )   ! borrowed array
     ! Run inner advective operators.
     call hflx_mass(batch, u, u_frac, v, m, m, mfx0, mfy0, dt_opt)
-    call fill_halo(mfx0, south_halo=.false., north_halo=.false., east_halo =.false.)
-    call fill_halo(mfy0, west_halo =.false., east_halo =.false., north_halo=.false.)
+    call fill_halo(mfx0, south_halo=.false., north_halo=.false., east_halo =.false., async=.true.)
+    call fill_halo(mfy0, west_halo =.false., east_halo =.false., north_halo=.false., async=.true.)
     ! Update cflx and cfly for outer step to use sy and sx as density.
     do k = mesh%full_kds, mesh%full_kde
       do j = mesh%full_jds, mesh%full_jde
@@ -168,7 +168,7 @@ contains
     call fill_halo(sy, south_halo=.false., north_halo=.false., async=.true.)
     ! NOTE: Swap sy and sx.
     call batch%calc_cflxy_tracer(sy, sx, u, v, cflx, cfly, u_frac, dt_opt)
-    ! Calculate intermediate tracer density due to advective operators.
+    ! Calculate intermediate tracer density due to inner advective operators.
     call divx_operator(mfx0, dmxdt)
     call divy_operator(mfy0, dmydt)
     do k = mesh%full_kds, mesh%full_kde
@@ -196,8 +196,8 @@ contains
         end do
       end do
     end do
-    call fill_halo(mfx, south_halo=.false., north_halo=.false., east_halo =.false.)
-    call fill_halo(mfy, west_halo =.false., east_halo =.false., north_halo=.false.)
+    call fill_halo(mfx, south_halo=.false., north_halo=.false., east_halo =.false., async=.true.)
+    call fill_halo(mfy, west_halo =.false., east_halo =.false., north_halo=.false., async=.true.)
     end associate
 
     call perf_stop('ffsl_calc_mass_hflx_swift')
@@ -299,8 +299,8 @@ contains
                divy        => batch%divy       , & ! in
                qx          => batch%qx         , & ! work array
                qy          => batch%qy         , & ! work array
-               qmfx0       => batch%qmfx0      , & ! out
-               qmfy0       => batch%qmfy0      , & ! out
+               qmfx0       => batch%qmfx0      , & ! work array
+               qmfy0       => batch%qmfy0      , & ! work array
                dqmxdt      => batch%qx         , & ! borrowed array
                dqmydt      => batch%qy         )   ! borrowed array
     ! Run inner advective operators.
@@ -312,8 +312,8 @@ contains
       ks = merge(mesh%full_kds, mesh%half_kds, batch%loc == 'cell')
       ke = merge(mesh%full_kde, mesh%half_kde, batch%loc == 'cell')
       ! Calculate intermediate tracer density due to advective operators.
-      call wait_halo(qmfx0); call divx_operator(qmfx0, dqmxdt)
-      call wait_halo(qmfy0); call divy_operator(qmfy0, dqmydt)
+      call divx_operator(qmfx0, dqmxdt)
+      call divy_operator(qmfy0, dqmydt)
       do k = ks, ke
         do j = mesh%full_jds, mesh%full_jde
           do i = mesh%full_ids, mesh%full_ide
@@ -341,8 +341,8 @@ contains
         end do
       end do
     end do
-    call fill_halo(qmfx, south_halo=.false., north_halo=.false., east_halo =.false.)
-    call fill_halo(qmfy, west_halo =.false., east_halo =.false., north_halo=.false.)
+    call fill_halo(qmfx, south_halo=.false., north_halo=.false., east_halo =.false., async=.true.)
+    call fill_halo(qmfy, west_halo =.false., east_halo =.false., north_halo=.false., async=.true.)
     end associate
 
     call perf_stop('ffsl_calc_tracer_hflx_swift')
@@ -381,7 +381,7 @@ contains
 
     dt_opt = batch%dt; if (present(dt)) dt_opt = dt
 
-    associate (m        => batch%m       , & ! in
+    associate (m        => batch%bg%m    , & ! in
                cflz     => batch%cflz    , & ! in
                mfz      => batch%mfz     , & ! in
                mfz_frac => batch%mfz_frac)   ! in

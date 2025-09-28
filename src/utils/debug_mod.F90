@@ -11,7 +11,6 @@ module debug_mod
 
   private
 
-  public debug_check_areas
   public print_min_max
   public is_inf
   public is_greater_than
@@ -27,86 +26,6 @@ module debug_mod
   end interface is_inf
 
 contains
-
-  subroutine debug_check_areas()
-
-    type(latlon_mesh_type), pointer :: mesh
-    real(8) total_area
-    integer j
-
-    mesh => global_mesh
-
-    total_area = 0.0_r8
-    do j = mesh%full_jds, mesh%full_jde
-      total_area = total_area + mesh%area_cell(j) * mesh%full_nlon
-    end do
-    if (abs(global_mesh%total_area - total_area) / global_mesh%total_area > 1.0d-12) then
-      call log_error('Failed to calculate cell area!', __FILE__, __LINE__)
-    end if
-
-    total_area = 0.0_r8
-    do j = mesh%half_jds, mesh%half_jde
-      total_area = total_area + mesh%area_vtx(j) * mesh%half_nlon
-    end do
-    if (abs(global_mesh%total_area - total_area) / global_mesh%total_area > 1.0d-11) then
-      call log_error('Failed to calculate vertex area!', __FILE__, __LINE__)
-    end if
-
-    total_area = 0.0_r8
-    do j = mesh%full_jds, mesh%full_jde
-      total_area = total_area + sum(mesh%area_subcell(:,j)) * mesh%full_nlon * 2
-    end do
-    if (abs(global_mesh%total_area - total_area) / global_mesh%total_area > 1.0d-12) then
-      call log_error('Failed to calculate subcell area!', __FILE__, __LINE__)
-    end if
-
-    do j = mesh%full_jds, mesh%full_jde
-      if (abs(mesh%area_cell(j) - 2.0d0 * sum(mesh%area_subcell(:,j))) / mesh%area_cell(j) > 1.0d-12) then
-        call log_error('Failed to calculate subcell area!', __FILE__, __LINE__)
-      end if
-    end do
-
-    do j = mesh%half_jds, mesh%half_jde
-      if (abs(mesh%area_vtx(j) - 2.0_r8 * (mesh%area_subcell(2,j) + mesh%area_subcell(1,j+1))) / mesh%area_vtx(j) > 1.0d-10) then
-        call log_error('Failed to calculate subcell area!', __FILE__, __LINE__)
-      end if
-    end do
-
-    do j = mesh%full_jds_no_pole, mesh%full_jde_no_pole
-      if (abs(mesh%area_lon_north(j) + mesh%area_lon_south(j) - mesh%area_lon(j)) / mesh%area_lon(j) > 1.0d-12) then
-        call log_error('Failed to calculate north and south subcell on lon grids!', __FILE__, __LINE__)
-      end if
-    end do
-
-    do j = mesh%half_jds, mesh%half_jde
-      if (abs(mesh%area_lat_west(j) + mesh%area_lat_east(j) - mesh%area_lat(j)) / mesh%area_lat(j) > 1.0d-11) then
-        call log_error('Failed to calculate west and east subcell on lat grids!', __FILE__, __LINE__)
-      end if
-    end do
-
-    total_area = 0.0_r8
-    do j = mesh%full_jds_no_pole, mesh%full_jde_no_pole
-      total_area = total_area + mesh%area_lon(j) * mesh%full_nlon
-    end do
-    do j = mesh%half_jds, mesh%half_jde
-      total_area = total_area + mesh%area_lat(j) * mesh%full_nlon
-    end do
-    if (abs(global_mesh%total_area - total_area) / global_mesh%total_area > 1.0d-9) then
-      call log_error('Failed to calculate edge area!', __FILE__, __LINE__)
-    end if
-
-    total_area = 0.0_r8
-    do j = mesh%full_jds_no_pole, mesh%full_jde_no_pole
-      total_area = total_area + (mesh%area_lon_north(j) + mesh%area_lon_south(j)) * mesh%full_nlon
-    end do
-    do j = mesh%half_jds, mesh%half_jde
-      total_area = total_area + (mesh%area_lat_west(j) + mesh%area_lat_east(j)) * mesh%full_nlon
-    end do
-    if (abs(global_mesh%total_area - total_area) / global_mesh%total_area > 1.0d-9) then
-      call log_error('Failed to calculate edge area!', __FILE__, __LINE__)
-    end if
-
-  end subroutine debug_check_areas
 
   subroutine print_min_max_3d(field)
 

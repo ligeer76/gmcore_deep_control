@@ -86,8 +86,8 @@ module adv_batch_mod
     type(latlon_field3d_type) cflz
     type(latlon_field3d_type) divx
     type(latlon_field3d_type) divy
-    type(latlon_field3d_type) qmfx0
-    type(latlon_field3d_type) qmfy0
+    type(latlon_field3d_type) qmfx0 ! Inner tracer mass flux in x direction
+    type(latlon_field3d_type) qmfy0 ! Inner tracer mass flux in y direction
     type(latlon_field3d_type) qx
     type(latlon_field3d_type) qy
     type(adv_batch_type), pointer :: bg => null() ! Background batch
@@ -341,7 +341,7 @@ contains
         name            =trim(this%name) // '_divx'                          , &
         long_name       ='Mass flux divergence in x direction'               , &
         units           ='Pa s-1'                                            , &
-        loc             =locx                                                , &
+        loc             =loc0                                                , &
         mesh            =mesh                                                , &
         halo            =halo                                                , &
         restart         =.false.                                             , &
@@ -350,7 +350,7 @@ contains
         name            =trim(this%name) // '_divy'                          , &
         long_name       ='Mass flux divergence in y direction'               , &
         units           ='Pa s-1'                                            , &
-        loc             =locy                                                , &
+        loc             =loc0                                                , &
         mesh            =mesh                                                , &
         halo            =halo                                                , &
         restart         =.false.                                             , &
@@ -591,7 +591,7 @@ contains
     type(latlon_field3d_type), intent(inout) :: mfx_frac
     real(r8), intent(in) :: dt
 
-    real(r8) dm
+    real(r8) mc, dm
     integer ks, ke, i, j, k, l
 
     call perf_start('adv_batch_calc_cflxy_tracer')
@@ -609,18 +609,20 @@ contains
             mfx_frac%d(i,j,k) = mfx%d(i,j,k)
             if (dm >= 0) then
               do l = i, mesh%full_ims, -1
-                if (dm < mx%d(l,j,k) * mesh%area_cell(j)) exit
-                dm = dm - mx%d(l,j,k) * mesh%area_cell(j)
+                mc = mx%d(l,j,k) * mesh%area_cell(j)
+                if (dm < mc) exit
+                dm = dm - mc
                 mfx_frac%d(i,j,k) = mfx_frac%d(i,j,k) - mx%d(l,j,k) * mesh%de_lon(j) / dt
               end do
-              cflx%d(i,j,k) = i - l + dm / mx%d(l,j,k) / mesh%area_cell(j)
+              cflx%d(i,j,k) = i - l + dm / mc
             else
               do l = i + 1, mesh%full_ime
-                if (dm > -mx%d(l,j,k) * mesh%area_cell(j)) exit
-                dm = dm + mx%d(l,j,k) * mesh%area_cell(j)
+                mc = mx%d(l,j,k) * mesh%area_cell(j)
+                if (-dm < mc) exit
+                dm = dm + mc
                 mfx_frac%d(i,j,k) = mfx_frac%d(i,j,k) + mx%d(l,j,k) * mesh%de_lon(j) / dt
               end do
-              cflx%d(i,j,k) = i + 1 - l + dm / mx%d(l,j,k) / mesh%area_cell(j)
+              cflx%d(i,j,k) = i + 1 - l + dm / mc
             end if
           end do
         end do
@@ -632,16 +634,18 @@ contains
             dm = mfy%d(i,j,k) * mesh%le_lat(j) * dt
             if (dm >= 0) then
               do l = j, mesh%full_jms, -1
-                if (dm < my%d(i,l,k) * mesh%area_cell(l)) exit
-                dm = dm - my%d(i,l,k) * mesh%area_cell(l)
+                mc = my%d(i,l,k) * mesh%area_cell(l)
+                if (dm < mc) exit
+                dm = dm - mc
               end do
-              cfly%d(i,j,k) = j - l + dm / my%d(i,l,k) / mesh%area_cell(l)
+              cfly%d(i,j,k) = j - l + dm / mc
             else
               do l = j + 1, mesh%full_jme
-                if (dm > -my%d(i,l,k) * mesh%area_cell(l)) exit
-                dm = dm + my%d(i,l,k) * mesh%area_cell(l)
+                mc = my%d(i,l,k) * mesh%area_cell(l)
+                if (-dm < mc) exit
+                dm = dm + mc
               end do
-              cfly%d(i,j,k) = j + 1 - l + dm / my%d(i,l,k) / mesh%area_cell(l)
+              cfly%d(i,j,k) = j + 1 - l + dm / mc
             end if
             ! Clip CFL number that are out of range. This should be very rare and in the polar region.
             cfly%d(i,j,k) = min(max(cfly%d(i,j,k), -1.0_r8), 1.0_r8)
@@ -705,7 +709,7 @@ contains
     type(latlon_field3d_type), intent(inout) :: mfz_frac
     real(r8), intent(in) :: dt
 
-    real(r8) dm
+    real(r8) mc, dm
     integer i, j, k, l
 
     associate (mesh => this%mesh)
@@ -714,22 +718,25 @@ contains
       do k = mesh%half_kds + 1, mesh%half_kde - 1
         do j = mesh%full_jds, mesh%full_jde
           do i = mesh%full_ids, mesh%full_ide
-            dm = mfz%d(i,j,k) * mesh%half_dlev(k) * dt
+            ! NOTE: Here we ignore the horizontal area of the cell since it cancels out in shallow-atmosphere approximation.
+            dm = mfz%d(i,j,k) * dt ! 𝜹π/𝜹η dη/dt * dt
             mfz_frac%d(i,j,k) = mfz%d(i,j,k)
             if (dm >= 0) then
               do l = k - 1, mesh%full_kms, -1
-                if (dm < m%d(i,j,l) * mesh%full_dlev(l)) exit
-                dm = dm - m%d(i,j,l) * mesh%full_dlev(l)
-                mfz_frac%d(i,j,k) = mfz_frac%d(i,j,k) - m%d(i,j,l) / dt
+                mc = m%d(i,j,l) ! 𝜹π/𝜹η 𝜹η = 𝜹π
+                if (dm < mc) exit
+                dm = dm - mc
+                mfz_frac%d(i,j,k) = mfz_frac%d(i,j,k) - mc / dt
               end do
-              cflz%d(i,j,k) = k - 1 - l + dm / m%d(i,j,l) / mesh%full_dlev(l)
+              cflz%d(i,j,k) = k - 1 - l + dm / mc
             else
               do l = k, mesh%full_kme
-                if (dm > -m%d(i,j,l) * mesh%full_dlev(l)) exit
-                dm = dm + m%d(i,j,l) * mesh%full_dlev(l)
-                mfz_frac%d(i,j,k) = mfz_frac%d(i,j,k) + m%d(i,j,l) / dt
+                mc = m%d(i,j,l)
+                if (-dm < mc) exit
+                dm = dm + mc
+                mfz_frac%d(i,j,k) = mfz_frac%d(i,j,k) + mc / dt
               end do
-              cflz%d(i,j,k) = k - l + dm / m%d(i,j,l) / mesh%full_dlev(l)
+              cflz%d(i,j,k) = k - l + dm / mc
             end if
           end do
         end do
@@ -738,22 +745,24 @@ contains
       do k = mesh%full_kds, mesh%full_kde
         do j = mesh%full_jds, mesh%full_jde
           do i = mesh%full_ids, mesh%full_ide
-            dm = mfz%d(i,j,k) * mesh%full_dlev(k) * dt
+            dm = mfz%d(i,j,k) * dt
             mfz_frac%d(i,j,k) = mfz%d(i,j,k)
             if (dm >= 0) then
               do l = k, mesh%half_kms, -1
-                if (dm < m%d(i,j,l) * mesh%half_dlev(l)) exit
-                dm = dm - m%d(i,j,l) * mesh%half_dlev(l)
-                mfz_frac%d(i,j,k) = mfz_frac%d(i,j,k) - m%d(i,j,l) / dt
+                mc = m%d(i,j,l)
+                if (dm < mc) exit
+                dm = dm - mc
+                mfz_frac%d(i,j,k) = mfz_frac%d(i,j,k) - mc / dt
               end do
-              cflz%d(i,j,k) = k - l + dm / m%d(i,j,l) / mesh%half_dlev(l)
+              cflz%d(i,j,k) = k - l + dm / mc
             else
-              do l = k, mesh%half_kme
-                if (dm > -m%d(i,j,l) * mesh%half_dlev(l)) exit
-                dm = dm + m%d(i,j,l) * mesh%half_dlev(l)
-                mfz_frac%d(i,j,k) = mfz_frac%d(i,j,k) + m%d(i,j,l) / dt
+              do l = k + 1, mesh%half_kme
+                mc = m%d(i,j,l)
+                if (-dm < mc) exit
+                dm = dm + mc
+                mfz_frac%d(i,j,k) = mfz_frac%d(i,j,k) + mc / dt
               end do
-              cflz%d(i,j,k) = k - l + dm / m%d(i,j,l) / mesh%half_dlev(l)
+              cflz%d(i,j,k) = k + 1 - l + dm / mc
             end if
           end do
         end do
@@ -870,7 +879,7 @@ contains
     if (no_negvals) then
       do j = f%mesh%full_jds, f%mesh%full_jde
         do i = f%mesh%full_ids, f%mesh%full_ide
-          if (any(f%d(i,j,kms:kds-1) < 0)) f%d(i,j,kds-1:kms) = f%d(i,j,kds)
+          if (any(f%d(i,j,kms:kds-1) < 0)) f%d(i,j,kms:kds-1) = f%d(i,j,kds)
           if (any(f%d(i,j,kde+1:kme) < 0)) f%d(i,j,kde+1:kme) = f%d(i,j,kde)
         end do
       end do

@@ -314,6 +314,14 @@ contains
               do j = mesh%full_jds, mesh%full_jde
                 do i = mesh%full_ids, mesh%full_ide
                   q_new%d(i,j,k) = (mxy%d(i,j,k) * qxy%d(i,j,k) - dt_adv * (qmfz%d(i,j,k+1) - qmfz%d(i,j,k))) / m_new%d(i,j,k)
+                  if (q_new%d(i,j,k) < 0) then
+                    if (abs(q_new%d(i,j,k)) > 1.0e-20) then
+                      call log_error('Mixing ratio of ' // trim(tracer_names(idx)) // ' is negative after advection update at grid (' // &
+                        to_str(i) // ', ' // to_str(j) // ', ' // to_str(k) // ')!', __FILE__, __LINE__)
+                    else
+                      q_new%d(i,j,k) = 0
+                    end if
+                  end if
                 end do
               end do
             end do

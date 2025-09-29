@@ -407,11 +407,10 @@ contains
     do k = mesh%full_kds, mesh%full_kde
       do j = mesh%full_jds_no_pole, mesh%full_jde_no_pole + merge(0, 1, mesh%has_north_pole())
         do i = mesh%full_ids, mesh%full_ide + 1
-          ke%d(i,j,k) = 0.25_r8 * (u%d(i-1,j  ,k)**2 + &
-                         u%d(i  ,j  ,k)**2 + &
-                         v%d(i  ,j-1,k)**2 + &
-                         v%d(i  ,j  ,k)**2   &
-                        )
+          ke%d(i,j,k) = 0.25_r8 * (             &
+            u%d(i-1,j  ,k)**2 + u%d(i,j,k)**2 + &
+            v%d(i  ,j-1,k)**2 + v%d(i,j,k)**2   &
+          )
         end do
       end do
     end do
@@ -477,33 +476,24 @@ contains
       do k = mesh%full_kds, mesh%full_kde
         do j = mesh%full_jds_no_pole, mesh%full_jde_no_pole + merge(0, 1, mesh%has_north_pole())
           do i = mesh%full_ids, mesh%full_ide + 1
-            ke_vtx(1) = 0.25_r8 * (                          &
-              v%d(i-1,j  ,k)**2 + &
-              v%d(i  ,j  ,k)**2 + &
-              u%d(i-1,j  ,k)**2 + &
-              u%d(i-1,j+1,k)**2   &
+            ke_vtx(1) = 0.25_r8 * (                   &
+              v%d(i-1,j  ,k)**2 + v%d(i  ,j  ,k)**2 + &
+              u%d(i-1,j  ,k)**2 + u%d(i-1,j+1,k)**2   &
             )
-            ke_vtx(2) = 0.25_r8 * (                          &
-              v%d(i-1,j-1,k)**2 + &
-              v%d(i  ,j-1,k)**2 + &
-              u%d(i-1,j-1,k)**2 + &
-              u%d(i-1,j  ,k)**2   &
+            ke_vtx(2) = 0.25_r8 * (                   &
+              v%d(i-1,j-1,k)**2 + v%d(i  ,j-1,k)**2 + &
+              u%d(i-1,j-1,k)**2 + u%d(i-1,j  ,k)**2   &
             )
-            ke_vtx(3) = 0.25_r8 * (                                    &
-              v%d(i  ,j-1,k)**2 + &
-              v%d(i+1,j-1,k)**2 + &
-              u%d(i  ,j-1,k)**2 + &
-              u%d(i  ,j  ,k)**2   &
+            ke_vtx(3) = 0.25_r8 * (                   &
+              v%d(i  ,j-1,k)**2 + v%d(i+1,j-1,k)**2 + &
+              u%d(i  ,j-1,k)**2 + u%d(i  ,j  ,k)**2   &
             )
-            ke_vtx(4) = 0.25_r8 * (                                    &
-              v%d(i  ,j  ,k)**2 + &
-              v%d(i+1,j  ,k)**2 + &
-              u%d(i  ,j  ,k)**2 + &
-              u%d(i  ,j+1,k)**2   &
+            ke_vtx(4) = 0.25_r8 * (                   &
+              v%d(i  ,j  ,k)**2 + v%d(i+1,j  ,k)**2 + &
+              u%d(i  ,j  ,k)**2 + u%d(i  ,j+1,k)**2   &
             )
-            ke%d(i,j,k) = (1.0_r8 - ke_cell_wgt) * 0.25_r8 * (             &
-              (ke_vtx(1) + ke_vtx(4)) + &
-              (ke_vtx(2) + ke_vtx(3))   &
+            ke%d(i,j,k) = (1.0_r8 - ke_cell_wgt) * 0.25_r8 * ( &
+              ke_vtx(1) + ke_vtx(4) + ke_vtx(2) + ke_vtx(3)    &
             ) + ke_cell_wgt * ke%d(i,j,k)
           end do
         end do

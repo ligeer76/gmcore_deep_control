@@ -85,10 +85,8 @@ elseif (CMAKE_Fortran_COMPILER_ID STREQUAL "Intel" OR CMAKE_Fortran_COMPILER_ID 
       -no-wrap-margin
       -O3
       -align array64byte
+      -fp-model precise
     )
-    if (CHECK_PARALLEL)
-      list(APPEND fortran_flags -fp-model precise)
-    endif ()
   endif ()
 endif ()
 

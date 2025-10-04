@@ -45,7 +45,11 @@ def vinterp_z(zi, var, zo, axis=0):
 
 def vinterp_p(pi, var, po, axis=0):
 	res = interpolate_1d(po, pi, var, axis=axis)
-	res = xr.DataArray(res, coords=var.coords, dims=var.dims)
+	dims = tuple('p' if x == 'lev' or x == 'ilev' else x for x in var.dims)
+	coords = {d: var.coords[d] for d in dims if d != 'p'}
+	tmp = po if po is list else [po]
+	coords['p'] = xr.DataArray([p.to('Pa').magnitude for p in tmp], dims=['p'], attrs={'long_name': 'Pressure', 'units': 'Pa'})
+	res = xr.DataArray(res, coords=coords, dims=dims)
 	res.attrs = var.attrs
 	return res
 

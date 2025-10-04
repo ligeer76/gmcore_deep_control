@@ -78,6 +78,7 @@ contains
                mg    => dstate%mg   , &
                t     => block%aux%t , &
                pt    => dstate%pt   )
+    call wait_halo(u)
     do k = mesh%full_kds, mesh%full_kde
       kv = kf * max(0.0_r8, (mesh%full_lev(k) - sig_b) / (1.0_r8 - sig_b))
       do j = mesh%full_jds_no_pole, mesh%full_jde_no_pole
@@ -86,8 +87,9 @@ contains
         end do
       end do
     end do
-    call fill_halo(u)
+    call fill_halo(u, async=.true.)
 
+    call wait_halo(v)
     do k = mesh%full_kds, mesh%full_kde
       kv = kf * max(0.0_r8, (mesh%full_lev(k) - sig_b) / (1.0_r8 - sig_b))
       do j = mesh%half_jds, mesh%half_jde
@@ -96,8 +98,9 @@ contains
         end do
       end do
     end do
-    call fill_halo(v)
+    call fill_halo(v, async=.true.)
 
+    call wait_halo(pt)
     do k = mesh%full_kds, mesh%full_kde
       do j = mesh%full_jds, mesh%full_jde
         kt = ka + (ks - ka) * max(0.0_r8, (mesh%full_lev(k) - sig_b) / (1.0_r8 - sig_b)) * mesh%full_cos_lat(j)**4
@@ -108,7 +111,7 @@ contains
         end do
       end do
     end do
-    call fill_halo(pt)
+    call fill_halo(pt, async=.true.)
     end associate
 
   end subroutine held_suarez_test_apply_forcing

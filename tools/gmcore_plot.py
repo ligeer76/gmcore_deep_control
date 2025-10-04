@@ -138,6 +138,7 @@ def plot_contour_lat(ax, var,
 	ticks=None,
 	left_string=None,
 	right_string=None,
+	invert_yaxis=False,
 	with_grid=True,
 	font_size=8,
 	use_scientific=False,
@@ -172,6 +173,7 @@ def plot_contour_lat(ax, var,
 	else:
 		im = ax.contourf(lat, lev, var, cmap=cmap, extend='both')
 		if with_contour: ax.contour(lat, lev, var, levels=levels, linewidths=linewidth, colors='k')
+	if invert_yaxis: ax.invert_yaxis()
 	if with_grid:
 		ax.grid(True)
 	if cbar_orient == 'vertical':

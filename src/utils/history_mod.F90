@@ -208,10 +208,10 @@ contains
     end if
     call fiona_add_dim('h0', 'lon' , size=global_mesh%full_nlon, add_var=.true., decomp=.true.)
     call fiona_add_dim('h0', 'lat' , size=global_mesh%full_nlat, add_var=.true., decomp=.true.)
-    call fiona_add_dim('h0', 'lev' , size=global_mesh%full_nlev)
+    call fiona_add_dim('h0', 'lev' , size=global_mesh%full_nlev, add_var=.true.)
     call fiona_add_dim('h0', 'ilon', size=global_mesh%half_nlon, add_var=.true., decomp=.true.)
     call fiona_add_dim('h0', 'ilat', size=global_mesh%half_nlat, add_var=.true., decomp=.true.)
-    call fiona_add_dim('h0', 'ilev', size=global_mesh%half_nlev)
+    call fiona_add_dim('h0', 'ilev', size=global_mesh%half_nlev, add_var=.true.)
     ! Variables
     call fiona_add_var('h0', 'area', long_name='Cell area', units='m2', dim_names=['lat'], dtype=output_h0_dtype)
     select case (planet)
@@ -276,8 +276,10 @@ contains
     if (first_call .or. time_has_alert('h0_new_file')) then
       call fiona_output('h0', 'lon' , global_mesh%full_lon_deg(1:global_mesh%full_nlon), only_root=.true.)
       call fiona_output('h0', 'lat' , global_mesh%full_lat_deg(1:global_mesh%full_nlat), only_root=.true.)
+      call fiona_output('h0', 'lev' , global_mesh%full_lev    (1:global_mesh%full_nlev), only_root=.true.)
       call fiona_output('h0', 'ilon', global_mesh%half_lon_deg(1:global_mesh%half_nlon), only_root=.true.)
       call fiona_output('h0', 'ilat', global_mesh%half_lat_deg(1:global_mesh%half_nlat), only_root=.true.)
+      call fiona_output('h0', 'ilev', global_mesh%half_lev    (1:global_mesh%half_nlev), only_root=.true.)
       call fiona_output('h0', 'area', global_mesh%area_cell(1:global_mesh%full_nlat)   , only_root=.true.)
       do iblk = 1, size(blocks)
         call write_fields('h0', blocks(iblk)%mesh, blocks(iblk)%static%fields)

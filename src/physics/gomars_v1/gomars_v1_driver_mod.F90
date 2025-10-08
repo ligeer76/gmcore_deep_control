@@ -16,8 +16,10 @@ module gomars_v1_driver_mod
   use const_mod
   use namelist_mod, only: restart, ptop
   use vert_coord_mod
+  use process_mod, only: proc
   use gomars_v1_namelist_mod
   use gomars_v1_objects_mod
+  use gomars_v1_output_mod
   use gomars_v1_tracers_mod
   use gomars_v1_orbit_mod
   use gomars_v1_rad_mod
@@ -36,6 +38,8 @@ module gomars_v1_driver_mod
   public gomars_v1_final
   public gomars_v1_d2p
   public gomars_v1_p2d
+  public gomars_v1_add_output
+  public gomars_v1_output
   public objects
 
 contains
@@ -67,11 +71,16 @@ contains
     lnpstrat = log(pstrat)
     pstratk  = (pstrat / p0)**rd_o_cpd
 
+    if (present(model_root)) data_root = trim(model_root) // '/data/mars'
+
     call gomars_v1_tracers_init(dt_adv)
     call gomars_v1_objects_init(mesh)
+    call gomars_v1_read_static_data()
     call gomars_v1_orbit_init()
     call gomars_v1_rad_init()
+    call gomars_v1_lsm_init()
     call gomars_v1_pbl_init()
+    call gomars_v1_mp_init()
     call gomars_v1_damp_init()
 
   end subroutine gomars_v1_init_stage2
@@ -123,6 +132,83 @@ contains
     end do
 
   end subroutine gomars_v1_init_stage3
+
+  subroutine gomars_v1_read_static_data()
+
+    use fiona
+    use latlon_interp_mod
+
+    real(r8), allocatable :: lon(:)
+    real(r8), allocatable :: lat(:)
+    real(r8), allocatable :: dat(:,:)
+    real(r8), allocatable :: col(:)
+    integer i, k
+
+    if (allocated(objects)) then
+      associate (mesh => objects(1)%mesh, state => objects(1)%state)
+      ! Surface albedo
+      call fiona_open_dataset('alb', file_path=trim(data_root)//'/mgs_albedo.nc', mpi_comm=proc%comm_model)
+      call fiona_set_dim('alb', 'lon', span=[0, 360], cyclic=.true.)
+      call fiona_set_dim('alb', 'lat', span=[-90, 90])
+      call fiona_start_input('alb')
+      call fiona_input_range('alb', 'lon', lon, coord_range=[mesh%min_lon, mesh%max_lon]); lon = lon * rad
+      call fiona_input_range('alb', 'lat', lat, coord_range=[mesh%min_lat, mesh%max_lat]); lat = lat * rad
+      call fiona_input_range('alb', 'albedo', dat, coord_range_1=[mesh%min_lon, mesh%max_lon], coord_range_2=[mesh%min_lat, mesh%max_lat])
+      call fiona_end_input('alb')
+      call latlon_interp_bilinear_column(lon, lat, dat, mesh%lon, mesh%lat, state%alsp)
+      deallocate(lon, lat, dat)
+
+      ! Surface thermal inertia
+      call fiona_open_dataset('tin', file_path=trim(data_root)//'/nasa_thin_2011.nc', mpi_comm=proc%comm_model)
+      call fiona_set_dim('tin', 'lon', span=[0, 360], cyclic=.true.)
+      call fiona_set_dim('tin', 'lat', span=[-90, 90])
+      call fiona_start_input('tin')
+      call fiona_input_range('tin', 'lon', lon, coord_range=[mesh%min_lon, mesh%max_lon]); lon = lon * rad
+      call fiona_input_range('tin', 'lat', lat, coord_range=[mesh%min_lat, mesh%max_lat]); lat = lat * rad
+      call fiona_input_range('tin', 'thin', dat, coord_range_1=[mesh%min_lon, mesh%max_lon], coord_range_2=[mesh%min_lat, mesh%max_lat])
+      call fiona_end_input('tin')
+      call latlon_interp_bilinear_column(lon, lat, dat, mesh%lon, mesh%lat, state%zin(:,1))
+      do k = 2, nsoil
+        state%zin(:,k) = state%zin(:,1)
+      end do
+      deallocate(lon, lat, dat)
+
+      ! Ground ice indicator
+      call fiona_open_dataset('gnd_ice', file_path=trim(data_root)//'/gnd_ice_map.nc', mpi_comm=proc%comm_model)
+      call fiona_set_dim('gnd_ice', 'lon', span=[0, 360], cyclic=.true.)
+      call fiona_set_dim('gnd_ice', 'lat', span=[-90, 90])
+      call fiona_start_input('gnd_ice')
+      call fiona_input_range('gnd_ice', 'lon', lon, coord_range=[mesh%min_lon, mesh%max_lon]); lon = lon * rad
+      call fiona_input_range('gnd_ice', 'lat', lat, coord_range=[mesh%min_lat, mesh%max_lat]); lat = lat * rad
+      call fiona_input_range('gnd_ice', 'gnd_ice', dat, coord_range_1=[mesh%min_lon, mesh%max_lon], coord_range_2=[mesh%min_lat, mesh%max_lat])
+      call fiona_end_input('gnd_ice')
+      allocate(col(mesh%ncol))
+      call latlon_interp_bilinear_column(lon, lat, dat, mesh%lon, mesh%lat, col)
+      do i = 1, mesh%ncol
+        state%pcflag(i) = col(i) > 0.5_r8
+        if (mesh%lat(i) < 0) then
+          state%spcflag(i) = col(i) > 0.5_r8
+        else
+          state%npcflag(i) = col(i) > 0.5_r8
+        end if
+      end do
+      deallocate(lon, lat, dat, col)
+
+      ! Zonal averaged ground temperature for cold run
+      call fiona_open_dataset('zavgtg', file_path=trim(data_root)//'/nasa_zavgtg.nc', mpi_comm=proc%comm_model)
+      call fiona_set_dim('zavgtg', 'lon', span=[0, 360], cyclic=.true.)
+      call fiona_set_dim('zavgtg', 'lat', span=[-90, 90])
+      call fiona_start_input('zavgtg')
+      call fiona_input_range('zavgtg', 'lon', lon, coord_range=[mesh%min_lon, mesh%max_lon]); lon = lon * rad
+      call fiona_input_range('zavgtg', 'lat', lat, coord_range=[mesh%min_lat, mesh%max_lat]); lat = lat * rad
+      call fiona_input_range('zavgtg', 'zavgtg', dat, coord_range_1=[mesh%min_lon, mesh%max_lon], coord_range_2=[mesh%min_lat, mesh%max_lat])
+      call fiona_end_input('zavgtg')
+      call latlon_interp_bilinear_column(lon, lat, dat, mesh%lon, mesh%lat, state%zavgtg)
+      deallocate(lon, lat, dat)
+      end associate
+    end if
+
+  end subroutine gomars_v1_read_static_data
 
   subroutine gomars_v1_run(time)
 
@@ -178,7 +264,7 @@ contains
           state%q             (icol,nlev,:), & ! in
           state%tm_sfc        (icol,     :), & ! in
           state%alsp          (icol       ), & ! in
-          state%polarcap      (icol       ), & ! in
+          state%pcflag        (icol       ), & ! in
           state%rhouch        (icol       ), & ! in
           state%co2ice_sfc    (icol       ), & ! inout
           state%ht_sfc        (icol       ), & ! in
@@ -308,7 +394,7 @@ contains
           state%als(icol) = state%alsp(icol)
           if (state%co2ice_sfc(icol) > 0) then
             state%als(icol) = merge(alices, alicen, mesh%lat(icol) < 0)
-          else if (albfeed .and. state%tm_sfc(icol,iMa_vap) > icethresh_kgm2 .and. state%polarcap(icol)) then
+          else if (albfeed .and. state%tm_sfc(icol,iMa_vap) > icethresh_kgm2 .and. state%pcflag(icol)) then
             state%als(icol) = icealb
           end if
           ! Calculate optical depth due to all sources in the visible bands.
@@ -452,14 +538,14 @@ contains
         ! Set surface roughness length.
         state%z0(icol) = z00
         if (state%co2ice_sfc(icol) > 0) state%z0(icol) = 1.0e-4_r8
-        if (state%tm_sfc(icol,iMa_vap) > 100 .or. state%polarcap(icol)) state%z0(icol) = 1.0e-4_r8
+        if (state%tm_sfc(icol,iMa_vap) > 100 .or. state%pcflag(icol)) state%z0(icol) = 1.0e-4_r8
         call newpbl(                        &
           state%z0              (icol    ), & ! in
           state%tg              (icol    ), & ! in
           state%ht_rad          (icol,:  ), & ! in
           state%ps              (icol    ), & ! in
           state%ts              (icol    ), & ! in
-          state%polarcap        (icol    ), & ! in
+          state%pcflag          (icol    ), & ! in
           state%u               (icol,:  ), & ! inout
           state%v               (icol,:  ), & ! inout
           state%pt              (icol,:  ), & ! inout
@@ -575,7 +661,9 @@ contains
 
     call gomars_v1_objects_final()
     call gomars_v1_rad_final()
+    call gomars_v1_lsm_final()
     call gomars_v1_pbl_final()
+    call gomars_v1_mp_final()
     call gomars_v1_damp_final()
 
   end subroutine gomars_v1_final

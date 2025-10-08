@@ -89,7 +89,7 @@ contains
                              hour  =start_time_array(3), &
                              minute=start_time_array(4))
       else
-        call start_time%init(my=1, sol=1, hour=0, minute=0, planet='mars')
+        call start_time%init(my=0, sol=0, hour=0, minute=0, planet='mars')
       end if
     end select
     end_time = start_time

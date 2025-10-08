@@ -45,12 +45,12 @@ subroutine laginterp(pgref, pint, co2i, co2v, fzeroi, fzerov)
   end do
 
   ! Get CO2 k coefficients.
-  open(20, file='data/CO2H2O_V_12_95_INTEL', form='unformatted')
+  open(20, file=trim(data_root)//'/old/CO2H2O_V_12_95_INTEL', form='unformatted', status='old')
   read(20) co2v8
   read(20) fzerov
   close(20)
   
-  open(20, file='data/CO2H2O_IR_12_95_INTEL', form='unformatted')
+  open(20, file=trim(data_root)//'/old/CO2H2O_IR_12_95_INTEL', form='unformatted', status='old')
   read(20) co2i8
   read(20) fzeroi
   close(20)

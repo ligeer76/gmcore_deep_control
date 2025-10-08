@@ -184,7 +184,7 @@ contains
     
     ! Calculate solar flux at the current Mars distance.
     do is = 1, nspectv
-      solar(is) = solar_1au(is) * rsdist
+      solar(is) = solar_1au(is) / rsdist
     end do
 
   end subroutine update_solar

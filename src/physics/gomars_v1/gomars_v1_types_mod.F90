@@ -155,7 +155,11 @@ module gomars_v1_types_mod
     ! Surface albedo considering surface CO2 ice
     real(r8), allocatable, dimension(:      ) :: als
     ! Polar cap flag
-    logical , allocatable, dimension(:      ) :: polarcap
+    logical , allocatable, dimension(:      ) :: pcflag
+    ! North polar cap flag
+    logical , allocatable, dimension(:      ) :: npcflag
+    ! South polar cap flag
+    logical , allocatable, dimension(:      ) :: spcflag
     ! cpd * rho * ustar * cdh
     real(r8), allocatable, dimension(:      ) :: rhouch
     ! Squared wind shear (s-1)
@@ -174,6 +178,8 @@ module gomars_v1_types_mod
     real(r8), allocatable, dimension(:,:    ) :: scond
     !
     real(r8), allocatable, dimension(:,:    ) :: stemp
+    !
+    real(r8), allocatable, dimension(:      ) :: zavgtg
     ! Water ice upward sublimation amount per unit area at the surface (kg m-2)
     real(r8), allocatable, dimension(:      ) :: h2osub_sfc     ! subflux
     ! [restart] Water ice at the surface (???)
@@ -287,7 +293,9 @@ contains
     allocate(this%ht_sfc        (mesh%ncol                   )); this%ht_sfc        = 0
     allocate(this%alsp          (mesh%ncol                   )); this%alsp          = 0
     allocate(this%als           (mesh%ncol                   )); this%als           = 0
-    allocate(this%polarcap      (mesh%ncol                   )); this%polarcap      = .false.
+    allocate(this%pcflag        (mesh%ncol                   )); this%pcflag        = .false.
+    allocate(this%npcflag       (mesh%ncol                   )); this%npcflag       = .false.
+    allocate(this%spcflag       (mesh%ncol                   )); this%spcflag       = .false.
     allocate(this%rhouch        (mesh%ncol                   )); this%rhouch        = 0
     allocate(this%shr2          (mesh%ncol,mesh%nlev+1       )); this%shr2          = 0
     allocate(this%ri            (mesh%ncol,mesh%nlev+1       )); this%ri            = 0
@@ -298,6 +306,7 @@ contains
     allocate(this%cpsoil        (mesh%ncol,nsoil             )); this%cpsoil        = 0
     allocate(this%scond         (mesh%ncol,2*nsoil+1         )); this%scond         = 0
     allocate(this%stemp         (mesh%ncol,2*nsoil+1         )); this%stemp         = 0
+    allocate(this%zavgtg        (mesh%ncol                   )); this%zavgtg        = 0
     allocate(this%h2osub_sfc    (mesh%ncol                   )); this%h2osub_sfc    = 0
     allocate(this%h2oice_sfc    (mesh%ncol                   )); this%h2oice_sfc    = 0
     allocate(this%dmsdt         (mesh%ncol                   )); this%dmsdt         = 0
@@ -384,7 +393,9 @@ contains
     if (allocated(this%ht_sfc       )) deallocate(this%ht_sfc       )
     if (allocated(this%alsp         )) deallocate(this%alsp         )
     if (allocated(this%als          )) deallocate(this%als          )
-    if (allocated(this%polarcap     )) deallocate(this%polarcap     )
+    if (allocated(this%pcflag       )) deallocate(this%pcflag       )
+    if (allocated(this%npcflag      )) deallocate(this%npcflag      )
+    if (allocated(this%spcflag      )) deallocate(this%spcflag      )
     if (allocated(this%rhouch       )) deallocate(this%rhouch       )
     if (allocated(this%shr2         )) deallocate(this%shr2         )
     if (allocated(this%ri           )) deallocate(this%ri           )
@@ -395,6 +406,7 @@ contains
     if (allocated(this%cpsoil       )) deallocate(this%cpsoil       )
     if (allocated(this%scond        )) deallocate(this%scond        )
     if (allocated(this%stemp        )) deallocate(this%stemp        )
+    if (allocated(this%zavgtg       )) deallocate(this%zavgtg       )
     if (allocated(this%h2osub_sfc   )) deallocate(this%h2osub_sfc   )
     if (allocated(this%h2oice_sfc   )) deallocate(this%h2oice_sfc   )
     if (allocated(this%dmsdt        )) deallocate(this%dmsdt        )

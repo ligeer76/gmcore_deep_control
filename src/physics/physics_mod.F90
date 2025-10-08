@@ -446,6 +446,8 @@ contains
     case ('cam')
       call cam_physics_add_output(tag, output_h0_dtype)
 #endif
+    case ('gomars_v1')
+      call gomars_v1_add_output(tag, output_h0_dtype)
     case ('gomars_v2')
       call gomars_v2_add_output(tag, output_h0_dtype)
     end select
@@ -466,6 +468,8 @@ contains
     case ('cam')
       call cam_physics_output(tag, iblk)
 #endif
+    case ('gomars_v1')
+      call gomars_v1_output(tag, iblk)
     case ('gomars_v2')
       call gomars_v2_output(tag, iblk)
     end select

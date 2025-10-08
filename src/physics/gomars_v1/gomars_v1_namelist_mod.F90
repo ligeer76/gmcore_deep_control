@@ -70,7 +70,7 @@ contains
 
     psl = psf
 
-    icethresh_kgm2 = icethresh_depth * rho_ice * 1.0E-6_r8
+    icethresh_kgm2 = icethresh_depth * rho_ice * 1.0e-6_r8
 
     use_wsl_newman = wsl_scheme == 'newman'
     use_wsl_kmh    = wsl_scheme == 'kmh'

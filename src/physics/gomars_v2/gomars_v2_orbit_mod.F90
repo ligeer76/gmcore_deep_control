@@ -61,33 +61,18 @@ contains
     ! Calculate eccentric anomaly of Ls~0 using Kepler's equation.
     A = (year_sol - peri_sol) / year_sol
     A = pi2 * (A - int(A))
-    E = eccen_anomaly(abs(A))
+    E = eccen_anomaly('mars', abs(A))
 
     peri_dls = 2 * atan(sqrt((1 + eccen) / (1 - eccen)) * tan(E / 2.0_r8)) ! Gauss' equation
 
   end subroutine mars_orbit_init
-
-  pure real(r8) function eccen_anomaly(ls) result(E)
-
-    real(r8), intent(in) :: ls ! Solar longitude (rad)
-
-    real(r8) dE
-
-    E  = ls + eccen * sin(ls)
-    dE = 1
-    do while (abs(dE) > 1.0e-12)
-      dE = (E - eccen * sin(E) - ls) / (1 - eccen * cos(E))
-      E  = E - dE
-    end do
-
-  end function eccen_anomaly
 
   ! Caluclate the distance between Sun and Mars in AU units.
   pure real(r8) function solar_dist(ls) result(res)
 
     real(r8), intent(in) :: ls ! Solar longitude (rad)
 
-    res = semia * (1 - eccen * cos(eccen_anomaly(ls + peri_dls)))
+    res = semia * (1 - eccen * cos(eccen_anomaly('mars', ls + peri_dls)))
 
   end function solar_dist
 

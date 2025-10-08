@@ -17,6 +17,7 @@ target_sources(gmcore PRIVATE
   gomars_v1_driver_mod.F90
   gomars_v1_namelist_mod.F90
   gomars_v1_objects_mod.F90
+  gomars_v1_output_mod.F90
   gomars_v1_tracers_mod.F90
   gomars_v1_types_mod.F90
   gomars_v1_orbit_mod.F90

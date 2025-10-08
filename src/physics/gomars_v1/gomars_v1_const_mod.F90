@@ -18,6 +18,7 @@ module gomars_v1_const_mod
 
   implicit none
 
+  character(256)      :: data_root = ''
   ! Number of soil layers
   integer , parameter :: nsoil     = 40
   ! Number of aerosol tracers

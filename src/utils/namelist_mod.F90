@@ -373,6 +373,10 @@ contains
     read(10, nml=gmcore_control)
     close(10)
 
+    if (planet == 'mars') then
+      topo_type = 'mola32'
+    end if
+
     if (use_async_io .and. nproc_io < 1) then
       nproc_io = 1
     end if

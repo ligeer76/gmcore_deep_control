@@ -31,8 +31,6 @@ module gomars_v1_pbl_mod
   real(r8), public, parameter :: alphl0 = 0.1_r8
   ! Critical Richardson number above which turbulence is suppressed
   real(r8), public, parameter :: ric    = 0.195_r8
-  real(r8), public, parameter :: factl  = 0.25_r8
-  real(r8), public, parameter :: factm  = 1.2_r8
 
   real(r8), parameter :: rmu1mu = (1 - rmu) / rmu
   real(r8) dtmu

@@ -35,7 +35,7 @@ module gomars_v1_orbit_mod
   ! Perihelion Sun-Mars distance (Mkm)
   real(r8), parameter :: rperi     = mars_rperi
   ! Obliquity (rad)
-  real(r8), parameter :: obliq     = 25.1919_r8 * rad
+  real(r8), parameter :: obliq     = 25.2193_r8 * rad
   real(r8), parameter :: sin_obliq = sin(obliq)
   ! Eccentricity (rad)
   real(r8), parameter :: eccen     = (raphe - rperi) / (raphe + rperi)

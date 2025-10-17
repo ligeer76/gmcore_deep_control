@@ -65,8 +65,14 @@ contains
     do iblk = 1, size(objects)
       associate (mesh => objects(iblk)%mesh, state => objects(iblk)%state)
       do i = 1, mesh%ncol
-        if (state%spcflag(i)) then
-          ! Southern hemisphere
+        ! Default values
+        do k = 1, nsoil
+          state%rhosoil(i,  k) = 1481.39_r8
+          state%cpsoil (i,  k) = 840.0_r8
+          state%scond  (i,2*k) = state%zin(i,k)**2 / (state%rhosoil(i,k) * state%cpsoil(i,k))
+        end do
+        if (state%grss(i)) then
+          ! Southern polar cap of ground ice
           do k = 1, nsoil
             if (sdepth(2*k-1) > gids) then
               state%zin    (i,  k) = 2236.995_r8
@@ -75,12 +81,8 @@ contains
               state%scond  (i,2*k) = state%zin(i,k)**2 / (state%rhosoil(i,k) * state%cpsoil(i,k))
             end if
           end do
-          state%scond(i,1) = state%scond(i,2)
-          do k = 3, 2 * nsoil - 1, 2
-            state%scond(i,k) = 0.5_r8 * (state%scond(i,k-1) + state%scond(i,k+1))
-          end do
-        else if (state%npcflag(i)) then
-          ! Northern hemisphere
+        else if (state%grsn(i)) then
+          ! Northern polar cap of ground ice
           do k = 1, nsoil
             if (sdepth(2*k-1) > gidn) then
               state%zin    (i,  k) = 1100.00_r8
@@ -89,11 +91,12 @@ contains
               state%scond  (i,2*k) = state%zin(i,k)**2 / (state%rhosoil(i,k) * state%cpsoil(i,k))
             end if
           end do
-          state%scond(i,1) = state%scond(i,2)
-          do k = 3, 2 * nsoil - 1, 2
-            state%scond(i,k) = 0.5_r8 * (state%scond(i,k-1) + state%scond(i,k+1))
-          end do
         end if
+        ! Half levels
+        state%scond(i,1) = state%scond(i,2)
+        do k = 3, 2 * nsoil - 1, 2
+          state%scond(i,k) = 0.5_r8 * (state%scond(i,k-1) + state%scond(i,k+1))
+        end do
 
         ! Soil temperature for cold run varying from 170K to 200K.
         do k = 1, 2 * nsoil + 1

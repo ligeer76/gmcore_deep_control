@@ -44,19 +44,19 @@ subroutine gfluxi(is, tlev, dtau, taucum, wbar, cosb, albi, btop, bsfc, ftopup, 
   do l = 1, nlayrad - 1
     alpha (l) = sqrt((1 - wbar(l)) / (1 - wbar(l) * cosb(l)))
     lambda(l) = alpha(l) * (1 - wbar(l) * cosb(l)) / ubari
-    nt  = tlev(2*l  ) * 10 - 499
     nt2 = tlev(2*l+2) * 10 - 499
-    b0(l) = planckir(is,nt)
+    nt  = tlev(2*l  ) * 10 - 499
     b1(l) = (planckir(is,nt2) - planckir(is,nt)) / dtau(l)
+    b0(l) = planckir(is,nt)
   end do
 
   l = nlayrad
   alpha (l) = sqrt((1 - wbar(l)) / (1 - wbar(l) * cosb(l)))
   lambda(l) = alpha(l) * (1 - wbar(l) * cosb(l)) / ubari
-  nt  = tlev(2*l  ) * 10 - 499
-  nt2 = tlev(2*l+1) * 10 - 499
-  b0(l) = planckir(is,nt2)
+  nt  = tlev(2*l+1) * 10 - 499
+  nt2 = tlev(2*l  ) * 10 - 499
   b1(l) = (planckir(is,nt) - planckir(is,nt2)) / dtau(l)
+  b0(l) = planckir(is,nt2)
 
   do l = 1, nlayrad
     gamma(l) = (1 - alpha(l)) / (1 + alpha(l))
@@ -78,7 +78,7 @@ subroutine gfluxi(is, tlev, dtau, taucum, wbar, cosb, albi, btop, bsfc, ftopup, 
 
   call dsolver(nlayrad, gamma, cp, cm, cpm1, cmm1, e1, e2, e3, e4, btop, bsfc, albi, x1, x2)
 
-  do l = 1, nlayrad
+  do l = 1, nlayrad - 1
     dtauk = taucum(2*l+1) - taucum(2*l)
     ep = exp(min(lambda(l) * dtauk, maxexp))
     em = 1.0_r8 / ep

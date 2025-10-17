@@ -49,7 +49,7 @@ subroutine dsolver(nl, gamma, cp, cm, cpm1, cmm1, e1, e2, e3, e4, btop, bsfc, al
     l    = l + 1
     a(i) = 2 * (1 - gamma(l)**2)
     b(i) = (e1(l) - e3(l)) * (gamma(l+1) + 1)
-    c(i) = (e1(l) + e3(l)) * (gamma(i+1) - 1)
+    c(i) = (e1(l) + e3(l)) * (gamma(l+1) - 1)
     d(i) = e3(l) * (cpm1(l+1) - cp(l)) + e1(l) * (cm(l) - cmm1(l+1))
   end do
 

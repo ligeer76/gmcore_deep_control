@@ -30,7 +30,7 @@ subroutine dsolflux(sol, acosz, gweight, fzerov, detau, solar_sfc_dn)
     end do
     ig = ngauss
     if (detau(is,ig) <= 5) then
-      solar_sfc_dn = solar_sfc_dn + factor * exp(-detau(is,ig) / acosz) * fzerov(ig)
+      solar_sfc_dn = solar_sfc_dn + factor * exp(-detau(is,ig) / acosz) * fzerov(is)
     end if
   end do
 

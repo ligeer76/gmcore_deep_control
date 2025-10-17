@@ -4,6 +4,8 @@ subroutine tpindex(p, t, qh2o, coef, idx_t, idx_p, idx_h2o, wratio)
   ! Mars Climate Modeling Center
   ! NASA Ames Research Center
 
+  ! Interpolate the CO2 K-coefficients to the current P, T values.
+
   use gomars_v1_const_mod
   use gomars_v1_rad_mod, only: pref => pfgasref, tref => tgasref, wrefh2o
 
@@ -73,7 +75,7 @@ subroutine tpindex(p, t, qh2o, coef, idx_t, idx_p, idx_h2o, wratio)
   else
     do i = 2, nrefh2o
       if (qh2o >= wrefh2o(i-1) .and. qh2o < wrefh2o(i)) then
-        idx_h2o = i
+        idx_h2o = i - 1
         wratio = (qh2o - wrefh2o(i-1)) / (wrefh2o(i) - wrefh2o(i-1))
         exit
       end if

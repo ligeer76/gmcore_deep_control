@@ -1,8 +1,12 @@
-subroutine eddycoef(z_lev, dz_lev, u, v, pt, q, pt_lev, shr2, ri, km, kh)
+subroutine eddycoef(z_lev, dz_lev, u, v, pt, pt_lev, q, shr2, ri, km, kh)
 
   ! Legacy Mars GCM v24
   ! Mars Climate Modeling Center
   ! NASA Ames Research Center
+
+  ! Determine the eddy mixing coefficients.
+  ! dudvdz is smoothed in time to remove oscillations in lowest model level.
+  ! kh and km have minimum values: From Arya (1988), p164-166.
 
   use gomars_v1_const_mod
   use gomars_v1_pbl_mod
@@ -14,8 +18,8 @@ subroutine eddycoef(z_lev, dz_lev, u, v, pt, q, pt_lev, shr2, ri, km, kh)
   real(r8), intent(in   ) :: u     (nlev  )
   real(r8), intent(in   ) :: v     (nlev  )
   real(r8), intent(in   ) :: pt    (nlev  )
-  real(r8), intent(in   ) :: q     (nlev,ntracers)
   real(r8), intent(in   ) :: pt_lev(nlev+1)
+  real(r8), intent(in   ) :: q     (nlev,ntracers)
   real(r8), intent(inout) :: shr2  (nlev+1)
   real(r8), intent(  out) :: ri    (nlev+1)  
   real(r8), intent(  out) :: km    (nlev+1)
@@ -39,9 +43,9 @@ subroutine eddycoef(z_lev, dz_lev, u, v, pt, q, pt_lev, shr2, ri, km, kh)
     ! Calculate mixing length and beta (volume expansion coefficient).
     ml2 = (ml0 * ka * z_lev(k) / (ml0 + ka * z_lev(k)))**2
     ! Calculate gradient Richardson number.
-    dudz    = (u (k) - u (k-1)) / dz_lev(k)
-    dvdz    = (v (k) - v (k-1)) / dz_lev(k)
-    dptdz   = (pt(k) - pt(k-1)) / dz_lev(k)
+    dudz    = -(u (k) - u (k-1)) / dz_lev(k)
+    dvdz    = -(v (k) - v (k-1)) / dz_lev(k)
+    dptdz   = -(pt(k) - pt(k-1)) / dz_lev(k)
     ! Smooth the wind shear,
     shr2(k) = shr2(k) - (shr2(k) - dudz**2 - dvdz**2) * dt / 1.0e4_r8
     shr     = sqrt(shr2(k))

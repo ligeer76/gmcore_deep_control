@@ -50,7 +50,7 @@ module gomars_v1_types_mod
     real(r8), allocatable, dimension(  :,:  ) :: qsidst
     ! Infrared asymmetry parameter for dust
     real(r8), allocatable, dimension(  :,:  ) :: gidst
-    !
+    ! Extinction coefficient for dust at the reference wavelength (0.67 micron)
     real(r8), allocatable, dimension(  :    ) :: qextrefdst
     ! Visible extinction efficiency for ice clouds
     real(r8), allocatable, dimension(  :,:  ) :: qxvcld
@@ -112,7 +112,7 @@ module gomars_v1_types_mod
     real(r8), allocatable, dimension(  :    ) :: taurefcld
     !
     real(r8), allocatable, dimension(  :    ) :: taucum
-    !
+    ! Total gas opacity through the column for each spectral interval and each Gauss point
     real(r8), allocatable, dimension(    :,:) :: taugsurf
     !
     real(r8), allocatable, dimension(:      ) :: tausurf
@@ -122,13 +122,13 @@ module gomars_v1_types_mod
     real(r8), allocatable, dimension(:,    :) :: taucld
     !
     real(r8), allocatable, dimension(  :,:,:) :: dtauv
-    !
+    ! Cumulative optical depth at visible bands
     real(r8), allocatable, dimension(  :,:,:) :: tauv
     !
     real(r8), allocatable, dimension(  :,:,:) :: taucumv
     !
     real(r8), allocatable, dimension(  :,:,:) :: dtaui
-    !
+    ! Cumulative optical depth at infrared bands
     real(r8), allocatable, dimension(  :,:,:) :: taui
     !
     real(r8), allocatable, dimension(  :,:,:) :: taucumi
@@ -145,7 +145,7 @@ module gomars_v1_types_mod
     !
     real(r8), allocatable, dimension(:      ) :: fluxsfc
     ! Heat rate on full levels (including TOA) due to radiation (K s-1)
-    real(r8), allocatable, dimension(:,:    ) :: ht_rad         ! qrad
+    real(r8), allocatable, dimension(:,:    ) :: qrad
     ! Heat rate at the surface due to PBL (K s-1)
     real(r8), allocatable, dimension(:      ) :: ht_pbl
     ! Exchange of heat between surface and air (positive downward) (W m-2)
@@ -154,12 +154,12 @@ module gomars_v1_types_mod
     real(r8), allocatable, dimension(:      ) :: alsp
     ! Surface albedo considering surface CO2 ice
     real(r8), allocatable, dimension(:      ) :: als
-    ! Polar cap flag
-    logical , allocatable, dimension(:      ) :: pcflag
-    ! North polar cap flag
+    ! Flag of northern GRS ground ice
+    logical , allocatable, dimension(:      ) :: grsn
+    ! Flag of southern GRS ground ice
+    logical , allocatable, dimension(:      ) :: grss
+    ! Flag of northern polar cap of water ice
     logical , allocatable, dimension(:      ) :: npcflag
-    ! South polar cap flag
-    logical , allocatable, dimension(:      ) :: spcflag
     ! cpd * rho * ustar * cdh
     real(r8), allocatable, dimension(:      ) :: rhouch
     ! Squared wind shear (s-1)
@@ -285,17 +285,17 @@ contains
     allocate(this%detau         (mesh%ncol,nspectv,ngauss    )); this%detau         = 0
     allocate(this%suntot        (2*mesh%nlev+3               )); this%suntot        = 0
     allocate(this%irtot         (2*mesh%nlev+3               )); this%irtot         = 0
-    allocate(this%solar_sfc_dn  (nspectv                     )); this%solar_sfc_dn  = 0
+    allocate(this%solar_sfc_dn  (mesh%ncol                   )); this%solar_sfc_dn  = 0
     allocate(this%ssun          (mesh%ncol                   )); this%ssun          = 0
     allocate(this%fluxsfc       (mesh%ncol                   )); this%fluxsfc       = 0
-    allocate(this%ht_rad        (mesh%ncol,0:mesh%nlev       )); this%ht_rad        = 0
+    allocate(this%qrad          (mesh%ncol,0:mesh%nlev       )); this%qrad          = 0
     allocate(this%ht_pbl        (mesh%ncol                   )); this%ht_pbl        = 0
     allocate(this%ht_sfc        (mesh%ncol                   )); this%ht_sfc        = 0
     allocate(this%alsp          (mesh%ncol                   )); this%alsp          = 0
     allocate(this%als           (mesh%ncol                   )); this%als           = 0
-    allocate(this%pcflag        (mesh%ncol                   )); this%pcflag        = .false.
+    allocate(this%grsn          (mesh%ncol                   )); this%grsn          = .false.
+    allocate(this%grss          (mesh%ncol                   )); this%grss          = .false.
     allocate(this%npcflag       (mesh%ncol                   )); this%npcflag       = .false.
-    allocate(this%spcflag       (mesh%ncol                   )); this%spcflag       = .false.
     allocate(this%rhouch        (mesh%ncol                   )); this%rhouch        = 0
     allocate(this%shr2          (mesh%ncol,mesh%nlev+1       )); this%shr2          = 0
     allocate(this%ri            (mesh%ncol,mesh%nlev+1       )); this%ri            = 0
@@ -388,14 +388,14 @@ contains
     if (allocated(this%solar_sfc_dn )) deallocate(this%solar_sfc_dn )
     if (allocated(this%ssun         )) deallocate(this%ssun         )
     if (allocated(this%fluxsfc      )) deallocate(this%fluxsfc      )
-    if (allocated(this%ht_rad       )) deallocate(this%ht_rad       )
+    if (allocated(this%qrad         )) deallocate(this%qrad         )
     if (allocated(this%ht_pbl       )) deallocate(this%ht_pbl       )
     if (allocated(this%ht_sfc       )) deallocate(this%ht_sfc       )
     if (allocated(this%alsp         )) deallocate(this%alsp         )
     if (allocated(this%als          )) deallocate(this%als          )
-    if (allocated(this%pcflag       )) deallocate(this%pcflag       )
+    if (allocated(this%grsn         )) deallocate(this%grsn         )
+    if (allocated(this%grss         )) deallocate(this%grss         )
     if (allocated(this%npcflag      )) deallocate(this%npcflag      )
-    if (allocated(this%spcflag      )) deallocate(this%spcflag      )
     if (allocated(this%rhouch       )) deallocate(this%rhouch       )
     if (allocated(this%shr2         )) deallocate(this%shr2         )
     if (allocated(this%ri           )) deallocate(this%ri           )

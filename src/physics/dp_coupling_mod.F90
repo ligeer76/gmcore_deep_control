@@ -61,7 +61,7 @@ contains
       call common_d2p(block, itime, tracers(block%id), gomars_v2_objects(block%id)%state)
       call gomars_v2_d2p()
     case default
-      if (proc%is_root()) call log_error('Unknown physics suite ' // trim(physics_suite) // '!')
+      if (proc%is_root()) call log_error('Unknown physics suite ' // trim(physics_suite) // '!', __FILE__, __LINE__)
     end select
 
     call perf_stop('dp_coupling_d2p')
@@ -188,11 +188,14 @@ contains
       call cam_physics_p2d()
       call common_p2d(block, itime, tracers(iblk), cam_objects(iblk)%state, cam_objects(iblk)%tend)
 #endif
+    case ('gomars_v1')
+      call gomars_v1_p2d()
+      call common_p2d(block, itime, tracers(iblk), gomars_v1_objects(iblk)%state, gomars_v1_objects(iblk)%tend)
     case ('gomars_v2')
       call gomars_v2_p2d()
       call common_p2d(block, itime, tracers(iblk), gomars_v2_objects(iblk)%state, gomars_v2_objects(iblk)%tend)
     case default
-      if (proc%is_root()) call log_error('Unknown physics suite ' // trim(physics_suite) // '!')
+      if (proc%is_root()) call log_error('Unknown physics suite ' // trim(physics_suite) // '!', __FILE__, __LINE__)
     end select
 
     call perf_stop('dp_coupling_p2d')

@@ -37,7 +37,7 @@ subroutine funcd( &
   if (latent_heat) then
     if (h2oice_sfc > 0 .or. npcflag) then
       qg = water_vapor_saturation_mixing_ratio_mars(tg, ps)
-      f = f + rhouch * (2.8e6_r8 / cpd) * (q_vap_sfc - qg)
+      f  = f + rhouch * (2.8e6_r8 / cpd) * (q_vap_sfc - qg)
       df = df - 6146.1_r8 * rhouch * (2.8e6_r8 / cpd) * qg / tg**2
     end if
   end if

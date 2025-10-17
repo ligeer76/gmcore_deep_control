@@ -74,7 +74,7 @@ module gomars_v1_const_mod
   real(r8), parameter :: alicen     = 0.600_r8
   ! Albedo of surface ice at southern hemisphere
   real(r8), parameter :: alices     = 0.500_r8
-  ! Emissivity of bare ground outsidt 15 micron band width
+  ! Emissivity of bare ground outside 15 micron band width
   real(r8), parameter :: egognd     = 1.0_r8
   ! Emissivity of bare ground inside 15 micron band width
   real(r8), parameter :: eg15gnd    = 1.0_r8
@@ -89,7 +89,7 @@ module gomars_v1_const_mod
   ! CO2 latent heat
   real(r8), parameter :: xlhtc      = 5.902e5_r8
   ! A radiation code conversion factor
-  real(r8), parameter :: cmk        = 3.51e22_r8
+  real(r8), parameter :: cmk        = 3.51e20_r8
   !
   real(r8), parameter :: scaveff    = 0.6_r8
   ! 1/3

@@ -29,10 +29,24 @@ contains
     character(*), intent(in) :: tag
     character(*), intent(in) :: dtype
 
-    character(3) :: dims(2) = ['lon', 'lat']
+    character(4) :: dims_2d(3) = ['lon ', 'lat ', 'time']
+    character(4) :: dims_3d(4) = ['lon ', 'lat ', 'lev ', 'time']
 
-    call fiona_add_var(tag, 'alsp'   , long_name='Surface albedo'           , units='', dim_names=dims, dtype=dtype)
-    call fiona_add_var(tag, 'zin'    , long_name='Surface thermal inertia'  , units='', dim_names=dims, dtype=dtype)
+    call fiona_add_var(tag, 'alsp'        , long_name='Surface albedo'                         , units=''     , dim_names=dims_2d(1:2), dtype=dtype)
+    call fiona_add_var(tag, 'zin'         , long_name='Surface thermal inertia'                , units=''     , dim_names=dims_2d(1:2), dtype=dtype)
+    call fiona_add_var(tag, 'npcflag'     , long_name='Flag of northern polar cap of water ice', units=''     , dim_names=dims_2d(1:2), dtype=dtype)
+    call fiona_add_var(tag, 'gnd_ice'     , long_name='Flag of GRS ground ice'                 , units=''     , dim_names=dims_2d(1:2), dtype=dtype)
+    call fiona_add_var(tag, 'tg'          , long_name='Ground temperature'                     , units='K'    , dim_names=dims_2d(1:3), dtype=dtype)
+    call fiona_add_var(tag, 'solar_sfc_dn', long_name='Downward solar flux at the surface'     , units='W m-2', dim_names=dims_2d(1:3), dtype=dtype)
+    call fiona_add_var(tag, 'cosz'        , long_name='Cosine of solar zenith angle'           , units=''     , dim_names=dims_2d(1:3), dtype=dtype)
+    call fiona_add_var(tag, 'qrad'        , long_name='Heat rate due to radiation'             , units='K s-1', dim_names=dims_3d(1:4), dtype=dtype)
+    call fiona_add_var(tag, 'ustar'       , long_name='u* in similarity theory'                , units='m s-1', dim_names=dims_2d(1:3), dtype=dtype)
+    call fiona_add_var(tag, 'tstar'       , long_name='Temperature scale'                      , units='K'    , dim_names=dims_2d(1:3), dtype=dtype)
+
+    ! Tendencies
+    call fiona_add_var(tag, 'dudt_phys'   , long_name='Physics tendency of zonal wind'     , units='m s-2', dim_names=dims_3d(1:4), dtype=dtype)
+    call fiona_add_var(tag, 'dvdt_phys'   , long_name='Physics tendency of meridional wind', units='m s-2', dim_names=dims_3d(1:4), dtype=dtype)
+    call fiona_add_var(tag, 'dtdt_phys'   , long_name='Physics tendency of temperature'    , units='K s-1', dim_names=dims_3d(1:4), dtype=dtype)
 
   end subroutine gomars_v1_add_output
 
@@ -40,10 +54,36 @@ contains
 
     character(*), intent(in) :: tag
     integer, intent(in) :: iblk
+    real(8), allocatable :: tmp(:)
 
-    associate (mesh => objects(iblk)%mesh, state => objects(iblk)%state)
-    call fiona_output(tag, 'alsp'   , reshape(state%alsp   , mesh%cell_count_2d(1:2)), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
-    call fiona_output(tag, 'zin'    , reshape(state%zin    , mesh%cell_count_2d(1:2)), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
+    associate (mesh => objects(iblk)%mesh, state => objects(iblk)%state, tend => objects(iblk)%tend)
+    call fiona_output(tag, 'alsp'        , reshape(state%alsp        , mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
+    call fiona_output(tag, 'zin'         , reshape(state%zin         , mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
+    allocate(tmp(mesh%ncol))
+    where (state%npcflag)
+      tmp = 1
+    else where
+      tmp = 0
+    end where
+    call fiona_output(tag, 'npcflag'     , reshape(tmp               , mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
+    where (state%grss .or. state%grsn)
+      tmp = 1
+    else where
+      tmp = 0
+    end where
+    call fiona_output(tag, 'gnd_ice'     , reshape(tmp               , mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
+    deallocate(tmp)
+    call fiona_output(tag, 'tg'          , reshape(state%tg          , mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
+    call fiona_output(tag, 'solar_sfc_dn', reshape(state%solar_sfc_dn, mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
+    call fiona_output(tag, 'cosz'        , reshape(state%cosz        , mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
+    call fiona_output(tag, 'qrad'        , reshape(state%qrad        , mesh%cell_count_3d), start=mesh%cell_start_3d, count=mesh%cell_count_3d)
+    call fiona_output(tag, 'ustar'       , reshape(state%ustar       , mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
+    call fiona_output(tag, 'tstar'       , reshape(state%tstar       , mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
+
+    ! Tendencies
+    call fiona_output(tag, 'dudt_phys'   , reshape(tend%dudt, mesh%cell_count_3d), start=mesh%cell_start_3d, count=mesh%cell_count_3d)
+    call fiona_output(tag, 'dvdt_phys'   , reshape(tend%dvdt, mesh%cell_count_3d), start=mesh%cell_start_3d, count=mesh%cell_count_3d)
+    call fiona_output(tag, 'dtdt_phys'   , reshape(tend%dtdt, mesh%cell_count_3d), start=mesh%cell_start_3d, count=mesh%cell_count_3d)
     end associate
 
   end subroutine gomars_v1_output

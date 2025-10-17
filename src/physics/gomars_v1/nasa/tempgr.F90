@@ -5,7 +5,7 @@ subroutine tempgr( &
   qbot           , &
   tm_sfc         , &
   alsp           , &
-  polarcap       , &
+  npcflag        , &
   rhouch         , &
   co2ice_sfc     , &
   ht_sfc         , &
@@ -42,7 +42,7 @@ subroutine tempgr( &
   real(r8), intent(in   ) :: qbot     (ntracers)
   real(r8), intent(in   ) :: tm_sfc   (ntracers)
   real(r8), intent(in   ) :: alsp
-  logical , intent(in   ) :: polarcap
+  logical , intent(in   ) :: npcflag
   real(r8), intent(in   ) :: rhouch
   real(r8), intent(inout) :: co2ice_sfc
   real(r8), intent(in   ) :: ht_sfc
@@ -86,14 +86,15 @@ subroutine tempgr( &
   als  = alsp
   if (co2ice_sfc > 0) then
     als = merge(alices, alicen, lat < 0)
-  else if (albfeed .and. tm_sfc(iMa_vap) > icethresh_kgm2 .and. .not. polarcap) then
+  else if (albfeed .and. tm_sfc(iMa_vap) > icethresh_kgm2 .and. .not. npcflag) then
     als = icealb
   end if
 
   tsat = 3182.48_r8 / (23.3494_r8 - log(ps / 100.0_r8))
 
-  if (co2ice_sfc <= 0) then
+  if (co2ice_sfc <= 0) then ! No CO2 ice on the ground
     co2ice_sfc  = 0
+    ! Emissivities for bare ground
     emg15   = eg15gnd
     emgout  = egognd
     downir  = emg15 * irflx_sfc_dn
@@ -105,14 +106,14 @@ subroutine tempgr( &
       downir       , &
       rhouch       , &
       rhoucht      , &
-      scond        , &
-      stemp        , &
-      sthick       , &
+      scond (2)    , &
+      stemp (2)    , &
+      sthick(2)    , &
       ps           , &
       qbot(iMa_vap), &
       h2oice_sfc   , &
       h2osub_sfc   , &
-      polarcap     , &
+      npcflag      , &
       tg             &
     )
 
@@ -151,7 +152,7 @@ subroutine tempgr( &
       h2osub_sfc = h2osub_sfc + wflux * dt
     end if
 
-    if (.not. polarcap .and. h2osub_sfc > tm_sfc(iMa_vap)) then
+    if (.not. npcflag .and. h2osub_sfc > tm_sfc(iMa_vap)) then
       h2osub_sfc = tm_sfc(iMa_vap)
     end if
 

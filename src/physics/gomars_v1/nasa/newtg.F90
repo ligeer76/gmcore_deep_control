@@ -1,7 +1,7 @@
 subroutine newtg( &
   als, dnvflux, downir, rhouch, rhoucht, &
   scond, stemp, sthick, ps, q_vap_sfc, h2oice_sfc, &
-  h2osub_sfc, polarcap, tg)
+  h2osub_sfc, npcflag, tg)
 
   ! Legacy Mars GCM v24
   ! Mars Climate Modeling Center
@@ -26,7 +26,7 @@ subroutine newtg( &
   real(r8), intent(in   ) :: q_vap_sfc
   real(r8), intent(inout) :: h2oice_sfc
   real(r8), intent(  out) :: h2osub_sfc
-  logical , intent(in   ) :: polarcap
+  logical , intent(in   ) :: npcflag
   real(r8), intent(  out) :: tg
 
   integer , parameter :: max_iter = 30
@@ -44,8 +44,8 @@ subroutine newtg( &
   done = .false.
   astar = (1 - als) * dnvflux
 
-  call funcd(astar, downir, rhouch, rhoucht, scond, stemp, sthick, t1, ps, q_vap_sfc, h2oice_sfc, polarcap, fl, df)
-  call funcd(astar, downir, rhouch, rhoucht, scond, stemp, sthick, t2, ps, q_vap_sfc, h2oice_sfc, polarcap, fh, df)
+  call funcd(astar, downir, rhouch, rhoucht, scond, stemp, sthick, t1, ps, q_vap_sfc, h2oice_sfc, npcflag, fl, df)
+  call funcd(astar, downir, rhouch, rhoucht, scond, stemp, sthick, t2, ps, q_vap_sfc, h2oice_sfc, npcflag, fh, df)
 
   if (fl == 0) then
     tg = t1
@@ -66,7 +66,7 @@ subroutine newtg( &
     dx_old = abs(t2 - t1)
     dx = dx_old
 
-    call funcd(astar, downir, rhouch, rhoucht, scond, stemp, sthick, tg, ps, q_vap_sfc, h2oice_sfc, polarcap, f, df)
+    call funcd(astar, downir, rhouch, rhoucht, scond, stemp, sthick, tg, ps, q_vap_sfc, h2oice_sfc, npcflag, f, df)
 
     do iter = 1, max_iter
       if (((tg - th) * df - f) * ((tg - tl) * df - f) >= 0 .or. abs(2 * f) > abs(dx_old * df)) then
@@ -91,7 +91,7 @@ subroutine newtg( &
         done = .true.
         exit
       end if
-      call funcd(astar, downir, rhouch, rhoucht, scond, stemp, sthick, tg, ps, q_vap_sfc, h2oice_sfc, polarcap, f, df)
+      call funcd(astar, downir, rhouch, rhoucht, scond, stemp, sthick, tg, ps, q_vap_sfc, h2oice_sfc, npcflag, f, df)
       if (f < 0) then
         tl = tg
       else
@@ -102,7 +102,7 @@ subroutine newtg( &
 
   if (done) then
     qflx = 0
-    if (h2oice_sfc > 0 .and. .not. polarcap) then
+    if (h2oice_sfc > 0 .and. .not. npcflag) then
       qsat = water_vapor_saturation_mixing_ratio_mars(tg, ps)
       qflx = -rhouch * (q_vap_sfc - qsat) / cpd
       if (qflx * dt >= h2oice_sfc) then
@@ -111,7 +111,7 @@ subroutine newtg( &
       else
         h2oice_sfc = h2oice_sfc - qflx * dt
       end if
-    else if (polarcap) then
+    else if (npcflag) then
       qsat = water_vapor_saturation_mixing_ratio_mars(tg, ps)
       qflx = -rhouch * (q_vap_sfc - qsat) / cpd
       h2oice_sfc = h2oice_sfc - qflx * dt

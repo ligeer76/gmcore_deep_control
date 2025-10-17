@@ -108,12 +108,12 @@ contains
                            blocks(iblk)%mesh%full_dlev, &
                            area(:,iblk), ptop=ptop)
       ! For output dimensions
-      mesh(iblk)%cell_start_2d = [dmesh%full_ids ,dmesh%full_jds ,1]
-      mesh(iblk)%cell_count_2d = [dmesh%full_nlon,dmesh%full_nlat,1]
-      mesh(iblk)%cell_start_3d = [dmesh%full_ids ,dmesh%full_jds ,dmesh%full_kds ,1]
-      mesh(iblk)%cell_count_3d = [dmesh%full_nlon,dmesh%full_nlat,dmesh%full_nlev,1]
-      mesh(iblk)%lev_start = [dmesh%full_ids ,dmesh%full_jds ,dmesh%half_kds ,1]
-      mesh(iblk)%lev_count = [dmesh%full_nlon,dmesh%full_nlat,dmesh%half_nlev,1]
+      mesh(iblk)%cell_start_2d = [dmesh%full_ids ,dmesh%full_jds ]
+      mesh(iblk)%cell_count_2d = [dmesh%full_nlon,dmesh%full_nlat]
+      mesh(iblk)%cell_start_3d = [dmesh%full_ids ,dmesh%full_jds ,dmesh%full_kds ]
+      mesh(iblk)%cell_count_3d = [dmesh%full_nlon,dmesh%full_nlat,dmesh%full_nlev]
+      mesh(iblk)%lev_start = [dmesh%full_ids ,dmesh%full_jds ,dmesh%half_kds ]
+      mesh(iblk)%lev_count = [dmesh%full_nlon,dmesh%full_nlat,dmesh%half_nlev]
       end associate
     end do
     deallocate(ncol, gid, lon, lat, area)

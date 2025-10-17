@@ -1,5 +1,5 @@
 subroutine newpbl( &
-  z0, tg, ht_rad, ps, ts, polarcap, u, v, pt, pt_lev, q, dp_dry, &
+  z0, tg, qrad, ps, ts, polarcap, u, v, pt, pt_lev, q, dp_dry, &
   z, dz, z_lev, dz_lev, shr2, ri, km, kh, ustar, tstar, &
   taux, tauy, ht_pbl, rhouch, tm_sfc, h2osub_sfc)
 
@@ -16,7 +16,7 @@ subroutine newpbl( &
 
   real(r8), intent(in   ) :: z0                       ! Roughness length (m)
   real(r8), intent(in   ) :: tg                       ! Ground temperature (K)
-  real(r8), intent(in   ) :: ht_rad(0:nlev  )         ! Radiative heating rate on full levels including TOA (K s-1)
+  real(r8), intent(in   ) :: qrad  (0:nlev  )         ! Radiative heating rate on full levels including TOA (K s-1)
   real(r8), intent(in   ) :: ps                       ! Surface pressure (Pa)
   real(r8), intent(in   ) :: ts                       ! Surface air temperature (K)
   logical , intent(in   ) :: polarcap
@@ -44,6 +44,8 @@ subroutine newpbl( &
   real(r8), intent(inout) :: h2osub_sfc               ! Water ice upward sublimation flux at the surface (kg m-2 s-1)
 
   integer i, n
+  real(r8) h    (nlev  ) ! Height of full levels from ground
+  real(r8) h_lev(nlev+1) ! Height of half levels from ground
   real(r8) lnzz
   real(r8) rhos
   real(r8) cdm
@@ -58,21 +60,24 @@ subroutine newpbl( &
 
   n = nlev
 
-  lnzz = log(z(n) / z0)
+  h = z - z_lev(n+1)
+  h_lev = z_lev - z_lev(n+1)
 
-  call eddycoef(z_lev, dz_lev, u, v, pt, q, pt_lev, shr2, ri, km, kh)
-  call bndcond(u, v, pt, tg, z, lnzz, z0, cdm, cdh, ustar, tstar)
+  lnzz = log(h(n) / z0)
+
+  call eddycoef(h_lev, dz_lev, u, v, pt, pt_lev, q, shr2, ri, km, kh)
+  call bndcond(u, v, pt, tg, h, lnzz, z0, cdm, cdh, ustar, tstar)
 
   ! Reduce the sublimation flux by a coefficient. It is a tunable parameter to
   ! avoid the formation of low-lying clouds in summer above the north permanent cap.
-  qsat   = water_vapor_saturation_mixing_ratio_mars(tg, ps)
+  qsat = water_vapor_saturation_mixing_ratio_mars(tg, ps)
   coef = merge(1.0_r8, 1.0_r8, qsat > q(n,iMa_vap))
 
-  i = 1
+  i = 0
   ! Zonal wind
   i = i + 1
   kdf(:,i) = km
-  bnd(  i) = ustar * dt / dz(n) * sqrt(cdm)
+  bnd(  i) = dt / dz(n) * ustar * sqrt(cdm)
   rhs(:,i) = 0
   var(:,i) = dp_dry * u
   ! Meridional wind
@@ -84,14 +89,14 @@ subroutine newpbl( &
   ! Potential temperature
   i = i + 1
   kdf(:,i) = kh
-  bnd(  i) = ustar * dt / dz(n) * cdh
-  rhs(:,i) = ht_rad * dt
+  bnd(  i) = dt / dz(n) * ustar * cdh
+  rhs(:,i) = qrad(1:n) * dt
   rhs(n,i) = rhs(n,i) + bnd(i) * dp_dry(n) * tg
   var(:,i) = dp_dry * pt
   ! Water vapor
   i = i + 1
   kdf(:,i) = kh
-  bnd(  i) = ustar * dt / dz(n) * cdh * coef
+  bnd(  i) = dt / dz(n) * ustar * cdh * coef
   rhs(:,i) = 0
   rhs(n,i) = h2osub_sfc
   var(:,i) = dp_dry * q(:,iMa_vap)
@@ -141,10 +146,11 @@ contains
     do k = 1, nlev - 1
       c(k) = -dt * kdf(k+1) / dz(k) / dz_lev(k+1)
     end do
-    c(nlev) = bnd
-    do k = 1, nlev
+    c(nlev) = 0
+    do k = 1, nlev - 1
       b(k) = 1 - a(k) - c(k)
     end do
+    b(nlev) = 1 - a(nlev) - bnd
     d = var + rhs
 
     call tridiag_thomas(a, b, c, d, var)

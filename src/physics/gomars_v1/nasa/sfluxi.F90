@@ -38,6 +38,7 @@ subroutine sfluxi( &
   real(r8) fmupi(nlevrad)
   real(r8) fmdni(nlevrad)
 
+  ! Zero fluxes.
   nfluxtopi = 0
   fluxupi   = 0
   fluxdni   = 0
@@ -58,7 +59,19 @@ subroutine sfluxi( &
           fzero = fzero + (1 - fzeroi(is)) * gweight(ig)
         else
           btop = (1 - exp(-dtaui(1,is,ig) * plev(2) / (plev(4) - plev(2)) / ubari)) * planckir(is,ntt)
-          ! call gfluxi
+          call gfluxi(        &
+            is              , &
+            tlev            , &
+            dtaui(:,is,ig)  , &
+            taucumi(:,is,ig), &
+            wbari(:,is,ig)  , &
+            cosbi(:,is,ig)  , &
+            albi            , &
+            btop            , &
+            bsfc            , &
+            ftopup          , &
+            fmupi           , &
+            fmdni             )
           nfluxtopi = nfluxtopi + ftopup * dwni(is) * gweight(ig) * (1 - fzeroi(is))
           do l = 1, nlevrad - 1
             fluxupi(l) = fluxupi(l) + fmupi(l) * dwni(is) * gweight(ig) * (1 - fzeroi(is))

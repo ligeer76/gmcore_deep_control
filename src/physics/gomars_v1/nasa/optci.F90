@@ -9,6 +9,9 @@ subroutine optci( &
   ! Mars Climate Modeling Center
   ! NASA Ames Research Center
 
+  ! This subroutine sets the optical constants for the infrared.
+  ! It calculates for each layer, for each spectral interval in the infrared.
+
   use gomars_v1_const_mod
   use gomars_v1_rad_mod
 
@@ -35,20 +38,19 @@ subroutine optci( &
   real(r8), intent(inout) :: taurefdst (2*nlev+4)
   real(r8), intent(inout) :: taurefcld (2*nlev+4)
 
-
   integer n, k, l, is, ig
   integer idx_t          (2*nlev+3)
   integer idx_p          (2*nlev+3)
   integer idx_h2o        (2*nlev+3)
   real(r8) dtauki        (2*nlev+4,nspecti,ngauss)
-  real(r8) taureflk      (2*nlev+4,nspecti)
+  real(r8) taudstk       (2*nlev+4,nspecti)
   real(r8) taucldk       (2*nlev+4,nspecti)
   real(r8) taurefdst_save(2*nlev+4)
   real(r8) taurefcld_save(2*nlev+4)
   real(r8) wratio        (2*nlev+3)
   real(r8) lcoef       (4,2*nlev+3)
-  real(r8) tdst          (2*nlev+3,nspecti)
-  real(r8) tcld          (2*nlev+3,nspecti)
+  real(r8) taudst        (2*nlev+3,nspecti)
+  real(r8) taucld        (2*nlev+3,nspecti)
   real(r8) ans
   real(r8) kcoef(4)
   real(r8) tauac
@@ -59,8 +61,8 @@ subroutine optci( &
     do ig = 1, ngauss
       dtauki(n+1,is,ig) = 0
     end do
-    taureflk(n+1,is) = 0
-    taucldk (n+1,is) = 0
+    taudstk(n+1,is) = 0
+    taucldk(n+1,is) = 0
   end do
 
   taurefdst_save = taurefdst
@@ -77,8 +79,8 @@ subroutine optci( &
     taurefdst(k) = taurefdst(k) / qextrefdst(k)
     taurefcld(k) = taurefcld(k) / qextrefcld(k)
     do is = 1, nspecti
-      tdst(k,is) = taurefdst(k) * qxidst(k,is)
-      tcld(k,is) = taurefcld(k) * qxicld(k,is)
+      taudst(k,is) = taurefdst(k) * qxidst(k,is)
+      taucld(k,is) = taurefcld(k) * qxicld(k,is)
     end do
   end do
 
@@ -101,18 +103,18 @@ subroutine optci( &
         ans = (lcoef(1,k) * kcoef(1) + lcoef(2,k) * kcoef(2) + &
                lcoef(3,k) * kcoef(3) + lcoef(4,k) * kcoef(4)) * cmk * (plev(k) - plev(k-1))
         taugsurf(is,ig) = taugsurf(is,ig) + ans
-        dtauki(k,is,ig) = tdst(k,is) + tcld(k,is) + ans
+        dtauki(k,is,ig) = taudst(k,is) + taucld(k,is) + ans
       end do
       ! Now fill in the "clear" part of the spectrum (ig = ngauss), which holds
       ! continuum opacity only.
-      dtauki(k,is,ngauss) = tdst(k,is) + tcld(k,is)
+      dtauki(k,is,ngauss) = taudst(k,is) + taucld(k,is)
     end do
   end do
 
   do is = 1, nspecti
-    do k = 2, n - 1
-      taureflk(k,is) = taurefdst(k) * qsidst(k,is)
-      taucldk (k,is) = taurefcld(k) * qsicld(k,is)
+    do k = 2, n + 1
+      taudstk(k,is) = taurefdst(k) * qsidst(k,is)
+      taucldk(k,is) = taurefcld(k) * qsicld(k,is)
     end do
   end do
 
@@ -122,16 +124,16 @@ subroutine optci( &
       k = 2 * l + 1
       dtaui(l,is,ig) = dtauki(k,is,ig) + dtauki(k+1,is,ig) + 1.0d-50
       if (dtaui(l,is,ig) > 1.0e-9_r8) then
-        wbari(l,is,ig) = (taureflk(k,is) + taureflk(k+1,is) + taucldk(k,is) + taucldk(k+1,is)) / dtaui(l,is,ig)
+        wbari(l,is,ig) = (taudstk(k,is) + taudstk(k+1,is) + taucldk(k,is) + taucldk(k+1,is)) / dtaui(l,is,ig)
       else
         wbari(l,is,ig) = 0
         dtaui(l,is,ig) = 1.0e-9_r8
       end if
-      tauac = taureflk(k,is) + taureflk(k+1,is) + taucldk(k,is) + taucldk(k+1,is)
+      tauac = taudstk(k,is) + taudstk(k+1,is) + taucldk(k,is) + taucldk(k+1,is)
       if (tauac > 0) then
-        cosbi(l,is,ig) = (gidst(k,is) * taureflk(k,is) + gidst(k+1,is) * taureflk(k+1,is)  + &
-                          gicld(k,is) * taucldk (k,is) + gicld(k+1,is) * taucldk (k+1,is)) / &
-                         (taureflk(k,is) + taureflk(k+1,is) + taucldk(k,is) + taucldk(k+1,is))
+        cosbi(l,is,ig) = (gidst(k,is) * taudstk(k,is) + gidst(k+1,is) * taudstk(k+1,is)  + &
+                          gicld(k,is) * taucldk(k,is) + gicld(k+1,is) * taucldk(k+1,is)) / &
+                         (taudstk(k,is) + taudstk(k+1,is) + taucldk(k,is) + taucldk(k+1,is))
       else
         cosbi(l,is,ig) = 0
       end if
@@ -141,7 +143,7 @@ subroutine optci( &
         k = 2 * l + 1
         dtaui(l,is,ig) = dtauki(k,is,ig) + dtauki(k+1,is,ig) + 1.0d-50
         if (dtaui(l,is,ig) > 1.0e-9_r8) then
-          wbari(l,is,ig) = (taureflk(k,is) + taureflk(k+1,is) + taucldk(k,is) + taucldk(k+1,is)) / dtaui(l,is,ig)
+          wbari(l,is,ig) = (taudstk(k,is) + taudstk(k+1,is) + taucldk(k,is) + taucldk(k+1,is)) / dtaui(l,is,ig)
         else
           wbari(l,is,ig) = 0
           dtaui(l,is,ig) = 1.0e-9_r8
@@ -159,7 +161,7 @@ subroutine optci( &
     end do
     taucumi(1,is,ig) = 0
     do k = 2, n
-      taucumi(k,is,ig) = taucumi(k-1,is,ig) + dtaui(k,is,ig)
+      taucumi(k,is,ig) = taucumi(k-1,is,ig) + dtauki(k,is,ig)
     end do
     do ig = 1, ngauss - 1
       taui(1,is,ig) = 0
@@ -168,7 +170,7 @@ subroutine optci( &
       end do
       taucumi(1,is,ig) = 0
       do k = 2, n
-        taucumi(k,is,ig) = taucumi(k-1,is,ig) + dtaui(k,is,ig)
+        taucumi(k,is,ig) = taucumi(k-1,is,ig) + dtauki(k,is,ig)
       end do
     end do
   end do

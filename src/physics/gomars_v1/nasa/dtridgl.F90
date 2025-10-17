@@ -4,6 +4,9 @@ subroutine dtridgl(n, a, b, c, d, x)
   ! Mars Climate Modeling Center
   ! NASA Ames Research Center
 
+  ! This subroutine solves a tridiagonal system of equations with the form as:
+  ! a(i) * x(i-1) + b(i) * x(i) + c(i) * x(i+1) = d(i)
+
   use gomars_v1_const_mod, only: r8
 
   implicit none
@@ -26,7 +29,7 @@ subroutine dtridgl(n, a, b, c, d, x)
   do i = 2, n
     cs = 1.0_r8 / (b(n+1-i) - c(n+1-i) * as(n+2-i))
     as(n+1-i) = a(n+1-i) * cs
-    ds(n+1-i) = (d(n+1-i) + c(n+1-i) * ds(n+2-i)) * cs
+    ds(n+1-i) = (d(n+1-i) - c(n+1-i) * ds(n+2-i)) * cs
   end do
 
   x(1) = ds(1)

@@ -33,7 +33,11 @@ def parse_datetime(x):
 
 def vinterp_z(zi, var, zo, axis=0):
 	res = interpolate_1d(zo, zi, var, axis=axis)
-	res = xr.DataArray(res, coords=var.coords, dims=var.dims)
+	dims = tuple('z' if x == 'lev' or x == 'ilev' else x for x in var.dims)
+	coords = {d: var.coords[d] for d in dims if d != 'z'}
+	tmp = zo if isinstance(zo, list) or (isinstance(zo, pint.Quantity) and zo.ndim > 0) else [zo]
+	coords['z'] = xr.DataArray([z.to('m').magnitude for z in tmp], dims=['z'], attrs={'long_name': 'Height', 'units': 'm'})
+	res = xr.DataArray(res, coords=coords, dims=dims)
 	res.attrs = var.attrs
 	if 'lev' in res.dims:
 		res['lev'] = zo
@@ -47,7 +51,7 @@ def vinterp_p(pi, var, po, axis=0):
 	res = interpolate_1d(po, pi, var, axis=axis)
 	dims = tuple('p' if x == 'lev' or x == 'ilev' else x for x in var.dims)
 	coords = {d: var.coords[d] for d in dims if d != 'p'}
-	tmp = po if po is list else [po]
+	tmp = po if isinstance(po, list) or (isinstance(po, pint.Quantity) and po.ndim > 0) else [po]
 	coords['p'] = xr.DataArray([p.to('Pa').magnitude for p in tmp], dims=['p'], attrs={'long_name': 'Pressure', 'units': 'Pa'})
 	res = xr.DataArray(res, coords=coords, dims=dims)
 	res.attrs = var.attrs
@@ -86,6 +90,10 @@ def plot_contour_lon(ax, var,
 		lev = var.lev.copy()
 	elif 'ilev' in var.dims:
 		lev = var.ilev.copy()
+	elif 'z' in var.dims:
+		lev = var.z.copy()
+	elif 'p' in var.dims:
+		lev = var.p.copy()
 	else:
 		print(f'[Error]: Variable {var.name} has no lev dimension!')
 		exit(1)
@@ -165,6 +173,12 @@ def plot_contour_lat(ax, var,
 		exit(1)
 	if 'lev' in var.dims:
 		lev = var.lev.copy()
+	elif 'ilev' in res.dims:
+		lev = var.ilev.copy()
+	elif 'z' in var.dims:
+		lev = var.z.copy()
+	elif 'p' in var.dims:
+		lev = var.p.copy()
 	else:
 		print(f'[Error]: Variable {var.name} has no lev dimension!')
 		exit(1)

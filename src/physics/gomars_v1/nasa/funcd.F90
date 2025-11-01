@@ -1,8 +1,18 @@
-subroutine funcd( &
-  astar, downir, rhouch, rhoucht, &
-  scond, stemp, sthick, &
-  tg, ps, q_vap_sfc, h2oice_sfc, npcflag, &
-  f, df)
+subroutine funcd(  &
+  astar          , &
+  downir         , &
+  rhouch         , &
+  rhoucht        , &
+  scond          , &
+  stemp          , &
+  sthick         , &
+  tg             , &
+  ps             , &
+  q_vap_sfc      , &
+  h2oice_sfc     , &
+  npcflag        , &
+  f              , &
+  df             )
 
   ! Legacy Mars GCM v24
   ! Mars Climate Modeling Center

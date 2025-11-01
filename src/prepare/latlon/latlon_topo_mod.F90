@@ -77,9 +77,9 @@ contains
       end do
       lnd = lnd + count(topo_gzs(is:ie,js:je) > 0)
     case ('mars')
-      gzs = gzs + sum(topo_gzs(is:ie,js:je))
-      std = std + sum(topo_gzs(is:ie,js:je)**2)
-      lnd = lnd + (ie - is + 1) * (je - js + 1)
+      gzs = sum(topo_gzs(is:ie,js:je))
+      std = sum(topo_gzs(is:ie,js:je)**2)
+      lnd = (ie - is + 1) * (je - js + 1)
     end select
     cnt = cnt + (ie - is + 1) * (je - js + 1)
 

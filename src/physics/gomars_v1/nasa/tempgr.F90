@@ -29,6 +29,7 @@ subroutine tempgr( &
   ! calculation of the mass of CO2 ice on the ground and surface pressure.
 
   use formula_mod
+  use math_mod
   use gomars_v1_const_mod
   use gomars_v1_namelist_mod
   use gomars_v1_tracers_mod
@@ -52,8 +53,8 @@ subroutine tempgr( &
   real(r8), intent(  out) :: h2oice_sfc
   real(r8), intent(in   ) :: rhosoil  (nsoil)
   real(r8), intent(in   ) :: cpsoil   (nsoil)
-  real(r8), intent(in   ) :: scond    (2*nsoil+1)
-  real(r8), intent(inout) :: stemp    (2*nsoil+1)
+  real(r8), intent(in   ) :: scond    (nsoil+1)
+  real(r8), intent(inout) :: stemp    (nsoil)
   real(r8), intent(in   ) :: zin      (nsoil)
   real(r8), intent(  out) :: tg
   real(r8), intent(  out) :: als
@@ -61,17 +62,14 @@ subroutine tempgr( &
   logical, save :: is_first_call = .true.
   integer k, l
   real(r8) dmgdt
-  real(r8) tsat
-  real(r8) emg15
-  real(r8) emgout
-  real(r8) downir
+  real(r8) tsat, qsat
+  real(r8) downir, emg15, emgout
   real(r8) rhoucht
   real(r8) fcdn
   real(r8) tgp
   real(r8) tinp
   real(r8) wflux
-  real(r8) qsat
-  real(r8) flux(2*nsoil+1)
+  real(r8) flux(nsoil+1), a(nsoil), b(nsoil), c(nsoil), d(nsoil)
 
   if (is_first_call) then
     h2osub_sfc = 0
@@ -106,16 +104,15 @@ subroutine tempgr( &
       downir       , &
       rhouch       , &
       rhoucht      , &
-      scond (2)    , &
-      stemp (2)    , &
-      sthick(2)    , &
+      scond (1)    , &
+      stemp (1)    , &
+      sthick(1)    , &
       ps           , &
       qbot(iMa_vap), &
       h2oice_sfc   , &
       h2osub_sfc   , &
       npcflag      , &
-      tg             &
-    )
+      tg           )
 
     if (tg < tsat) then
       tg = tsat
@@ -123,7 +120,7 @@ subroutine tempgr( &
       emg15  = eg15gnd
       emgout = egognd
 
-      fcdn = -2 * scond(2) * (stemp(2) - tsat) / sthick(2)
+      fcdn = -scond(1) * (stemp(1) - tsat) / sthick_lev(1)
       tgp = dt * ((1 - als) * vsflx_sfc_dn + ht_sfc - emg15 * (stbo * tsat**4) - fcdn) / xlhtc
 
       ! Check if there is any CO2 ice accumulation.
@@ -165,7 +162,7 @@ subroutine tempgr( &
     end if
 
     ! New soil scheme: surface boundary condition with ice on the ground.
-    fcdn = -2 * scond(2) * (stemp(2) - tsat) / sthick(2)
+    fcdn = -2 * scond(1) * (stemp(1) - tsat) / sthick(1)
     tgp  = -co2ice_sfc + dt * ((1 - als) * vsflx_sfc_dn + ht_sfc - emg15 * (stbo * tsat**4) - fcdn) / xlhtc
 
     ! Check if there is still CO2 ice left.
@@ -180,18 +177,24 @@ subroutine tempgr( &
     end if
   end if
 
-  ! Calculate fluxes at layer boundaries (positive downward).
-  do l = 3, 2 * nsoil - 1, 2
-    flux(l) = -scond(l) * (stemp(l+1) - stemp(l-1)) / sthick(l)
+  ! Setup the tridiagonal matrix.
+  a(1) = 0
+  do k = 2, nsoil
+    a(k) = -dt * scond(k  ) / (rhosoil(k) * cpsoil(k) * sthick(k) * sthick_lev(k  ))
   end do
-  ! Calculate flux at top and bottom boundaries.
-  flux(1        ) = -2 * scond(2) * (stemp(2) - tg) / sthick(2)
-  flux(2*nsoil+1) = 0
-  ! Update soil temperatures.
+  do k = 1, nsoil - 1
+    c(k) = -dt * scond(k+1) / (rhosoil(k) * cpsoil(k) * sthick(k) * sthick_lev(k+1))
+  end do
+  c(nsoil) = 0
   do k = 1, nsoil
-    l = 2 * k
-    stemp(l) = stemp(l) - dt * (flux(l+1) - flux(l-1)) / (rhosoil(k) * cpsoil(k) * sthick(l))
+    b(k) = 1 - a(k) - c(k)
   end do
+  d = stemp
+  ! Append the surface boundary condition
+  b(1) = b(1) + dt * scond(1) / (rhosoil(1) * cpsoil(1) * sthick(1) * sthick_lev(1))
+  d(1) = d(1) + dt * scond(1) / (rhosoil(1) * cpsoil(1) * sthick(1) * sthick_lev(1)) * tg
+  ! Call tridiagonal solver to update soil temperature.
+  call tridiag_thomas(a, b, c, d, stemp)
 
   ! Calculate the CO2 condensation temperature at the surface.
   tsat = dewpoint_temperature_mars(ps)

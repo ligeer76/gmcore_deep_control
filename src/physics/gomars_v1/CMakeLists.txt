@@ -34,9 +34,6 @@ target_sources(gmcore PRIVATE
   nasa/ini_optdst.F90
   nasa/ini_optcld.F90
   nasa/dsolflux.F90
-  nasa/funcd.F90
-  nasa/newtg.F90
-  nasa/tempgr.F90
   nasa/solarza.F90
   nasa/potemp1.F90
   nasa/coldair.F90
@@ -53,9 +50,6 @@ target_sources(gmcore PRIVATE
   nasa/optci.F90
   nasa/gfluxi.F90
   nasa/sfluxi.F90
-  nasa/eddycoef.F90
-  nasa/bndcond.F90
-  nasa/newpbl.F90
   nasa/wsl_newman.F90
   nasa/ddl.F90
   nasa/sedim.F90

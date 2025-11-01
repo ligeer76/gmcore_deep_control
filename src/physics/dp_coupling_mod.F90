@@ -23,8 +23,6 @@ module dp_coupling_mod
 #endif
   use gomars_v1_driver_mod, only: gomars_v1_d2p, gomars_v1_p2d, &
                                   gomars_v1_objects => objects
-  use gomars_v2_driver_mod, only: gomars_v2_d2p, gomars_v2_p2d, &
-                                  gomars_v2_objects => objects
   use filter_mod
   use perf_mod
 
@@ -57,9 +55,6 @@ contains
     case ('gomars_v1')
       call common_d2p(block, itime, tracers(block%id), gomars_v1_objects(block%id)%state)
       call gomars_v1_d2p()
-    case ('gomars_v2')
-      call common_d2p(block, itime, tracers(block%id), gomars_v2_objects(block%id)%state)
-      call gomars_v2_d2p()
     case default
       if (proc%is_root()) call log_error('Unknown physics suite ' // trim(physics_suite) // '!', __FILE__, __LINE__)
     end select
@@ -159,6 +154,8 @@ contains
       do j = mesh%full_jds, mesh%full_jde
         do i = mesh%full_ids, mesh%full_ide
           pstate%ps     (icol) = dstate%phs%d(i,j)
+          pstate%ts     (icol) = aux%t%d(i,j,mesh%full_kde)
+          pstate%zs     (icol) = block%static%gzs%d(i,j) / g
           pstate%wsp_bot(icol) = sqrt(aux%u%d(i,j,mesh%full_kde)**2 + aux%v%d(i,j,mesh%full_kde)**2)
           icol = icol + 1
         end do
@@ -191,9 +188,6 @@ contains
     case ('gomars_v1')
       call gomars_v1_p2d()
       call common_p2d(block, itime, tracers(iblk), gomars_v1_objects(iblk)%state, gomars_v1_objects(iblk)%tend)
-    case ('gomars_v2')
-      call gomars_v2_p2d()
-      call common_p2d(block, itime, tracers(iblk), gomars_v2_objects(iblk)%state, gomars_v2_objects(iblk)%tend)
     case default
       if (proc%is_root()) call log_error('Unknown physics suite ' // trim(physics_suite) // '!', __FILE__, __LINE__)
     end select
@@ -216,11 +210,15 @@ contains
                  dstate => block%dstate(itime) , &
                  dudt   => block%aux%dudt_phys , & ! out
                  dvdt   => block%aux%dvdt_phys , & ! out
+                 dtdt   => block%aux%dtdt_phys , & ! out
                  dptdt  => block%aux%dptdt_phys, & ! out
                  dpsdt  => block%aux%dpsdt_phys, & ! out
                  dqdt   => block%aux%dqdt_phys , & ! out
                  q_old  => tracers%q           , & ! in
                  qm_old => tracers%qm          )   ! in
+      ! ------------------------------------------------------------------------
+      ! Surface pressure tendency
+      block%aux%updated_ps = ptend%updated_ps
       if (ptend%updated_ps) then
         icol = 1
         do j = mesh%full_jds, mesh%full_jde
@@ -233,6 +231,10 @@ contains
           call filter_run(block%big_filter, dpsdt)
         end if
       end if
+      ! ------------------------------------------------------------------------
+      ! Wind component tendencies
+      block%aux%updated_u = ptend%updated_u
+      block%aux%updated_v = ptend%updated_v
       if (ptend%updated_u .and. ptend%updated_v) then
         do k = mesh%full_kds, mesh%full_kde
           icol = 1
@@ -251,7 +253,10 @@ contains
         call fill_halo(dudt, west_halo=.false., south_halo=.false., north_halo=.false., async=.true.)
         call fill_halo(dvdt, west_halo=.false., east_halo=.false., south_halo=.false. , async=.true.)
       end if
+      ! ------------------------------------------------------------------------
+      ! Tracer mixing ratio tendencies
       do m = 1, ntracers
+        block%aux%updated_q(m) = ptend%updated_q(m)
         if (ptend%updated_q(m)) then
           if (physics_use_wet_tracers(m)) then
             do k = mesh%full_kds, mesh%full_kde
@@ -280,65 +285,33 @@ contains
           end if
         end if
       end do
+      ! ------------------------------------------------------------------------
+      ! Temperature of potential temperature tendency
+      block%aux%updated_t  = ptend%updated_t
+      block%aux%updated_pt = ptend%updated_pt
       if (ptend%updated_t) then
-        ! Convert temperature tendency to modified potential temperature tendency.
-        if (idx_qv > 0) then
-          ! Assume dqdt is set.
-          ! - Temperature and dry mixing ratio tendencies
-          do k = mesh%full_kds, mesh%full_kde
-            icol = 1
-            do j = mesh%full_jds, mesh%full_jde
-              do i = mesh%full_ids, mesh%full_ide
-                dptdt%d(i,j,k) = dstate%dmg%d(i,j,k) / pstate%pk(icol,k) * ( &
-                  (1 + q_old%d(i,j,k,idx_qv) * rv_o_rd) * ptend%dtdt(icol,k) + &
-                  pstate%t_old(icol,k) * rv_o_rd * dqdt%d(i,j,k,idx_qv) / dstate%dmg%d(i,j,k))
-                icol = icol + 1
-              end do
+        do k = mesh%full_kds, mesh%full_kde
+          icol = 1
+          do j = mesh%full_jds, mesh%full_jde
+            do i = mesh%full_ids, mesh%full_ide
+              dtdt%d(i,j,k) = ptend%dtdt(icol,k)
+              icol = icol + 1
             end do
           end do
-        else
-          ! - No moisture
-          do k = mesh%full_kds, mesh%full_kde
-            icol = 1
-            do j = mesh%full_jds, mesh%full_jde
-              do i = mesh%full_ids, mesh%full_ide
-                dptdt%d(i,j,k) = dstate%dmg%d(i,j,k) / pstate%pk(icol,k) * ptend%dtdt(icol,k)
-                icol = icol + 1
-              end do
-            end do
-          end do
-        end if
+        end do
         if (filter_ptend) then
-          call filter_run(block%big_filter, dptdt)
+          call filter_run(block%big_filter, dtdt)
         end if
       else if (ptend%updated_pt) then
-        ! Convert potential temperature to modified potential temperature tendency.
-        if (idx_qv > 0) then
-          ! Assume dqdt is set.
-          ! - Potential temperature tendency
-          do k = mesh%full_kds, mesh%full_kde
-            icol = 1
-            do j = mesh%full_jds, mesh%full_jde
-              do i = mesh%full_ids, mesh%full_ide
-                dptdt%d(i,j,k) = dstate%dmg%d(i,j,k) * ( &
-                  (1 + q_old%d(i,j,k,idx_qv) * rv_o_rd) * ptend%dptdt(icol,k) + &
-                  pstate%pt_old(icol,k) * rv_o_rd * dqdt%d(i,j,k,idx_qv) / dstate%dmg%d(i,j,k))
-                icol = icol + 1
-              end do
+        do k = mesh%full_kds, mesh%full_kde
+          icol = 1
+          do j = mesh%full_jds, mesh%full_jde
+            do i = mesh%full_ids, mesh%full_ide
+              dptdt%d(i,j,k) = dstate%dmg%d(i,j,k) * ptend%dptdt(icol,k)
+              icol = icol + 1
             end do
           end do
-        else
-          ! - No moisture
-          do k = mesh%full_kds, mesh%full_kde
-            icol = 1
-            do j = mesh%full_jds, mesh%full_jde
-              do i = mesh%full_ids, mesh%full_ide
-                dptdt%d(i,j,k) = dstate%dmg%d(i,j,k) * ptend%dptdt(icol,k)
-                icol = icol + 1
-              end do
-            end do
-          end do
-        end if
+        end do
         if (filter_ptend) then
           call filter_run(block%big_filter, dptdt)
         end if

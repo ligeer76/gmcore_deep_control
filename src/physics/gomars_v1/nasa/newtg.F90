@@ -1,7 +1,18 @@
-subroutine newtg( &
-  als, dnvflux, downir, rhouch, rhoucht, &
-  scond, stemp, sthick, ps, q_vap_sfc, h2oice_sfc, &
-  h2osub_sfc, npcflag, tg)
+subroutine newtg(  &
+  als            , &
+  dnvflux        , &
+  downir         , &
+  rhouch         , &
+  rhoucht        , &
+  scond          , &
+  stemp          , &
+  sthick         , &
+  ps             , &
+  q_vap_sfc      , &
+  h2oice_sfc     , &
+  h2osub_sfc     , &
+  npcflag        , &
+  tg             )
 
   ! Legacy Mars GCM v24
   ! Mars Climate Modeling Center
@@ -39,7 +50,7 @@ subroutine newtg( &
   real(r8) qsat
   real(r8) f, fl, fh, df
   real(r8) tl, th
-  real(r8) dx_old, dx
+  real(r8) dx_old, dx, tmp
 
   done = .false.
   astar = (1 - als) * dnvflux
@@ -80,11 +91,11 @@ subroutine newtg( &
       else
         dx_old = dx
         dx = f / df
-        if (tg == tg - dx) then
+        tmp = tg
+        tg = tg - dx
+        if (tmp == tg) then
           done = .true.
           exit
-        else
-          tg = tg - dx
         end if
       end if
       if (abs(dx) < 1.0e-3) then

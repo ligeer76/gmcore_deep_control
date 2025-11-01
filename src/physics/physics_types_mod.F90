@@ -328,7 +328,7 @@ contains
     allocate(this%dptdt(mesh%ncol,mesh%nlev         ))
     allocate(this%dqdt (mesh%ncol,mesh%nlev,ntracers))
     allocate(this%dpsdt(mesh%ncol                   ))
-    allocate(this%updated_q(ntracers))
+    allocate(this%updated_q(ntracers)); this%updated_q = .false.
 
   end subroutine physics_tend_init
 

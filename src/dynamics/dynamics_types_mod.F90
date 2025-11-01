@@ -168,10 +168,17 @@ module dynamics_types_mod
     type(latlon_field3d_type) dmf_lev     ! Mass flux divergence on half level (Pa s-1)
     type(latlon_field3d_type) omg         ! Vertical pressure velocity (Pa s-1)
     ! Tendencies from physics
+    logical updated_u
     type(latlon_field3d_type) dudt_phys
+    logical updated_v
     type(latlon_field3d_type) dvdt_phys
+    logical updated_t
+    type(latlon_field3d_type) dtdt_phys
+    logical updated_pt
     type(latlon_field3d_type) dptdt_phys
+    logical updated_ps
     type(latlon_field2d_type) dpsdt_phys
+    logical, allocatable :: updated_q(:)
     type(latlon_field4d_type) dqdt_phys
     ! Tendencies from damping processes
     type(latlon_field3d_type) dudt_damp
@@ -1668,6 +1675,16 @@ contains
         restart         =.true.                                              , &
         field           =this%dvdt_phys                                      )
       call append_field(this%fields                                          , &
+        name            ='dtdt_phys'                                         , &
+        long_name       ='Physics tendency of t'                             , &
+        units           ='K s-1'                                             , &
+        loc             ='cell'                                              , &
+        mesh            =mesh_ptr                                            , &
+        halo            =halo_ptr                                            , &
+        output          ='h1'                                                , &
+        restart         =.true.                                              , &
+        field           =this%dtdt_phys                                      )
+      call append_field(this%fields                                          , &
         name            ='dptdt_phys'                                        , &
         long_name       ='Physics tendency of pt'                            , &
         units           ='K s-1'                                             , &
@@ -1700,6 +1717,7 @@ contains
         output          ='h1'                                                , &
         restart         =.true.                                              , &
         field           =this%dqdt_phys                                      )
+      allocate(this%updated_q(ntracers))
     end if
 
     if (use_laplace_damp .or. use_sponge_layer .or. use_div_damp .or. use_smag_damp) then
@@ -1771,6 +1789,7 @@ contains
         call field%clear()
       end select
     end do
+    if (allocated(this%updated_q)) deallocate(this%updated_q)
     call this%fields%clear()
 
   end subroutine aux_array_clear

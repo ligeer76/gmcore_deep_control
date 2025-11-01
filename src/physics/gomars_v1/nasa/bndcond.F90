@@ -1,4 +1,4 @@
-subroutine bndcond(u, v, pt, tg, z, lnzz, z0, cdm, cdh, ustar, tstar)
+subroutine bndcond(u, v, pt, tg, z, z0, cdm, cdh, ustar, tstar)
 
   ! Legacy Mars GCM v24
   ! Mars Climate Modeling Center
@@ -14,19 +14,20 @@ subroutine bndcond(u, v, pt, tg, z, lnzz, z0, cdm, cdh, ustar, tstar)
   real(r8), intent(in ) :: pt (nlev)
   real(r8), intent(in ) :: tg
   real(r8), intent(in ) :: z  (nlev)
-  real(r8), intent(in ) :: lnzz
   real(r8), intent(in ) :: z0
   real(r8), intent(out) :: cdm
   real(r8), intent(out) :: cdh
   real(r8), intent(out) :: ustar
   real(r8), intent(out) :: tstar
 
+  real(r8) lnzz
   real(r8) dpt
   real(r8) wsp
   real(r8) rib
   real(r8) fm
   real(r8) fh
 
+  lnzz = log(z(nlev) / z0)
   ! For now, use psi at the bottom full level. Later interpolate to the surface.
   dpt = pt(nlev) - tg
   ! Calculate the bulk Richardson number.

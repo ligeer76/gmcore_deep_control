@@ -14,6 +14,7 @@ module physics_mod
   use namelist_mod
   use time_mod
   use formula_mod
+  use vert_coord_mod
   use block_mod
   use tracer_mod
   use physics_types_mod
@@ -24,7 +25,6 @@ module physics_mod
   use cam_physics_driver_mod, cam_objects => objects
 #endif
   use gomars_v1_driver_mod
-  use gomars_v2_driver_mod
   use perf_mod
 
   implicit none
@@ -103,9 +103,9 @@ contains
     do iblk = 1, nblk
       associate (dmesh => blocks(iblk)%mesh)
       call mesh(iblk)%init(ncol(iblk), nlev, gid(:,iblk), lon(:,iblk), lat(:,iblk), &
-                           blocks(iblk)%mesh%full_lev , &
-                           blocks(iblk)%mesh%half_lev , &
-                           blocks(iblk)%mesh%full_dlev, &
+                           blocks(iblk)%mesh%full_lev (1:nlev  ), &
+                           blocks(iblk)%mesh%half_lev (1:nlev+1), &
+                           blocks(iblk)%mesh%full_dlev(1:nlev  ), &
                            area(:,iblk), ptop=ptop)
       ! For output dimensions
       mesh(iblk)%cell_start_2d = [dmesh%full_ids ,dmesh%full_jds ]
@@ -129,8 +129,6 @@ contains
 #endif
     case ('gomars_v1')
       call gomars_v1_init_stage2(namelist_path, mesh, dt_adv, dt_phys, input_ngroups, gmcore_root)
-    case ('gomars_v2')
-      call gomars_v2_init_stage2(namelist_path, mesh, dt_adv, dt_phys, input_ngroups, gmcore_root)
     end select
 
   end subroutine physics_init_stage2
@@ -146,8 +144,6 @@ contains
     select case (physics_suite)
     case ('gomars_v1')
       call gomars_v1_init_stage3()
-    case ('gomars_v2')
-      call gomars_v2_init_stage3()
     end select
 
   end subroutine physics_init_stage3
@@ -177,8 +173,6 @@ contains
 #endif
     case ('gomars_v1')
       call gomars_v1_run(curr_time)
-    case ('gomars_v2')
-      call gomars_v2_run(curr_time)
     end select
 
     call dp_coupling_p2d(block, itime)
@@ -230,6 +224,8 @@ contains
 
     integer i, j
 
+    if (.not. block%aux%updated_ps) return
+
     associate (mesh  => block%mesh          , &
                dpsdt => block%aux%dpsdt_phys, & ! in
                mgs   => dstate%mgs          )   ! inout
@@ -249,19 +245,81 @@ contains
     type(dstate_type), intent(inout) :: dstate
     real(r8), intent(in) :: dt
 
+    real(r8) ddmgdt, dmgdt, pk, qv
     integer i, j, k
 
-    associate (mesh       => block%mesh          , &
-               dptdt_phys => block%aux%dptdt_phys, & ! in
-               dmg        => dstate%dmg          , & ! in
-               pt         => dstate%pt           )   ! inout
-    do k = mesh%full_kds, mesh%full_kde
-      do j = mesh%full_jds, mesh%full_jde
-        do i = mesh%full_ids, mesh%full_ide
-          pt%d(i,j,k) = pt%d(i,j,k) + dt * dptdt_phys%d(i,j,k) / dmg%d(i,j,k)
+    associate (mesh  => block%mesh          , &
+               dpsdt => block%aux%dpsdt_phys, & ! in
+               dptdt => block%aux%dptdt_phys, & ! in
+               dtdt  => block%aux%dtdt_phys , & ! in
+               dqdt  => block%aux%dqdt_phys , & ! in
+               t     => block%aux%t         , & ! in
+               p     => dstate%p            , & ! in
+               dmg   => dstate%dmg          , & ! in
+               q     => tracers(block%id)%q , & ! in
+               pt    => dstate%pt           )   ! inout
+    if (block%aux%updated_t) then
+      ! ------------------------------------------------------------------------
+      ! Update temperature.
+      if (block%aux%updated_ps) then
+        do k = mesh%full_kds, mesh%full_kde
+          do j = mesh%full_jds, mesh%full_jde
+            do i = mesh%full_ids, mesh%full_ide
+              ddmgdt = vert_coord_calc_ddmgdt(k, dpsdt%d(i,j))
+              dmgdt  = vert_coord_calc_dmgdt (k, dpsdt%d(i,j))
+              pk = (p%d(i,j,k) / p0)**rd_o_cpd
+              pt%d(i,j,k) = pt%d(i,j,k) + dt * (pt%d(i,j,k) * ddmgdt / dmg%d(i,j,k) + &
+                dtdt%d(i,j,k) / pk - rd_o_cpd * pt%d(i,j,k) / p%d(i,j,k) * dmgdt)
+            end do
+          end do
         end do
-      end do
-    end do
+      else
+        if (idx_qv > 0) then
+          do k = mesh%full_kds, mesh%full_kde
+            do j = mesh%full_jds, mesh%full_jde
+              do i = mesh%full_ids, mesh%full_ide
+                pk = (p%d(i,j,k) / p0)**rd_o_cpd
+                qv = q%d(i,j,k,idx_qv)
+                pt%d(i,j,k) = pt%d(i,j,k) + dt * ((1 + rv_o_rd * qv) * dtdt%d(i,j,k) + &
+                  rv_o_rd * t%d(i,j,k) * dqdt%d(i,j,k,idx_qv) / dmg%d(i,j,k)) / pk
+              end do
+            end do
+          end do
+        else
+          do k = mesh%full_kds, mesh%full_kde
+            do j = mesh%full_jds, mesh%full_jde
+              do i = mesh%full_ids, mesh%full_ide
+                pk = (p%d(i,j,k) / p0)**rd_o_cpd
+                pt%d(i,j,k) = pt%d(i,j,k) + dt * dtdt%d(i,j,k) / pk
+              end do
+            end do
+          end do
+        end if
+      end if
+    else if (block%aux%updated_pt) then
+      ! ------------------------------------------------------------------------
+      ! Update potential temperature.
+      if (idx_qv > 0) then
+        do k = mesh%full_kds, mesh%full_kde
+          do j = mesh%full_jds, mesh%full_jde
+            do i = mesh%full_ids, mesh%full_ide
+              pk = (p%d(i,j,k) / p0)**rd_o_cpd
+              qv = q%d(i,j,k,idx_qv)
+              pt%d(i,j,k) = pt%d(i,j,k) + dt * ((1 + rv_o_rd * qv) * dptdt%d(i,j,k) + &
+                rv_o_rd * pt%d(i,j,k) * dqdt%d(i,j,k,idx_qv)) / dmg%d(i,j,k)
+            end do
+          end do
+        end do
+      else
+        do k = mesh%full_kds, mesh%full_kde
+          do j = mesh%full_jds, mesh%full_jde
+            do i = mesh%full_ids, mesh%full_ide
+              pt%d(i,j,k) = pt%d(i,j,k) + dt * dptdt%d(i,j,k) / dmg%d(i,j,k)
+            end do
+          end do
+        end do
+      end if
+    end if
     call fill_halo(pt, async=.true.)
     end associate
 
@@ -285,8 +343,8 @@ contains
           do i = mesh%full_ids, mesh%full_ide
             q%d(i,j,k,m) = q%d(i,j,k,m) + dt * dqdt_phys%d(i,j,k,m) / dmg%d(i,j,k)
             if (q%d(i,j,k,m) < 0) then
-              call log_warning('Tracer mixing ratio is negative after physics update at grid (' // &
-                to_str(i) // ', ' // to_str(j) // ', ' // to_str(k) // ')!', __FILE__, __LINE__)
+              ! call log_warning('Tracer mixing ratio is negative after physics update at grid (' // &
+              !   to_str(i) // ', ' // to_str(j) // ', ' // to_str(k) // ')!', __FILE__, __LINE__)
               q%d(i,j,k,m) = 0
             end if
           end do
@@ -425,8 +483,6 @@ contains
 #endif
     case ('gomars_v1')
       call gomars_v1_final()
-    case ('gomars_v2')
-      call gomars_v2_final()
     end select
 
     if (allocated(physics_use_wet_tracers)) deallocate(physics_use_wet_tracers)
@@ -448,8 +504,6 @@ contains
 #endif
     case ('gomars_v1')
       call gomars_v1_add_output(tag, output_h0_dtype)
-    case ('gomars_v2')
-      call gomars_v2_add_output(tag, output_h0_dtype)
     end select
 
   end subroutine physics_add_output
@@ -470,8 +524,6 @@ contains
 #endif
     case ('gomars_v1')
       call gomars_v1_output(tag, iblk)
-    case ('gomars_v2')
-      call gomars_v2_output(tag, iblk)
     end select
 
   end subroutine physics_output

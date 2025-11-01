@@ -57,7 +57,7 @@ contains
       ps = 0
       do j = mesh%full_jds, mesh%full_jde
         do i = mesh%full_ids, mesh%full_ide
-          mgs%d(i,j) = ps0 * exp(-gzs%d(i,j) / (Rd * t0))
+          mgs%d(i,j) = ps0 * exp(-gzs%d(i,j) / (rd * t0))
           phs%d(i,j) = mgs%d(i,j)
           ps = ps + mgs%d(i,j) * mesh%area_cell(j)
         end do

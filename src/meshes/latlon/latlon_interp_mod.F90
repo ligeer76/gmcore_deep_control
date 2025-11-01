@@ -23,6 +23,7 @@ module latlon_interp_mod
   public latlon_interp_bilinear_lon_edge
   public latlon_interp_bilinear_lat_edge
   public latlon_interp_bilinear_column
+  public latlon_interp_fill_column
   public latlon_interp_plev
   public latlon_interp_zlev
 
@@ -573,6 +574,41 @@ contains
     deallocate(i1, i2, j1, j2, xwgt1, xwgt2, ywgt1, ywgt2)
 
   end subroutine latlon_interp_bilinear_column
+
+  subroutine latlon_interp_fill_column(src_ilon, src_ilat, src_data, dst_lon, dst_lat, dst_data, extrap, ierr)
+
+    real(r8), intent(in) :: src_ilon(:)   ! src_lon + 1
+    real(r8), intent(in) :: src_ilat(:)   ! src_lat + 1
+    real(r8), intent(in) :: src_data(:,:)
+    real(r8), intent(in) :: dst_lon(:)
+    real(r8), intent(in) :: dst_lat(:)
+    real(r8), intent(out) :: dst_data(:)
+    logical, intent(in), optional :: extrap
+    integer, intent(out), optional :: ierr
+
+    integer nx1, ny1, i1, j1
+    integer ncol2, icol2, count
+
+    nx1 = size(src_data, 1)
+    ny1 = size(src_data, 2)
+    ncol2 = size(dst_data)
+
+    dst_data = 0
+    do icol2 = 1, ncol2
+      count = 0
+      do j1 = 1, ny1
+        do i1 = 1, nx1
+          if (src_ilon(i1) <= dst_lon(icol2) .and. dst_lon(icol2) <= src_ilon(i1+1) .and. &
+              src_ilat(j1) <= dst_lat(icol2) .and. dst_lat(icol2) <= src_ilat(j1+1)) then
+            dst_data(icol2) = dst_data(icol2) + src_data(i1,j1)
+            count = count + 1
+          end if
+        end do
+      end do
+      dst_data(icol2) = dst_data(icol2) / count
+    end do
+
+  end subroutine latlon_interp_fill_column
 
   subroutine latlon_interp_plev_3d(pi, xi, po, xo, logp)
 

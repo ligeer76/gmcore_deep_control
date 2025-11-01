@@ -40,13 +40,13 @@ subroutine eddycoef(z_lev, dz_lev, u, v, pt, pt_lev, q, shr2, ri, km, kh)
   real(r8) kmin
 
   do k = 2, nlev ! Loop on half levels excluding top and bottom.
-    ! Calculate mixing length and beta (volume expansion coefficient).
+    ! Calculate mixing length.
     ml2 = (ml0 * ka * z_lev(k) / (ml0 + ka * z_lev(k)))**2
     ! Calculate gradient Richardson number.
     dudz    = -(u (k) - u (k-1)) / dz_lev(k)
     dvdz    = -(v (k) - v (k-1)) / dz_lev(k)
     dptdz   = -(pt(k) - pt(k-1)) / dz_lev(k)
-    ! Smooth the wind shear,
+    ! Smooth the wind shear.
     shr2(k) = shr2(k) - (shr2(k) - dudz**2 - dvdz**2) * dt / 1.0e4_r8
     shr     = sqrt(shr2(k))
     ri  (k) = g / pt_lev(k) * dptdz / (shr2(k) + 1.0e-9_r8)
@@ -61,10 +61,10 @@ subroutine eddycoef(z_lev, dz_lev, u, v, pt, pt_lev, q, shr2, ri, km, kh)
       km(k) = km0 * (1 - ri(k) / ric)
       kh(k) = kh0 * (1 - ri(k) / ric)
     end if
+    ! Limit the coefficients.
+    kmin = merge(0.1_r8, 0.001_r8, z_lev(k) < 300)
+    km(k) = max(km(k), kmin)
+    kh(k) = max(kh(k), kmin)
   end do
-  ! Limit the coefficients.
-  kmin = merge(0.1_r8, 0.001_r8, z_lev(k) < 300)
-  km(k) = max(km(k), kmin)
-  kh(k) = max(kh(k), kmin)
 
 end subroutine eddycoef

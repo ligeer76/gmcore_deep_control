@@ -314,6 +314,7 @@ target_sources(gmcore PRIVATE
   src/physics/physics_mod.F90
   src/physics/physics_mesh_mod.F90
   src/physics/physics_types_mod.F90
+  src/physics/physics_parallel_mod.F90
   src/physics/simple_physics/simple_physics_v6.f90
   src/physics/simple_physics/kessler.f90
   src/physics/simple_physics/simple_physics_types_mod.F90
@@ -394,7 +395,6 @@ else ()
 endif ()
 
 add_subdirectory(src/physics/gomars_v1)
-add_subdirectory(src/physics/gomars_v2)
 add_subdirectory(src/physics/testbed)
 
 if (HAS_RRTMGP AND HAS_NOAHMP)

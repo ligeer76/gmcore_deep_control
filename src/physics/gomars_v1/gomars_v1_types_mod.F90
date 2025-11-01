@@ -304,8 +304,8 @@ contains
     allocate(this%zin           (mesh%ncol,nsoil             )); this%zin           = 0
     allocate(this%rhosoil       (mesh%ncol,nsoil             )); this%rhosoil       = 0
     allocate(this%cpsoil        (mesh%ncol,nsoil             )); this%cpsoil        = 0
-    allocate(this%scond         (mesh%ncol,2*nsoil+1         )); this%scond         = 0
-    allocate(this%stemp         (mesh%ncol,2*nsoil+1         )); this%stemp         = 0
+    allocate(this%scond         (mesh%ncol,nsoil+1           )); this%scond         = 0
+    allocate(this%stemp         (mesh%ncol,nsoil             )); this%stemp         = 0
     allocate(this%zavgtg        (mesh%ncol                   )); this%zavgtg        = 0
     allocate(this%h2osub_sfc    (mesh%ncol                   )); this%h2osub_sfc    = 0
     allocate(this%h2oice_sfc    (mesh%ncol                   )); this%h2oice_sfc    = 0

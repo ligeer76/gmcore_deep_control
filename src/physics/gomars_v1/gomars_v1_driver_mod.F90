@@ -258,39 +258,14 @@ contains
     ! NOTE: Old time step values of u, v, pt, q are already saved in state%u_old, etc.
     do iblk = 1, size(objects)
       associate (mesh => objects(iblk)%mesh, state => objects(iblk)%state)
-      do icol = 1, mesh%ncol
-        ! ----------------------------------------------------------------------
-        ! Calculate the direct solar flux.
-        state%cosz(icol) = solar_cos_zenith_angle(mesh%lon(icol), mesh%lat(icol), time_of_day)
-        if (state%cosz(icol) >= 1.0e-5_r8) then
-          call dsolflux(                     &
-            solar                          , & ! in
-            state%cosz        (icol       ), & ! in
-            gweight                        , & ! in
-            fzerov                         , & ! in
-            state%detau       (icol,:,:   ), & ! in
-            state%solar_sfc_dn(icol       )  & ! out
-          )
-        else
-          state%solar_sfc_dn(icol) = 0
-        end if
-        state%vsflx_sfc_dn(icol) = state%vsdif_sfc_dn(icol) + state%solar_sfc_dn(icol)
-        ! Recalculate the average cosine of the solar zenith angle.
-        call solarza(                        &
-          mesh%lon            (icol       ), & ! in
-          mesh%cos_lat        (icol       ), & ! in
-          mesh%sin_lat        (icol       ), & ! in
-          cos_decl                         , & ! in
-          sin_decl                         , & ! in
-          time_of_day                      , & ! in
-          state%cosz          (icol       )  & ! out
-        )
-      end do
-      call gomars_v1_lsm_run   (state)
-      call interp_temperature  (state)
-      call gomars_v1_pbl_run   (state)
-      call interp_temperature  (state)
-      call gomars_v1_cnvadj_run(state)
+      call gomars_v1_orbit_cosz     (state)
+      call direct_solar_flux        (state)
+      call gomars_v1_orbit_cosz_avg (state)
+      call gomars_v1_lsm_run        (state)
+      call interp_temperature       (state)
+      call gomars_v1_pbl_run        (state)
+      call interp_temperature       (state)
+      call gomars_v1_cnvadj_run     (state)
       end associate
     end do
 

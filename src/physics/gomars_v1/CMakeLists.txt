@@ -35,8 +35,6 @@ target_sources(gmcore PRIVATE
   nasa/laginterp.F90
   nasa/ini_optdst.F90
   nasa/ini_optcld.F90
-  nasa/dsolflux.F90
-  nasa/solarza.F90
   nasa/coldair.F90
   nasa/fillpt.F90
   nasa/opt_dst.F90

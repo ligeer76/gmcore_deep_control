@@ -13,6 +13,7 @@
 module gomars_v1_rad_mod
 
   use gomars_v1_const_mod
+  use gomars_v1_types_mod
   use gomars_v1_orbit_mod
 
   implicit none
@@ -22,6 +23,7 @@ module gomars_v1_rad_mod
   public gomars_v1_rad_init
   public gomars_v1_rad_final
   public update_solar
+  public direct_solar_flux
   public qexti, qscati, gi, wi, fzeroi
   public qextv, qscatv, gv, wv, fzerov
   public solar_1au, solar, gweight
@@ -188,5 +190,40 @@ contains
     end do
 
   end subroutine update_solar
+
+  subroutine direct_solar_flux(state)
+
+    type(gomars_v1_state_type), intent(inout) :: state
+
+    integer i, is, ig
+    real(r8) factor
+
+    associate (mesh         => state%mesh        , &
+               cosz         => state%cosz        , & ! in
+               detau        => state%detau       , & ! in
+               vsdif_sfc_dn => state%vsdif_sfc_dn, & ! in
+               solar_sfc_dn => state%solar_sfc_dn, & ! out
+               vsflx_sfc_dn => state%vsflx_sfc_dn)   ! inout
+    do i = 1, mesh%ncol
+      solar_sfc_dn(i) = 0
+      if (cosz(i) >= 1.0e-5_r8) then
+        do is = 1, nspectv
+          factor = cosz(i) * solar(is)
+          do ig = 1, ngauss - 1
+            if (detau(i,is,ig) <= 5) then
+              solar_sfc_dn(i) = solar_sfc_dn(i) + factor * exp(-detau(i,is,ig) / cosz(i)) * gweight(ig) * (1 - fzerov(is))
+            end if
+          end do
+          ig = ngauss
+          if (detau(i,is,ig) <= 5) then
+            solar_sfc_dn(i) = solar_sfc_dn(i) + factor * exp(-detau(i,is,ig) / cosz(i)) * fzerov(is)
+          end if
+        end do
+      end if
+      vsflx_sfc_dn(i) = vsdif_sfc_dn(i) + solar_sfc_dn(i)
+    end do
+    end associate
+
+  end subroutine direct_solar_flux
 
 end module gomars_v1_rad_mod

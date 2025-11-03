@@ -15,7 +15,6 @@ module gomars_v1_types_mod
   use physics_types_mod
   use tracer_mod
   use gomars_v1_const_mod
-  use gomars_v1_rad_mod
 
   implicit none
 

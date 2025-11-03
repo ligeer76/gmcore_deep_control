@@ -26,7 +26,9 @@ module gomars_v1_driver_mod
   use gomars_v1_pbl_mod
   use gomars_v1_lsm_mod
   use gomars_v1_mp_mod
+  use gomars_v1_cnvadj_mod
   use gomars_v1_damp_mod
+  use gomars_v1_utils_mod
 
   implicit none
 
@@ -245,7 +247,7 @@ contains
     type(datetime_type), intent(in) :: time
 
     integer iblk, icol, k, l, m, substep
-    real(r8) ls, time_of_day, nonlte, tmp, ptcon
+    real(r8) ls, nonlte, tmp
     real(r8) nfluxtopv, nfluxtopi, diffvt, albi
 
     ls = time%solar_longitude()
@@ -284,23 +286,11 @@ contains
           state%cosz          (icol       )  & ! out
         )
       end do
-      call gomars_v1_lsm_run(state)
-      do icol = 1, mesh%ncol
-        ! ----------------------------------------------------------------------
-        ! Calculate potential temperature on all levels.
-        call potemp(                         &
-          state%tstrat        (icol       ), & ! in
-          state%p             (icol,:     ), & ! in
-          state%p_lev         (icol,:     ), & ! in
-          state%lnp           (icol,:     ), & ! in
-          state%lnp_lev       (icol,:     ), & ! in
-          state%t             (icol,:     ), & ! in
-          state%t_lev         (icol,:     ), & ! out
-          state%pt            (icol,:     ), & ! out
-          state%pt_lev        (icol,:     )  & ! out
-        )
-      end do
-      call gomars_v1_pbl_run(state)
+      call gomars_v1_lsm_run   (state)
+      call interp_temperature  (state)
+      call gomars_v1_pbl_run   (state)
+      call interp_temperature  (state)
+      call gomars_v1_cnvadj_run(state)
       end associate
     end do
 
@@ -319,14 +309,24 @@ contains
 
   subroutine gomars_v1_d2p()
 
-    integer iblk, icol, k
+    integer iblk, i, k
 
     ! Calculate ts.
 
     do iblk = 1, size(objects)
       associate (mesh => objects(iblk)%mesh, state => objects(iblk)%state)
-      do icol = 1, mesh%ncol
-        state%ps_old(icol) = state%ps(icol)
+      do k = 1, mesh%nlev
+        do i = 1, mesh%ncol
+          state%pk(i,k) = (state%p(i,k) / state%ps(i))**rd_o_cpd
+        end do
+      end do
+      do k = 1, mesh%nlev + 1
+        do i = 1, mesh%ncol
+          state%pk_lev(i,k) = (state%p_lev(i,k) / state%ps(i))**rd_o_cpd
+        end do
+      end do
+      do i = 1, mesh%ncol
+        state%ps_old(i) = state%ps(i)
       end do
       end associate
     end do

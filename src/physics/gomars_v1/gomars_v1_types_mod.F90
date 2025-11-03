@@ -29,7 +29,9 @@ module gomars_v1_types_mod
     ! Surface pressure at time level n (Pa)
     real(r8), allocatable, dimension(:      ) :: ps_old
     ! [restart] Pressure of planetary boundary layer top (Pa)
-    real(r8), allocatable, dimension(:      ) :: ptop_pbl
+    real(r8), allocatable, dimension(:      ) :: pcon
+    ! Potential temperature of planetary boundary layer top (K)
+    real(r8), allocatable, dimension(:      ) :: ptcon
     ! Stratospheric temperature (K)
     real(r8), allocatable, dimension(:      ) :: tstrat
     ! Surface CO2 ice (?)
@@ -230,7 +232,8 @@ contains
     call this%clear()
 
     allocate(this%ps_old        (mesh%ncol                   )); this%ps_old        = 0
-    allocate(this%ptop_pbl      (mesh%ncol                   )); this%ptop_pbl      = 0
+    allocate(this%pcon          (mesh%ncol                   )); this%pcon          = 0
+    allocate(this%ptcon         (mesh%ncol                   )); this%ptcon         = 0
     allocate(this%tstrat        (mesh%ncol                   )); this%tstrat        = 0
     allocate(this%co2ice_sfc    (mesh%ncol                   )); this%co2ice_sfc    = 0
     allocate(this%latheat       (mesh%ncol                   )); this%latheat       = 0
@@ -329,7 +332,8 @@ contains
     class(gomars_v1_state_type), intent(inout) :: this
 
     if (allocated(this%ps_old       )) deallocate(this%ps_old       )
-    if (allocated(this%ptop_pbl     )) deallocate(this%ptop_pbl     )
+    if (allocated(this%pcon         )) deallocate(this%pcon         )
+    if (allocated(this%ptcon        )) deallocate(this%ptcon        )
     if (allocated(this%tstrat       )) deallocate(this%tstrat       )
     if (allocated(this%co2ice_sfc   )) deallocate(this%co2ice_sfc   )
     if (allocated(this%latheat      )) deallocate(this%latheat      )

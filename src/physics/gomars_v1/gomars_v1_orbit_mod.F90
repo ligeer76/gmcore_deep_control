@@ -27,6 +27,7 @@ module gomars_v1_orbit_mod
   public decl_angle
   public cos_decl
   public sin_decl
+  public time_of_day
 
   ! Convert Mkm to AU
   real(r8), parameter :: au        = 1.0_r8 / 149.597927_r8
@@ -56,6 +57,7 @@ module gomars_v1_orbit_mod
   real(r8) decl_angle
   real(r8) cos_decl
   real(r8) sin_decl
+  real(r8) time_of_day
 
 contains
 

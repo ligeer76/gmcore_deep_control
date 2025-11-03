@@ -24,8 +24,10 @@ target_sources(gmcore PRIVATE
   gomars_v1_pbl_mod.F90
   gomars_v1_lsm_mod.F90
   gomars_v1_mp_mod.F90
+  gomars_v1_cnvadj_mod.F90
   gomars_v1_damp_mod.F90
   gomars_v1_rad_mod.F90
+  gomars_v1_utils_mod.F90
   nasa/setspi.F90
   nasa/setspv.F90
   nasa/setrad.F90
@@ -35,7 +37,6 @@ target_sources(gmcore PRIVATE
   nasa/ini_optcld.F90
   nasa/dsolflux.F90
   nasa/solarza.F90
-  nasa/potemp1.F90
   nasa/coldair.F90
   nasa/fillpt.F90
   nasa/opt_dst.F90
@@ -54,5 +55,4 @@ target_sources(gmcore PRIVATE
   nasa/ddl.F90
   nasa/sedim.F90
   nasa/microphys.F90
-  nasa/convect.F90
 )

@@ -68,6 +68,7 @@ contains
                pt_lev     => state%pt_lev    , & ! in
                rho        => state%rhod      , & ! in
                p          => state%p         , & ! in
+               pk         => state%pk        , & ! in
                z          => state%z         , & ! in
                dz         => state%dz        , & ! in
                z_lev      => state%z_lev     , & ! in
@@ -204,7 +205,7 @@ contains
       end if
       ! ------------------------------------------------------------------------
       do k = 1, mesh%nlev
-        t(i,k) = pt(i,k) * (p(i,k) / ps(i))**rd_o_cpd
+        t(i,k) = pt(i,k) * pk(i,k)
       end do
     end do
     end associate

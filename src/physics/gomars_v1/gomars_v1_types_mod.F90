@@ -38,7 +38,7 @@ module gomars_v1_types_mod
     !
     real(r8), allocatable, dimension(:      ) :: latheat
     ! Tracer mass on the surface (kg m-2)
-    real(r8), allocatable, dimension(:,    :) :: tm_sfc
+    real(r8), allocatable, dimension(:,    :) :: qsfc
     ! Visible extinction efficiency for dust
     real(r8), allocatable, dimension(  :,:  ) :: qxvdst
     ! Visible scattering efficiency for dust
@@ -185,7 +185,7 @@ module gomars_v1_types_mod
     real(r8), allocatable, dimension(:      ) :: h2osub_sfc     ! subflux
     ! [restart] Water ice at the surface (???)
     real(r8), allocatable, dimension(:      ) :: h2oice_sfc     ! gndice
-    !
+    ! Condensed CO2 on the ground (kg m-2 s-1)
     real(r8), allocatable, dimension(:      ) :: dmsdt
     ! Wind stress dust lifting flux (kg m-2 s-1)
     real(r8), allocatable, dimension(:      ) :: dstflx_wsl
@@ -236,7 +236,7 @@ contains
     allocate(this%tstrat        (mesh%ncol                   )); this%tstrat        = 0
     allocate(this%co2ice_sfc    (mesh%ncol                   )); this%co2ice_sfc    = 0
     allocate(this%latheat       (mesh%ncol                   )); this%latheat       = 0
-    allocate(this%tm_sfc        (mesh%ncol,ntracers          )); this%tm_sfc        = 0
+    allocate(this%qsfc          (mesh%ncol,ntracers          )); this%qsfc          = 0
     allocate(this%qxvdst        (2*mesh%nlev+4,nspectv       )); this%qxvdst        = 0
     allocate(this%qsvdst        (2*mesh%nlev+4,nspectv       )); this%qsvdst        = 0
     allocate(this%gvdst         (2*mesh%nlev+4,nspectv       )); this%gvdst         = 0
@@ -336,7 +336,7 @@ contains
     if (allocated(this%tstrat       )) deallocate(this%tstrat       )
     if (allocated(this%co2ice_sfc   )) deallocate(this%co2ice_sfc   )
     if (allocated(this%latheat      )) deallocate(this%latheat      )
-    if (allocated(this%tm_sfc       )) deallocate(this%tm_sfc       )
+    if (allocated(this%qsfc         )) deallocate(this%qsfc         )
     if (allocated(this%qxvdst       )) deallocate(this%qxvdst       )
     if (allocated(this%qsvdst       )) deallocate(this%qsvdst       )
     if (allocated(this%gvdst        )) deallocate(this%gvdst        )

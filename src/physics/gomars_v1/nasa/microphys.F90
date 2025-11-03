@@ -14,12 +14,12 @@ subroutine microphys( &
   ht_pbl            , &
   ptop_pbl          , &
   kh                , &
-  tm_sfc            , &
+  qsfc              , &
   dstflx_wsl        , &
   dstflx_ddl        , &
   rho               , &
   deposit           , &
-  tmflx_sfc_dn      )
+  qflx_sfc_dn       )
 
   ! Legacy Mars GCM v24
   ! Mars Climate Modeling Center
@@ -47,12 +47,12 @@ subroutine microphys( &
   real(r8), intent(in   ) :: ht_pbl
   real(r8), intent(in   ) :: ptop_pbl
   real(r8), intent(in   ) :: kh          (nlev+1)
-  real(r8), intent(inout) :: tm_sfc      (ntracers)
+  real(r8), intent(inout) :: qsfc        (ntracers)
   real(r8), intent(  out) :: dstflx_wsl
   real(r8), intent(  out) :: dstflx_ddl
   real(r8), intent(  out) :: rho         (nlev)
   real(r8), intent(  out) :: deposit     (ntracers)
-  real(r8), intent(  out) :: tmflx_sfc_dn(ntracers)
+  real(r8), intent(  out) :: qflx_sfc_dn (ntracers)
 
   integer k, m
   real(r8) Mo
@@ -63,7 +63,7 @@ subroutine microphys( &
 
   ! Inject dust into the atmosphere.
   call dust_update(ps, p, dp_dry, t, tg, taux, tauy, &
-    ht_pbl, ptop_pbl, co2ice_sfc, dstflx_wsl, dstflx_ddl, q, tm_sfc)
+    ht_pbl, ptop_pbl, co2ice_sfc, dstflx_wsl, dstflx_ddl, q, qsfc)
 
   rho = dry_air_density(t, p)
 
@@ -108,16 +108,16 @@ subroutine microphys( &
   ! Now compute the microphysical processes.
   ! Always check the order of sedimentation and nucleation condensation.
   ! PBL is called before microphysics, so do sedimentation first.
-  call sedim(p, dp_dry, t_lev, rho_lev, dz, dz_lev, kh, q, ro, dens, deposit, tmflx_sfc_dn)
+  call sedim(p, dp_dry, t_lev, rho_lev, dz, dz_lev, kh, q, ro, dens, deposit, qflx_sfc_dn)
 
   do m = 1, ntracers
-    tm_sfc(m) = tm_sfc(m) + deposit(m)
+    qsfc(m) = qsfc(m) + deposit(m)
   end do
 
 end subroutine microphys
 
 subroutine dust_update(ps, p, dp_dry, t, tg, taux, tauy, &
-  ht_pbl, ptop_pbl, co2ice_sfc, dstflx_wsl, dstflx_ddl, q, tm_sfc)
+  ht_pbl, ptop_pbl, co2ice_sfc, dstflx_wsl, dstflx_ddl, q, qsfc)
 
   ! Legacy Mars GCM v24
   ! Mars Climate Modeling Center
@@ -142,7 +142,7 @@ subroutine dust_update(ps, p, dp_dry, t, tg, taux, tauy, &
   real(r8), intent(  out) :: dstflx_wsl
   real(r8), intent(  out) :: dstflx_ddl
   real(r8), intent(inout) :: q          (nlev,ntracers)
-  real(r8), intent(inout) :: tm_sfc     (     ntracers)
+  real(r8), intent(inout) :: qsfc       (     ntracers)
 
   integer k
   real(r8) rho
@@ -161,7 +161,7 @@ subroutine dust_update(ps, p, dp_dry, t, tg, taux, tauy, &
       mp = 4.0_r8 / 3.0_r8 * pi * rm**3 * rho_dst
       q(nlev,iMa_dst) = q(nlev,iMa_dst) + dm / dp_dry(nlev)
       q(nlev,iNb_dst) = q(nlev,iNb_dst) + dm / dp_dry(nlev) / mp
-      tm_sfc(iMa_dst) = tm_sfc(iMa_dst) - dm
+      qsfc  (iMa_dst) = qsfc(iMa_dst) - dm
     end if
   else if (use_wsl_kmh) then
 
@@ -179,7 +179,7 @@ subroutine dust_update(ps, p, dp_dry, t, tg, taux, tauy, &
         q(k,iMa_dst) = q(k,iMa_dst) + dm / dp_dry(nlev)
         q(k,iNb_dst) = q(k,iNb_dst) + dm / dp_dry(nlev) / mp
       end do
-      tm_sfc(iMa_dst) = tm_sfc(iMa_dst) - dm
+      qsfc(iMa_dst) = qsfc(iMa_dst) - dm
     end if
   end if
 

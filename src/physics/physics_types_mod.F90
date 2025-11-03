@@ -55,7 +55,7 @@ module physics_types_mod
     ! Tracer wet mixing ratio at time level n (kg kg-1)
     real(r8), allocatable, dimension(:,:,:) :: q_old
     ! Tracer mass down flux on the surface (kg m-2 s-1)
-    real(r8), allocatable, dimension(:,:  ) :: tmflx_sfc_dn
+    real(r8), allocatable, dimension(:,:  ) :: qflx_sfc_dn
     ! Full pressure (hydrostatic) on full level (Pa)
     real(r8), allocatable, dimension(:,:  ) :: p
     ! Full pressure (hydrostatic) on half level (Pa)
@@ -197,7 +197,7 @@ contains
     allocate(this%pt_lev      (mesh%ncol,mesh%nlev+1       )); this%pt_lev       = 0
     allocate(this%q_old       (mesh%ncol,mesh%nlev,ntracers)); this%q_old        = 0
     allocate(this%q           (mesh%ncol,mesh%nlev,ntracers)); this%q            = 0
-    allocate(this%tmflx_sfc_dn(mesh%ncol,          ntracers)); this%tmflx_sfc_dn = 0
+    allocate(this%qflx_sfc_dn (mesh%ncol,          ntracers)); this%qflx_sfc_dn  = 0
     allocate(this%p           (mesh%ncol,mesh%nlev         )); this%p            = 0
     allocate(this%p_lev       (mesh%ncol,mesh%nlev+1       )); this%p_lev        = 0
     allocate(this%pk          (mesh%ncol,mesh%nlev         )); this%pk           = 0
@@ -266,7 +266,7 @@ contains
     if (allocated(this%pt_lev       )) deallocate(this%pt_lev       )
     if (allocated(this%q_old        )) deallocate(this%q_old        )
     if (allocated(this%q            )) deallocate(this%q            )
-    if (allocated(this%tmflx_sfc_dn )) deallocate(this%tmflx_sfc_dn )
+    if (allocated(this%qflx_sfc_dn  )) deallocate(this%qflx_sfc_dn  )
     if (allocated(this%p            )) deallocate(this%p            )
     if (allocated(this%p_lev        )) deallocate(this%p_lev        )
     if (allocated(this%pk           )) deallocate(this%pk           )

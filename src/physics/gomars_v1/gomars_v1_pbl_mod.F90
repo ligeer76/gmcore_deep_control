@@ -92,7 +92,7 @@ contains
                tauy       => state%tauy      , & ! out
                ht_pbl     => state%ht_pbl    , & ! out
                rhouch     => state%rhouch    , & ! out
-               tm_sfc     => state%tm_sfc    )   ! inout
+               qsfc       => state%qsfc      )   ! inout
     do i = 1, mesh%ncol
       h     = z    (i,:) - zs(i)
       h_lev = z_lev(i,:) - zs(i)
@@ -100,7 +100,7 @@ contains
       ! Set surface roughness length.
       z0(i) = z00
       if (co2ice_sfc(i) > 0) z0(i) = 1.0e-4_r8
-      if (tm_sfc(i,iMa_vap) > 100 .or. npcflag(i)) z0(i) = 1.0e-4_r8
+      if (qsfc(i,iMa_vap) > 100 .or. npcflag(i)) z0(i) = 1.0e-4_r8
       ! ------------------------------------------------------------------------
       ! Calculate eddy mixing coefficients.
       do k = 2, mesh%nlev ! Loop on half levels excluding top and bottom.
@@ -199,9 +199,9 @@ contains
       q(i,:,iMa_vap) = var / rho(i,:)
       ! ------------------------------------------------------------------------
       ! Update water ice budget on the surface.
-      tm_sfc(i,iMa_vap) = tm_sfc(i,iMa_vap) - h2osub_sfc(i)
-      if (.not. npcflag(i) .and. tm_sfc(i,iMa_vap) < 0) then
-        tm_sfc(i,iMa_vap) = 0
+      qsfc(i,iMa_vap) = qsfc(i,iMa_vap) - h2osub_sfc(i)
+      if (.not. npcflag(i) .and. qsfc(i,iMa_vap) < 0) then
+        qsfc(i,iMa_vap) = 0
       end if
       ! ------------------------------------------------------------------------
       do k = 1, mesh%nlev

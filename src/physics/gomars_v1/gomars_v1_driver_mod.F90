@@ -25,6 +25,7 @@ module gomars_v1_driver_mod
   use gomars_v1_rad_mod
   use gomars_v1_pbl_mod
   use gomars_v1_lsm_mod
+  use gomars_v1_co2cyc_mod
   use gomars_v1_mp_mod
   use gomars_v1_cnvadj_mod
   use gomars_v1_damp_mod
@@ -261,6 +262,7 @@ contains
       call gomars_v1_orbit_cosz     (state)
       call direct_solar_flux        (state)
       call gomars_v1_orbit_cosz_avg (state)
+      call gomars_v1_co2cyc_run     (state)
       call gomars_v1_lsm_run        (state)
       call interp_temperature       (state)
       call gomars_v1_pbl_run        (state)

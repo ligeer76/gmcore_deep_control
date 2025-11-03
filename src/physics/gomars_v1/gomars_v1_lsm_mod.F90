@@ -119,7 +119,7 @@ contains
 
         ! Initialize some parameters.
         state%h2osub_sfc(i) = 0
-        state%h2oice_sfc(i) = state%tm_sfc(i,iMa_vap)
+        state%h2oice_sfc(i) = state%qsfc(i,iMa_vap)
       end do
       end associate
     end do
@@ -145,7 +145,7 @@ contains
                lat          => state%mesh%lat    , & ! in
                alsp         => state%alsp        , & ! in
                als          => state%als         , & ! out
-               tm_sfc       => state%tm_sfc      , & ! in
+               qsfc         => state%qsfc        , & ! in
                npcflag      => state%npcflag     , & ! in
                rhosoil      => state%rhosoil     , & ! in
                cpsoil       => state%cpsoil      , & ! in
@@ -170,7 +170,7 @@ contains
       als(i) = alsp(i)
       if (co2ice_sfc(i) > 0) then
         als(i) = merge(alices, alicen, lat(i) < 0)
-      else if (albfeed .and. tm_sfc(i,iMa_vap) > icethresh_kgm2 .and. .not. npcflag(i)) then
+      else if (albfeed .and. qsfc(i,iMa_vap) > icethresh_kgm2 .and. .not. npcflag(i)) then
         als(i) = icealb
       end if
       tsat = dewpoint_temperature_mars(ps(i))
@@ -297,8 +297,8 @@ contains
           h2osub_sfc(i) = h2osub_sfc(i) + wflux * dt
         end if
 
-        if (.not. npcflag(i) .and. h2osub_sfc(i) > tm_sfc(i,iMa_vap)) then
-          h2osub_sfc(i) = tm_sfc(i,iMa_vap)
+        if (.not. npcflag(i) .and. h2osub_sfc(i) > qsfc(i,iMa_vap)) then
+          h2osub_sfc(i) = qsfc(i,iMa_vap)
         end if
 
         if (lat(i) < 0) then

@@ -1,4 +1,4 @@
-subroutine sedim(p, dp_dry, t_lev, rho_lev, dz, dz_lev, kh, q, ro, dens, deposit, tmflx_sfc_dn)
+subroutine sedim(p, dp_dry, t_lev, rho_lev, dz, dz_lev, kh, q, ro, dens, deposit, qflx_sfc_dn)
 
   ! Legacy Mars GCM v24
   ! Mars Climate Modeling Center
@@ -36,7 +36,7 @@ subroutine sedim(p, dp_dry, t_lev, rho_lev, dz, dz_lev, kh, q, ro, dens, deposit
   real(r8), intent(inout) :: ro          (nlev,ntracers) ! Particle radius (m)
   real(r8), intent(inout) :: dens        (nlev,ntracers) ! Particle density (kg m-3)
   real(r8), intent(inout) :: deposit     (     ntracers)
-  real(r8), intent(inout) :: tmflx_sfc_dn(     ntracers) ! Tracer mass downward flux at the surface (kg m-2 s-1)
+  real(r8), intent(inout) :: qflx_sfc_dn (     ntracers) ! Tracer mass downward flux at the surface (kg m-2 s-1)
 
   integer k, m
   real(r8) q_old(nlev)
@@ -164,11 +164,11 @@ subroutine sedim(p, dp_dry, t_lev, rho_lev, dz, dz_lev, kh, q, ro, dens, deposit
     end if
     ! Calculate the tracer mass falling on the ground.
     if (m == iMa_cld) then
-      deposit     (iMa_vap) = deposit     (iMa_vap) + q(nlev,m) * ft(nlev+1) * dt
-      tmflx_sfc_dn(iMa_vap) = tmflx_sfc_dn(iMa_vap) + q(nlev,m) * ft(nlev+1)
+      deposit    (iMa_vap) = deposit    (iMa_vap) + q(nlev,m) * ft(nlev+1) * dt
+      qflx_sfc_dn(iMa_vap) = qflx_sfc_dn(iMa_vap) + q(nlev,m) * ft(nlev+1)
     else
-      deposit     (m) = deposit     (m) + q(nlev,m) * ft(nlev+1) * dt
-      tmflx_sfc_dn(m) = tmflx_sfc_dn(m) + q(nlev,m) * ft(nlev+1)
+      deposit    (m) = deposit   (m) + q(nlev,m) * ft(nlev+1) * dt
+      qflx_sfc_dn(m) = qflx_sfc_dn(m) + q(nlev,m) * ft(nlev+1)
     end if
     q(:,m) = q(:,m) / dp_dry
   end do

@@ -53,6 +53,7 @@ contains
     call fiona_add_var(tag, 'stemp'       , long_name='Soil temperature'                       , units='K'    , dim_names=soil_dims     , dtype=dtype)
 
     ! Tendencies
+    call fiona_add_var(tag, 'dmsdt'       , long_name='Ground condensed CO2 mass rate'         , units='kg m-2 s-1', dim_names=dims_2d(1:3), dtype=dtype)
     call fiona_add_var(tag, 'dudt_phys'   , long_name='Physics tendency of zonal wind'         , units='m s-2'  , dim_names=dims_3d(1:4), dtype=dtype)
     call fiona_add_var(tag, 'dvdt_phys'   , long_name='Physics tendency of meridional wind'    , units='m s-2'  , dim_names=dims_3d(1:4), dtype=dtype)
     call fiona_add_var(tag, 'dtdt_phys'   , long_name='Physics tendency of temperature'        , units='K s-1'  , dim_names=dims_3d(1:4), dtype=dtype)
@@ -99,6 +100,7 @@ contains
     call fiona_output(tag, 'stemp'       , reshape(state%stemp       , soil_count        ), start=soil_start        , count=soil_count        )
 
     ! Tendencies
+    call fiona_output(tag, 'dmsdt'       , reshape(state%dmsdt       , mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
     call fiona_output(tag, 'dudt_phys'   , reshape(tend%dudt         , mesh%cell_count_3d), start=mesh%cell_start_3d, count=mesh%cell_count_3d)
     call fiona_output(tag, 'dvdt_phys'   , reshape(tend%dvdt         , mesh%cell_count_3d), start=mesh%cell_start_3d, count=mesh%cell_count_3d)
     call fiona_output(tag, 'dtdt_phys'   , reshape(tend%dtdt         , mesh%cell_count_3d), start=mesh%cell_start_3d, count=mesh%cell_count_3d)

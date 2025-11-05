@@ -14,6 +14,7 @@ module gomars_v1_driver_mod
 
   use datetime
   use const_mod
+  use formula_mod
   use namelist_mod, only: restart, ptop
   use physics_parallel_mod
   use process_mod, only: proc
@@ -26,6 +27,7 @@ module gomars_v1_driver_mod
   use gomars_v1_pbl_mod
   use gomars_v1_lsm_mod
   use gomars_v1_co2cyc_mod
+  use gomars_v1_dustcyc_mod
   use gomars_v1_mp_mod
   use gomars_v1_cnvadj_mod
   use gomars_v1_damp_mod
@@ -64,15 +66,16 @@ contains
     integer , intent(in) :: input_ngroup
     character(*), intent(in), optional :: model_root
 
-    dt       = dt_phys
-    dt_mp    = dt_phys / nsplit
-    nlev     = mesh(1)%nlev
-    nlayrad  = nlev + 1
-    nlevrad  = nlev + 2
-    ptrop    = ptop
-    pstrat   = ptrop * 0.5_r8
-    lnpstrat = log(pstrat)
-    pstratk  = (pstrat / p0)**rd_o_cpd
+    dt         = dt_phys
+    dt_mp      = dt_phys / nsplit
+    nlev       = mesh(1)%nlev
+    nlayrad    = nlev + 1
+    nlevrad    = nlev + 2
+    ptrop      = ptop
+    pstrat     = ptrop * 0.5_r8
+    lnpstrat   = log(pstrat)
+    pstratk    = (pstrat / p0)**rd_o_cpd
+    tsat_strat = dewpoint_temperature_mars(pstrat)
 
     if (present(model_root)) data_root = trim(model_root) // '/data/mars'
 
@@ -80,12 +83,12 @@ contains
     call gomars_v1_tracers_init(dt_adv)
     call gomars_v1_objects_init(mesh)
     call gomars_v1_read_static_data()
-    call gomars_v1_orbit_init()
-    call gomars_v1_rad_init()
-    call gomars_v1_lsm_init()
-    call gomars_v1_pbl_init()
-    call gomars_v1_mp_init()
-    call gomars_v1_damp_init()
+    call gomars_v1_orbit_init      ()
+    call gomars_v1_rad_init        ()
+    call gomars_v1_lsm_init        ()
+    call gomars_v1_pbl_init        ()
+    call gomars_v1_mp_init         ()
+    call gomars_v1_damp_init       ()
 
   end subroutine gomars_v1_init_stage2
 
@@ -113,14 +116,6 @@ contains
           state%tg        (icol) = state%t_bot(icol)
         end do
       end if
-      call ini_optdst(qextv, qscatv, gv, qexti, qscati, gi, &
-                      state%qxvdst, state%qsvdst, state%gvdst, &
-                      state%qxidst, state%qsidst, state%gidst, &
-                      state%qextrefdst)
-      call ini_optcld(state%qxvcld, state%qsvcld, state%gvcld, &
-                      state%qxicld, state%qsicld, state%gicld, &
-                      state%qextrefcld, state%taurefcld)
-      ! firstcomp3:
       if (.not. restart) then
         do icol = 1, mesh%ncol
           state%irflx_sfc_dn(icol) = 1
@@ -247,27 +242,28 @@ contains
 
     type(datetime_type), intent(in) :: time
 
-    integer iblk, icol, k, l, m, substep
-    real(r8) ls, nonlte, tmp
-    real(r8) nfluxtopv, nfluxtopi, diffvt, albi
+    integer iblk
+    real(r8) ls
 
     ls = time%solar_longitude()
     time_of_day = time%time_of_day()
     call update_solar_decl_angle(ls)
-    call update_solar(ls)
+    call update_toa_solar_flux(ls)
 
-    ! NOTE: Old time step values of u, v, pt, q are already saved in state%u_old, etc.
     do iblk = 1, size(objects)
-      associate (mesh => objects(iblk)%mesh, state => objects(iblk)%state)
+      associate (mesh => objects(iblk)%mesh, state => objects(iblk)%state, tend => objects(iblk)%tend)
       call gomars_v1_orbit_cosz     (state)
-      call direct_solar_flux        (state)
+      call update_sfc_solar_flux    (state)
+      call gomars_v1_lsm_run        (state, tend)
       call gomars_v1_orbit_cosz_avg (state)
-      call gomars_v1_co2cyc_run     (state)
-      call gomars_v1_lsm_run        (state)
+      call gomars_v1_co2cyc_run     (state, tend)
       call interp_temperature       (state)
+      call gomars_v1_rad_run        (state)
       call gomars_v1_pbl_run        (state)
       call interp_temperature       (state)
       call gomars_v1_cnvadj_run     (state)
+      call gomars_v1_dustcyc_run    (state)
+      call gomars_v1_mp_run         (state)
       end associate
     end do
 
@@ -276,11 +272,11 @@ contains
   subroutine gomars_v1_final()
 
     call gomars_v1_objects_final()
-    call gomars_v1_rad_final()
-    call gomars_v1_lsm_final()
-    call gomars_v1_pbl_final()
-    call gomars_v1_mp_final()
-    call gomars_v1_damp_final()
+    call gomars_v1_rad_final    ()
+    call gomars_v1_lsm_final    ()
+    call gomars_v1_pbl_final    ()
+    call gomars_v1_mp_final     ()
+    call gomars_v1_damp_final   ()
 
   end subroutine gomars_v1_final
 
@@ -292,6 +288,7 @@ contains
 
     do iblk = 1, size(objects)
       associate (mesh => objects(iblk)%mesh, state => objects(iblk)%state)
+      ! Change to use surface pressure as reference.
       do k = 1, mesh%nlev
         do i = 1, mesh%ncol
           state%pk(i,k) = (state%p(i,k) / state%ps(i))**rd_o_cpd
@@ -302,6 +299,7 @@ contains
           state%pk_lev(i,k) = (state%p_lev(i,k) / state%ps(i))**rd_o_cpd
         end do
       end do
+      ! FIXME: Do we need ps_old?
       do i = 1, mesh%ncol
         state%ps_old(i) = state%ps(i)
       end do
@@ -312,24 +310,21 @@ contains
 
   subroutine gomars_v1_p2d()
 
-    integer iblk, icol, k, m
+    integer iblk, i, k, m
 
     do iblk = 1, size(objects)
       associate (mesh => objects(iblk)%mesh, state => objects(iblk)%state, tend => objects(iblk)%tend)
-      do icol = 1, mesh%ncol
-        tend%dpsdt(icol) = (state%ps(icol) - state%ps_old(icol)) / dt
-      end do
       do k = 1, mesh%nlev
-        do icol = 1, mesh%ncol
-          tend%dudt(icol,k) = (state%u(icol,k) - state%u_old(icol,k)) / dt
-          tend%dvdt(icol,k) = (state%v(icol,k) - state%v_old(icol,k)) / dt
-          tend%dtdt(icol,k) = (state%t(icol,k) - state%t_old(icol,k)) / dt
+        do i = 1, mesh%ncol
+          tend%dudt(i,k) = (state%u(i,k) - state%u_old(i,k)) / dt
+          tend%dvdt(i,k) = (state%v(i,k) - state%v_old(i,k)) / dt
+          tend%dtdt(i,k) = (state%t(i,k) - state%t_old(i,k)) / dt
         end do
       end do
       do m = 1, ntracers
         do k = 1, mesh%nlev
-          do icol = 1, mesh%ncol
-            tend%dqdt(icol,k,m) = (state%q(icol,k,m) - state%q_old(icol,k,m)) / dt
+          do i = 1, mesh%ncol
+            tend%dqdt(i,k,m) = (state%q(i,k,m) - state%q_old(i,k,m)) / dt
           end do
         end do
       end do

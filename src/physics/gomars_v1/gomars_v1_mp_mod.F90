@@ -14,6 +14,7 @@ module gomars_v1_mp_mod
 
   use gomars_v1_const_mod
   use gomars_v1_tracers_mod
+  use gomars_v1_types_mod
 
   implicit none
 
@@ -21,6 +22,7 @@ module gomars_v1_mp_mod
 
   public gomars_v1_mp_init
   public gomars_v1_mp_final
+  public gomars_v1_mp_run
   public rho_aer, std_aer
   public rad_rt, radb_rt
   public qextv_dst, qscatv_dst, gv_dst
@@ -169,5 +171,11 @@ contains
     if (allocated(gi_dst    )) deallocate(gi_dst    )
 
   end subroutine gomars_v1_mp_final
+
+  subroutine gomars_v1_mp_run(state)
+
+    type(gomars_v1_state_type), intent(inout) :: state
+
+  end subroutine gomars_v1_mp_run
 
 end module gomars_v1_mp_mod

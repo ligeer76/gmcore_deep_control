@@ -26,15 +26,14 @@ module gomars_v1_co2cyc_mod
 
 contains
 
-  subroutine gomars_v1_co2cyc_run(state)
+  subroutine gomars_v1_co2cyc_run(state, tend)
 
     type(gomars_v1_state_type), intent(inout) :: state
+    type(gomars_v1_tend_type ), intent(inout) :: tend
 
     integer i, k, m
     integer k_scavup, k_scavdn
-    real(r8) tsat_strat, tsat, tgp, dm(0:nlev)
-
-    tsat_strat = dewpoint_temperature_mars(ptrop * 0.5_r8)
+    real(r8) tsat, tgp, dm(0:nlev)
 
     associate (mesh        => state%mesh       , &
                zin         => state%zin        , & ! in
@@ -48,16 +47,15 @@ contains
                qsfc        => state%qsfc       , & ! inout
                qflx_sfc_dn => state%qflx_sfc_dn, & ! inout
                co2ice_sfc  => state%co2ice_sfc , & ! in
-               dmsdt       => state%dmsdt      )   ! out
+               dpsdt       => tend %dpsdt      )   ! inout
     do i = 1, mesh%ncol
-      dmsdt(i) = 0
-      dm       = 0
+      dm = 0
       ! ------------------------------------------------------------------------
       ! Calculate stratospheric condensation.
       if (tstrat(i) < tsat_strat) then
         dm     (  0) = cpd * (tsat - tstrat(i)) * ptrop / g / xlhtc ! [kg m-2]
         tstrat (i  ) = tsat
-        dmsdt  (i  ) = dmsdt(i) + dm(0) / dt
+        dpsdt  (i  ) = dpsdt(i) + dm(0) / dt * g
       end if
       ! ------------------------------------------------------------------------
       ! Calculate tropospheric condensation.
@@ -66,34 +64,34 @@ contains
         if (t(i,k) < tsat) then
           dm   (  k) = cpd * (tsat - t(i,k)) * dp(i,k) / g / xlhtc
           t    (i,k) = tsat
-          dmsdt(i  ) = dmsdt(i) + dm(k) / dt
+          dpsdt(i  ) = dpsdt(i) + dm(k) / dt * g
         end if
       end do
       ! ------------------------------------------------------------------------
-      if (dmsdt(i) > 0) then
+      if (dpsdt(i) > 0) then
         ! CO2 frost point at this surface pressure.
         tsat = dewpoint_temperature_mars(ps(i))
         if (co2ice_sfc(i) > 0) then
           ! Case 1: CO2 ice already on the ground.
           ! Add condensation to existing CO2 ice mass.
-          co2ice_sfc(i) = co2ice_sfc(i) + dmsdt(i) * dt
+          co2ice_sfc(i) = co2ice_sfc(i) + dpsdt(i) * dt / g
           tg(i) = tsat
         else
           ! Case 2: No CO2 ice on the ground; Ground is warmer.
           ! Ground temperature drops when CO2 ice sublimes on warmer surface.
-          tgp  = tg(i) - sqrdy / zin(i,1) * dmsdt(i) * xlhtc * dt
+          tgp  = tg(i) - sqrdy / zin(i,1) * dpsdt(i) * xlhtc * dt / g
           ! Calculate how much CO2 ice sublimes on hitting the ground.
           if (tgp >= tsat) then
             ! Case 2A: All CO2 ice sublimes; No net condensation.
-            dmsdt     (i) = 0
+            dpsdt     (i) = 0
             tg        (i) = tgp
             co2ice_sfc(i) = 0
           else
             ! Case 2B: Ground cooled to CO2 frost point and some CO2 ice remains.
             ! Calculate how much CO2 ice remains.
-            dmsdt     (i) = dmsdt(i) * (tsat - tgp) / (tg(i) - tgp)
+            dpsdt     (i) = dpsdt(i) * (tsat - tgp) / (tg(i) - tgp)
             tg        (i) = tsat
-            co2ice_sfc(i) = dmsdt(i) * dt
+            co2ice_sfc(i) = dpsdt(i) * dt / g
           end if
         end if
       end if

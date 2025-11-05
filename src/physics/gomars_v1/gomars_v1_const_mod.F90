@@ -105,8 +105,10 @@ module gomars_v1_const_mod
   real(r8) pstrat
   ! Logarithm of pressure of top of atmosphere (Pa)
   real(r8) lnpstrat
-  ! (pstrat / p0)**rd_o_cpd
+  ! (pstrat / ps)**rd_o_cpd
   real(r8) pstratk
+  ! Saturation stratospheric temperature (K)
+  real(r8) tsat_strat
   ! Reference surface pressure (Pa)
   real(r8) psl
   ! Physics time step (s)

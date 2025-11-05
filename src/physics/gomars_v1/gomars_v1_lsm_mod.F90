@@ -130,15 +130,16 @@ contains
 
   end subroutine gomars_v1_lsm_final
 
-  subroutine gomars_v1_lsm_run(state)
+  subroutine gomars_v1_lsm_run(state, tend)
 
     type(gomars_v1_state_type), intent(inout) :: state
+    type(gomars_v1_tend_type ), intent(inout) :: tend
 
     integer i, k, iter
     logical done
-    real(r8) dmgdt, tsat, emg15, emgout, downir, astar
+    real(r8) tsat, emg15, emgout, downir, astar
     real(r8) tl, th, fl, fh, f, df, dx_old, dx, tmp
-    real(r8) fcdn, tgp, tinp, wflux, qflx, qsat
+    real(r8) fcdn, tgp, wflux, qflx, qsat
     real(r8) flux(nsoil+1), a(nsoil), b(nsoil), c(nsoil), d(nsoil)
 
     associate (mesh         => state%mesh        , &
@@ -153,7 +154,7 @@ contains
                stemp        => state%stemp       , & ! in
                zin          => state%zin         , & ! in
                rhouch       => state%rhouch      , & ! in
-               ps           => state%ps          , & ! inout
+               ps           => state%ps          , & ! in
                tg           => state%tg          , & ! out
                t            => state%t           , & ! in
                q            => state%q           , & ! in
@@ -162,10 +163,10 @@ contains
                vsflx_sfc_dn => state%vsflx_sfc_dn, & ! in
                co2ice_sfc   => state%co2ice_sfc  , & ! in
                h2osub_sfc   => state%h2osub_sfc  , & ! in
-               h2oice_sfc   => state%h2oice_sfc    & ! in
-              )
+               h2oice_sfc   => state%h2oice_sfc  , & ! in
+               dpsdt        => tend %dpsdt       )   ! out
     do i = 1, mesh%ncol
-      dmgdt = 0
+      dpsdt(i) = 0
       ! Set surface albedo.
       als(i) = alsp(i)
       if (co2ice_sfc(i) > 0) then
@@ -271,14 +272,12 @@ contains
 
           ! Check if there is any CO2 ice accumulation.
           if (tgp < 0) then
-            dmgdt = -tgp / dt
+            dpsdt     (i) = -tgp / dt * g
             co2ice_sfc(i) = -tgp
           else
-            dmgdt = 0
             ! This term represents the last amounts of ice evaporating resulting in an
-            ! increase in Tg. It still depends on TINP until I can figure out what to do with it.
-            tinp  = sqrdy / zin(i,1)
-            tg(i) = tsat + tgp * xlhtc * tinp
+            ! increase in tg.
+            tg        (i) = tsat + tgp * xlhtc * sqrdy / zin(i,1)
             co2ice_sfc(i) = 0
           end if
         end if
@@ -315,12 +314,11 @@ contains
 
         ! Check if there is still CO2 ice left.
         if (tgp < 0) then
-          dmgdt = -(co2ice_sfc(i) + tgp) / dt
+          dpsdt     (i) = -(co2ice_sfc(i) + tgp) / dt * g
           co2ice_sfc(i) = -tgp
         else
-          dmgdt = -co2ice_sfc(i) / dt
-          tinp  = sqrdy / zin(i,1)
-          tg(i) = tsat + tgp * xlhtc * tinp
+          dpsdt     (i) = -co2ice_sfc(i) / dt * g
+          tg        (i) = tsat + tgp * xlhtc * sqrdy / zin(i,1)
           co2ice_sfc(i) = 0
         end if
       end if

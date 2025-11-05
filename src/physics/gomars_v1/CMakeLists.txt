@@ -24,31 +24,12 @@ target_sources(gmcore PRIVATE
   gomars_v1_pbl_mod.F90
   gomars_v1_lsm_mod.F90
   gomars_v1_co2cyc_mod.F90
+  gomars_v1_dustcyc_mod.F90
   gomars_v1_mp_mod.F90
   gomars_v1_cnvadj_mod.F90
   gomars_v1_damp_mod.F90
   gomars_v1_rad_mod.F90
   gomars_v1_utils_mod.F90
-  nasa/setspi.F90
-  nasa/setspv.F90
-  nasa/setrad.F90
-  nasa/lagrange.F90
-  nasa/laginterp.F90
-  nasa/ini_optdst.F90
-  nasa/ini_optcld.F90
-  nasa/fillpt.F90
-  nasa/opt_dst.F90
-  nasa/opt_cld.F90
-  nasa/tpindex.F90
-  nasa/optcv.F90
-  nasa/getdetau.F90
-  nasa/gfluxv.F90
-  nasa/sfluxv.F90
-  nasa/dtridgl.F90
-  nasa/dsolver.F90
-  nasa/optci.F90
-  nasa/gfluxi.F90
-  nasa/sfluxi.F90
   nasa/wsl_newman.F90
   nasa/ddl.F90
   nasa/sedim.F90

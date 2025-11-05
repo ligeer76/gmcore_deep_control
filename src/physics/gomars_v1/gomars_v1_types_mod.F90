@@ -39,42 +39,6 @@ module gomars_v1_types_mod
     real(r8), allocatable, dimension(:      ) :: latheat
     ! Tracer mass on the surface (kg m-2)
     real(r8), allocatable, dimension(:,    :) :: qsfc
-    ! Visible extinction efficiency for dust
-    real(r8), allocatable, dimension(  :,:  ) :: qxvdst
-    ! Visible scattering efficiency for dust
-    real(r8), allocatable, dimension(  :,:  ) :: qsvdst
-    ! Visible asymmetry parameter for dust
-    real(r8), allocatable, dimension(  :,:  ) :: gvdst
-    ! Infrared extinction efficiency for dust
-    real(r8), allocatable, dimension(  :,:  ) :: qxidst
-    ! Infrared scattering efficiency for dust
-    real(r8), allocatable, dimension(  :,:  ) :: qsidst
-    ! Infrared asymmetry parameter for dust
-    real(r8), allocatable, dimension(  :,:  ) :: gidst
-    ! Extinction coefficient for dust at the reference wavelength (0.67 micron)
-    real(r8), allocatable, dimension(  :    ) :: qextrefdst
-    ! Visible extinction efficiency for ice clouds
-    real(r8), allocatable, dimension(  :,:  ) :: qxvcld
-    ! Visible scattering efficiency for ice clouds
-    real(r8), allocatable, dimension(  :,:  ) :: qsvcld
-    ! Visible asymmetry parameter for ice clouds
-    real(r8), allocatable, dimension(  :,:  ) :: gvcld
-    ! Infrared extinction efficiency for ice clouds
-    real(r8), allocatable, dimension(  :,:  ) :: qxicld
-    ! Infrared scattering efficiency for ice clouds
-    real(r8), allocatable, dimension(  :,:  ) :: qsicld
-    ! Infrared asymmetry parameter for ice clouds
-    real(r8), allocatable, dimension(  :,:  ) :: gicld
-    !
-    real(r8), allocatable, dimension(  :    ) :: qextrefcld
-    !
-    real(r8), allocatable, dimension(  :,:,:) :: wbarv
-    !
-    real(r8), allocatable, dimension(  :,:,:) :: cosbv
-    !
-    real(r8), allocatable, dimension(  :,:,:) :: wbari
-    !
-    real(r8), allocatable, dimension(  :,:,:) :: cosbi
     !
     real(r8), allocatable, dimension(  :    ) :: fluxupv
     !
@@ -107,38 +71,10 @@ module gomars_v1_types_mod
     real(r8), allocatable, dimension(:      ) :: vsflx_sfc_dn
     ! Downward IR flux at the surface (W m-2)
     real(r8), allocatable, dimension(:      ) :: irflx_sfc_dn
-    ! Reference optical depth for dust in 0.67 um
-    real(r8), allocatable, dimension(  :    ) :: taurefdst
-    !
-    real(r8), allocatable, dimension(  :    ) :: taurefcld
-    !
-    real(r8), allocatable, dimension(  :    ) :: taucum
-    ! Total gas opacity through the column for each spectral interval and each Gauss point
-    real(r8), allocatable, dimension(    :,:) :: taugsurf
     !
     real(r8), allocatable, dimension(:      ) :: tausurf
-    !
-    real(r8), allocatable, dimension(:,    :) :: taudst
-    !
-    real(r8), allocatable, dimension(:,    :) :: taucld
-    !
-    real(r8), allocatable, dimension(  :,:,:) :: dtauv
-    ! Cumulative optical depth at visible bands
-    real(r8), allocatable, dimension(  :,:,:) :: tauv
-    !
-    real(r8), allocatable, dimension(  :,:,:) :: taucumv
-    !
-    real(r8), allocatable, dimension(  :,:,:) :: dtaui
-    ! Cumulative optical depth at infrared bands
-    real(r8), allocatable, dimension(  :,:,:) :: taui
-    !
-    real(r8), allocatable, dimension(  :,:,:) :: taucumi
     ! Delta-Eddington optical depth (???)
     real(r8), allocatable, dimension(:,  :,:) :: detau
-    !
-    real(r8), allocatable, dimension(  :    ) :: suntot
-    !
-    real(r8), allocatable, dimension(  :    ) :: irtot
     ! Downward solar flux at the surface (W m-2)
     real(r8), allocatable, dimension(    :  ) :: solar_sfc_dn   ! solar
     ! Total absorption of solar energy by the atmosphere (?)
@@ -193,16 +129,6 @@ module gomars_v1_types_mod
     real(r8), allocatable, dimension(:      ) :: dstflx_ddl
     ! Square of Mars distance from sun
     real(r8) :: rsdist
-    ! Temperature at radiation levels (K)
-    real(r8), allocatable, dimension(    :  ) :: tlev_rad
-    ! Temperature at radiation levels (K)
-    real(r8), allocatable, dimension(    :  ) :: tmid_rad
-    ! Pressure at radiation levels (Pa)
-    real(r8), allocatable, dimension(    :  ) :: plev_rad
-    ! Pressure at radiation levels (Pa)
-    real(r8), allocatable, dimension(    :  ) :: pmid_rad
-    ! Exner pressure (1)
-    real(r8), allocatable, dimension(    :  ) :: om
     ! Volume mixing ratio of H2O on full and half levels (1)
     real(r8), allocatable, dimension(    :  ) :: qh2o_rad
     !
@@ -237,24 +163,6 @@ contains
     allocate(this%co2ice_sfc    (mesh%ncol                   )); this%co2ice_sfc    = 0
     allocate(this%latheat       (mesh%ncol                   )); this%latheat       = 0
     allocate(this%qsfc          (mesh%ncol,ntracers          )); this%qsfc          = 0
-    allocate(this%qxvdst        (2*mesh%nlev+4,nspectv       )); this%qxvdst        = 0
-    allocate(this%qsvdst        (2*mesh%nlev+4,nspectv       )); this%qsvdst        = 0
-    allocate(this%gvdst         (2*mesh%nlev+4,nspectv       )); this%gvdst         = 0
-    allocate(this%qxidst        (2*mesh%nlev+4,nspecti       )); this%qxidst        = 0
-    allocate(this%qsidst        (2*mesh%nlev+4,nspecti       )); this%qsidst        = 0
-    allocate(this%gidst         (2*mesh%nlev+4,nspecti       )); this%gidst         = 0
-    allocate(this%qextrefdst    (2*mesh%nlev+4               )); this%qextrefdst    = 0
-    allocate(this%qxvcld        (2*mesh%nlev+4,nspectv       )); this%qxvcld        = 0
-    allocate(this%qsvcld        (2*mesh%nlev+4,nspectv       )); this%qsvcld        = 0
-    allocate(this%gvcld         (2*mesh%nlev+4,nspectv       )); this%gvcld         = 0
-    allocate(this%qxicld        (2*mesh%nlev+4,nspecti       )); this%qxicld        = 0
-    allocate(this%qsicld        (2*mesh%nlev+4,nspecti       )); this%qsicld        = 0
-    allocate(this%gicld         (2*mesh%nlev+4,nspecti       )); this%gicld         = 0
-    allocate(this%qextrefcld    (2*mesh%nlev+4               )); this%qextrefcld    = 0
-    allocate(this%wbarv         (nlayrad,nspectv,ngauss      )); this%wbarv         = 0
-    allocate(this%cosbv         (nlayrad,nspectv,ngauss      )); this%cosbv         = 0
-    allocate(this%wbari         (nlayrad,nspecti,ngauss      )); this%wbari         = 0
-    allocate(this%cosbi         (nlayrad,nspecti,ngauss      )); this%cosbi         = 0
     allocate(this%fluxupv       (nlayrad                     )); this%fluxupv       = 0
     allocate(this%fluxdnv       (nlayrad                     )); this%fluxdnv       = 0
     allocate(this%fmnetv        (nlayrad                     )); this%fmnetv        = 0
@@ -271,22 +179,8 @@ contains
     allocate(this%vsdif_sfc_dn  (mesh%ncol                   )); this%vsdif_sfc_dn  = 0
     allocate(this%vsflx_sfc_dn  (mesh%ncol                   )); this%vsflx_sfc_dn  = 0
     allocate(this%irflx_sfc_dn  (mesh%ncol                   )); this%irflx_sfc_dn  = 0
-    allocate(this%taurefdst     (2*mesh%nlev+4               )); this%taurefdst     = 0
-    allocate(this%taurefcld     (2*mesh%nlev+4               )); this%taurefcld     = 0
-    allocate(this%taucum        (2*mesh%nlev+3               )); this%taucum        = 0
-    allocate(this%taugsurf      (        nspectv,ngauss-1    )); this%taugsurf      = 0
     allocate(this%tausurf       (mesh%ncol                   )); this%tausurf       = 0
-    allocate(this%taudst        (mesh%ncol,                 2)); this%taudst        = 0
-    allocate(this%taucld        (mesh%ncol,                 2)); this%taucld        = 0
-    allocate(this%dtauv         (nlayrad,nspectv,ngauss      )); this%dtauv         = 0
-    allocate(this%tauv          (nlevrad,nspectv,ngauss      )); this%tauv          = 0
-    allocate(this%taucumv       (2*mesh%nlev+3,nspectv,ngauss)); this%taucumv       = 0
-    allocate(this%dtaui         (nlayrad,nspecti,ngauss      )); this%dtaui         = 0
-    allocate(this%taui          (nlevrad,nspecti,ngauss      )); this%taui          = 0
-    allocate(this%taucumi       (2*mesh%nlev+3,nspecti,ngauss)); this%taucumi       = 0
     allocate(this%detau         (mesh%ncol,nspectv,ngauss    )); this%detau         = 0
-    allocate(this%suntot        (2*mesh%nlev+3               )); this%suntot        = 0
-    allocate(this%irtot         (2*mesh%nlev+3               )); this%irtot         = 0
     allocate(this%solar_sfc_dn  (mesh%ncol                   )); this%solar_sfc_dn  = 0
     allocate(this%ssun          (mesh%ncol                   )); this%ssun          = 0
     allocate(this%fluxsfc       (mesh%ncol                   )); this%fluxsfc       = 0
@@ -314,11 +208,6 @@ contains
     allocate(this%dmsdt         (mesh%ncol                   )); this%dmsdt         = 0
     allocate(this%dstflx_wsl    (mesh%ncol                   )); this%dstflx_wsl    = 0
     allocate(this%dstflx_ddl    (mesh%ncol                   )); this%dstflx_ddl    = 0
-    allocate(this%tlev_rad      (2*mesh%nlev+3               )); this%tlev_rad      = 0
-    allocate(this%tmid_rad      (2*mesh%nlev+3               )); this%tmid_rad      = 0
-    allocate(this%plev_rad      (2*mesh%nlev+3               )); this%plev_rad      = 0
-    allocate(this%pmid_rad      (2*mesh%nlev+3               )); this%pmid_rad      = 0
-    allocate(this%om            (2*mesh%nlev+3               )); this%om            = 0
     allocate(this%qh2o_rad      (2*mesh%nlev+3               )); this%qh2o_rad      = 0
     allocate(this%deposit       (mesh%ncol,ntracers          )); this%deposit       = 0
 
@@ -337,24 +226,6 @@ contains
     if (allocated(this%co2ice_sfc   )) deallocate(this%co2ice_sfc   )
     if (allocated(this%latheat      )) deallocate(this%latheat      )
     if (allocated(this%qsfc         )) deallocate(this%qsfc         )
-    if (allocated(this%qxvdst       )) deallocate(this%qxvdst       )
-    if (allocated(this%qsvdst       )) deallocate(this%qsvdst       )
-    if (allocated(this%gvdst        )) deallocate(this%gvdst        )
-    if (allocated(this%qxidst       )) deallocate(this%qxidst       )
-    if (allocated(this%qsidst       )) deallocate(this%qsidst       )
-    if (allocated(this%gidst        )) deallocate(this%gidst        )
-    if (allocated(this%qextrefdst   )) deallocate(this%qextrefdst   )
-    if (allocated(this%qxvcld       )) deallocate(this%qxvcld       )
-    if (allocated(this%qsvcld       )) deallocate(this%qsvcld       )
-    if (allocated(this%gvcld        )) deallocate(this%gvcld        )
-    if (allocated(this%qxicld       )) deallocate(this%qxicld       )
-    if (allocated(this%qsicld       )) deallocate(this%qsicld       )
-    if (allocated(this%gicld        )) deallocate(this%gicld        )
-    if (allocated(this%qextrefcld   )) deallocate(this%qextrefcld   )
-    if (allocated(this%wbarv        )) deallocate(this%wbarv        )
-    if (allocated(this%cosbv        )) deallocate(this%cosbv        )
-    if (allocated(this%wbari        )) deallocate(this%wbari        )
-    if (allocated(this%cosbi        )) deallocate(this%cosbi        )
     if (allocated(this%fluxupv      )) deallocate(this%fluxupv      )
     if (allocated(this%fluxdnv      )) deallocate(this%fluxdnv      )
     if (allocated(this%fmnetv       )) deallocate(this%fmnetv       )
@@ -368,26 +239,11 @@ contains
     if (allocated(this%fuptopi      )) deallocate(this%fuptopi      )
     if (allocated(this%fupsfci      )) deallocate(this%fupsfci      )
     if (allocated(this%fdnsfci      )) deallocate(this%fdnsfci      )
-    if (allocated(this%taurefcld    )) deallocate(this%taurefcld    )
     if (allocated(this%vsdif_sfc_dn )) deallocate(this%vsdif_sfc_dn )
     if (allocated(this%vsflx_sfc_dn )) deallocate(this%vsflx_sfc_dn )
     if (allocated(this%irflx_sfc_dn )) deallocate(this%irflx_sfc_dn )
-    if (allocated(this%taurefdst    )) deallocate(this%taurefdst    )
-    if (allocated(this%taurefcld    )) deallocate(this%taurefcld    )
-    if (allocated(this%taucum       )) deallocate(this%taucum       )
-    if (allocated(this%taugsurf     )) deallocate(this%taugsurf     )
     if (allocated(this%tausurf      )) deallocate(this%tausurf      )
-    if (allocated(this%taudst       )) deallocate(this%taudst       )
-    if (allocated(this%taucld       )) deallocate(this%taucld       )
-    if (allocated(this%dtauv        )) deallocate(this%dtauv        )
-    if (allocated(this%tauv         )) deallocate(this%tauv         )
-    if (allocated(this%taucumv      )) deallocate(this%taucumv      )
-    if (allocated(this%dtaui        )) deallocate(this%dtaui        )
-    if (allocated(this%taui         )) deallocate(this%taui         )
-    if (allocated(this%taucumi      )) deallocate(this%taucumi      )
     if (allocated(this%detau        )) deallocate(this%detau        )
-    if (allocated(this%suntot       )) deallocate(this%suntot       )
-    if (allocated(this%irtot        )) deallocate(this%irtot        )
     if (allocated(this%solar_sfc_dn )) deallocate(this%solar_sfc_dn )
     if (allocated(this%ssun         )) deallocate(this%ssun         )
     if (allocated(this%fluxsfc      )) deallocate(this%fluxsfc      )
@@ -415,11 +271,6 @@ contains
     if (allocated(this%dmsdt        )) deallocate(this%dmsdt        )
     if (allocated(this%dstflx_wsl   )) deallocate(this%dstflx_wsl   )
     if (allocated(this%dstflx_ddl   )) deallocate(this%dstflx_ddl   )
-    if (allocated(this%tlev_rad     )) deallocate(this%tlev_rad     )
-    if (allocated(this%tmid_rad     )) deallocate(this%tmid_rad     )
-    if (allocated(this%plev_rad     )) deallocate(this%plev_rad     )
-    if (allocated(this%pmid_rad     )) deallocate(this%pmid_rad     )
-    if (allocated(this%om           )) deallocate(this%om           )
     if (allocated(this%qh2o_rad     )) deallocate(this%qh2o_rad     )
     if (allocated(this%deposit      )) deallocate(this%deposit      )
 

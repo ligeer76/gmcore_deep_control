@@ -32,6 +32,20 @@ contains
     integer i, k
     real(r8) ptstrat, dlnp1, dlnp2, slope
 
+    !       Pressure             Temperature
+    ! ..... pstrat               tstrat
+    ! ----- p_lev(1) or ptrop    t_lev(1)
+    ! ===== p    (1)             t    (1)
+    ! ----- p_lev(2)             t_lev(2)
+    ! ===== p    (2)             t    (2)
+    !   .
+    !   .
+    !   .
+    ! ----- p_lev(nlev)          t_lev(nlev)
+    ! ===== p    (nlev)          t    (nlev)
+    ! ----- p_lev(nlev+1) or ps  t_lev(nlev+1)
+    ! /////                      tg
+    
     associate (mesh    => state%mesh   , &
                tstrat  => state%tstrat , & ! in
                ps      => state%ps     , & ! in
@@ -60,7 +74,7 @@ contains
         pt_lev (i,k) = pt(i,k-1) + slope * dlnp1
       end do
 
-      ! Extrapolate temperature on model top level.
+      ! Interpolate temperature on model top level.
       k = 1
       dlnp1 =            lnp_lev(i,k) - lnpstrat
       dlnp2 = lnp(i,k) - lnp_lev(i,k)

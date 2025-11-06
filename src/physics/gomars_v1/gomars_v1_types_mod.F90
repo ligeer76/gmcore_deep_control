@@ -184,7 +184,7 @@ contains
     allocate(this%solar_sfc_dn  (mesh%ncol                   )); this%solar_sfc_dn  = 0
     allocate(this%ssun          (mesh%ncol                   )); this%ssun          = 0
     allocate(this%fluxsfc       (mesh%ncol                   )); this%fluxsfc       = 0
-    allocate(this%qrad          (mesh%ncol,0:mesh%nlev       )); this%qrad          = 0
+    allocate(this%qrad          (mesh%ncol,mesh%nlev         )); this%qrad          = 0
     allocate(this%ht_pbl        (mesh%ncol                   )); this%ht_pbl        = 0
     allocate(this%ht_sfc        (mesh%ncol                   )); this%ht_sfc        = 0
     allocate(this%alsp          (mesh%ncol                   )); this%alsp          = 0

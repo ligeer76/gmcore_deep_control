@@ -355,8 +355,7 @@ contains
                t            => state%t           , & ! in
                t_lev        => state%t_lev       , & ! in
                tg           => state%tg          , & ! in
-               tstrat       => state%tstrat      , & ! in
-               pt_lev       => state%pt_lev      , & ! inout
+               tstrat       => state%tstrat      , & ! inout
                q            => state%q           , & ! in
                co2ice_sfc   => state%co2ice_sfc  , & ! in
                tausurf      => state%tausurf     , & ! out
@@ -377,6 +376,7 @@ contains
       ! ------------------------------------------------------------------------
       ! Fill the radiation variables.
       call fillpt(p(i,:), p_lev(i,:), t(i,:), t_lev(i,:), tg(i), tstrat(i), plev, tlev, pmid, tmid)
+      qh2o(1:3) = 0
       if (active_water) then
         do k = 1, nlev
           qh2o(2*k+2) = m_co2 / m_h2o * q(i,k,iMa_vap)
@@ -463,7 +463,7 @@ contains
       end do
       ! Update stratospheric potential temperature.
       nonlte = 2.2e2_r8 * pstrat / (1 + 2.2e2_r8 * pstrat)
-      pt_lev(i,1) = pt_lev(i,1) + dt * (suntot(3) * nonlte + irtot(3)) / (cpd * ptrop / g * (pstrat / ps(i))**rd_o_cpd)
+      tstrat(i) = tstrat(i) + dt * (suntot(3) * nonlte + irtot(3)) / (cpd * ptrop / g)
     end do
     end associate
 
@@ -535,7 +535,7 @@ contains
     real(r8), intent(out) :: pmid(2*nlev+3)
     real(r8), intent(out) :: tmid(2*nlev+3)
 
-    integer k, l
+    integer k
 
     plev(1:2) = ptrop * 0.5_r8
     do k = 1, nlev
@@ -985,8 +985,7 @@ contains
             taucumv(1,is,ig), &
             wbarv  (1,is,ig), &
             cosbv  (1,is,ig), &
-            detau  (  is,ig)  &
-          )
+            detau  (  is,ig))
           if (taugsurf(is,ig) < tlimits) then
             fzero = fzero + (1 - fzerov(is)) * gweight(ig)
           else
@@ -1010,8 +1009,7 @@ contains
               diffv           , &
               fluxup          , &
               fluxdn          , &
-              detau    (is,ig)  &
-            )
+              detau    (is,ig))
             ! Calculate the cumulative visible net flux.
             nfluxtopv = nfluxtopv + (fluxup - fluxdn) * gweight(ig) * (1 - fzerov(is))
             do l = 1, nlayrad
@@ -1032,8 +1030,7 @@ contains
           taucumv(1,is,ig), &
           wbarv  (1,is,ig), &
           cosbv  (1,is,ig), &
-          detau  (  is,ig)  &
-        )
+          detau  (  is,ig))
         btop = 0
         bsfc = als * cosz * solar(is) * exp(-min(detau(is,ig) / cosz, maxexp))
         call gfluxv(        &
@@ -1052,8 +1049,7 @@ contains
           diffv           , &
           fluxup          , &
           fluxdn          , &
-          detau    (is,ig)  &
-        )
+          detau    (is,ig))
         nfluxtopv = nfluxtopv + (fluxup - fluxdn) * gweight(ig) * fzero
         do l = 1, nlayrad
           fmnetv (l) = fmnetv (l) + (fmupv(l) - fmdnv(l)) * gweight(ig) * fzero
@@ -1462,11 +1458,9 @@ contains
     real(r8), intent(out) :: fmneti   (nlayrad)
     real(r8), intent(out) :: nfluxtopi
 
-    integer k, l, is, ig
+    integer k, l, is, ig, nts, ntt
     real(r8) ttop
     real(r8) tsfc
-    real(r8) nts
-    real(r8) ntt
     real(r8) btop
     real(r8) bsfc
     real(r8) fzero
@@ -1532,7 +1526,7 @@ contains
           bsfc            , &
           ftopup          , &
           fmupi           , &
-          fmdni             )
+          fmdni           )
         nfluxtopi = nfluxtopi + ftopup * dwni(is) * fzero
         do l = 1, nlevrad - 1
           fluxupi(l) = fluxupi(l) + fmupi(l) * dwni(is) * fzero
@@ -1838,11 +1832,11 @@ contains
       -3.0d0, -2.8d0, -2.6d0, -2.4d0, -2.2d0, &
       -2.0d0, -1.8d0, -1.6d0, -1.4d0, -1.2d0, &
       -1.0d0, -0.8d0, -0.6d0, -0.4d0, -0.2d0, &
-      0.0d0,  0.2d0,  0.4d0,  0.6d0,  0.8d0, &
-      1.0d0,  1.2d0,  1.4d0,  1.6d0,  1.8d0, &
-      2.0d0,  2.2d0,  2.4d0,  2.6d0,  2.8d0, &
-      3.0d0,  3.2d0,  3.4d0,  3.6d0,  3.8d0, &
-      4.0d0                                  &
+       0.0d0,  0.2d0,  0.4d0,  0.6d0,  0.8d0, &
+       1.0d0,  1.2d0,  1.4d0,  1.6d0,  1.8d0, &
+       2.0d0,  2.2d0,  2.4d0,  2.6d0,  2.8d0, &
+       3.0d0,  3.2d0,  3.4d0,  3.6d0,  3.8d0, &
+       4.0d0                                  &
     ]
 
     ! Take log of the reference pressures.
@@ -1855,7 +1849,7 @@ contains
     read(20) co2v8
     read(20) fzerov
     close(20)
-    
+
     open(20, file=trim(data_root)//'/old/CO2H2O_IR_12_95_INTEL', form='unformatted', status='old')
     read(20) co2i8
     read(20) fzeroi
@@ -2001,7 +1995,7 @@ contains
         end do
       end do
     end do
-    
+
   end subroutine laginterp
 
 end module gomars_v1_rad_mod

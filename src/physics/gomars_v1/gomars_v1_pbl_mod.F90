@@ -184,7 +184,7 @@ contains
       ! - Potential temperature
       kdf    = kh(i,:)
       bnd    = dt / dz(i,nlev) * cdh(i) * ustar(i)
-      rhs    = rho(i,:) * qrad(i,1:nlev) * dt
+      rhs    = rho(i,:) * qrad(i,:) * dt
       var    = rho(i,:) * pt(i,:)
       rhs(nlev) = rhs(nlev) + dt / dz(i,nlev) * rho(i,nlev) * cdh(i) * ustar(i) * tg(i)
       call pbl_solve(dz(i,:), dz_lev(i,:), kdf, bnd, rhs, var)

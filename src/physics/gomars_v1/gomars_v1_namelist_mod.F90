@@ -21,8 +21,8 @@ module gomars_v1_namelist_mod
   real(r8) :: icethresh_depth  = 5.0_r8    ! Ice depth threshold required to change albedo (um)
   integer  :: nsplit           = 1         ! Split number for microphysics
   logical  :: microphysics     = .false.
-  logical  :: cloudon          = .false.
-  logical  :: active_dust      = .false.
+  logical  :: cloudon          = .true.
+  logical  :: active_dust      = .true.
   logical  :: co2scav          = .false.
   logical  :: active_water     = .false.
   logical  :: albfeed          = .false.

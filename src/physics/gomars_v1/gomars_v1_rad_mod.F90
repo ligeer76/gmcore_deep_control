@@ -404,7 +404,7 @@ contains
       ! ------------------------------------------------------------------------
       ! Calculate optical properties of water ice cloud.
       if (cloudon) then
-        call opt_cld(q(i,:,:), plev, qxvcld, qsvcld, gvcld, qxicld, qsidst, gicld, qextrefcld, taurefcld, taucld)
+        call opt_cld(q(i,:,:), plev, qxvcld, qsvcld, gvcld, qxicld, qsicld, gicld, qextrefcld, taurefcld, taucld)
       else
         taurefcld = 0
       end if
@@ -1487,7 +1487,7 @@ contains
     nts = tsfc * 10 - 499
 
     do is = 1, nspecti
-      bsfc = (1 - albi) * planckir(is,nts)
+      bsfc  = (1 - albi) * planckir(is,nts)
       fzero = fzeroi(is)
       if (fzero < 0.99) then
         do ig = 1, ngauss - 1
@@ -1498,16 +1498,16 @@ contains
             call gfluxi(        &
               is              , &
               tlev            , &
-              dtaui(:,is,ig)  , &
+              dtaui  (:,is,ig), &
               taucumi(:,is,ig), &
-              wbari(:,is,ig)  , &
-              cosbi(:,is,ig)  , &
+              wbari  (:,is,ig), &
+              cosbi  (:,is,ig), &
               albi            , &
               btop            , &
               bsfc            , &
               ftopup          , &
               fmupi           , &
-              fmdni             )
+              fmdni           )
             nfluxtopi = nfluxtopi + ftopup * dwni(is) * gweight(ig) * (1 - fzeroi(is))
             do l = 1, nlevrad - 1
               fluxupi(l) = fluxupi(l) + fmupi(l) * dwni(is) * gweight(ig) * (1 - fzeroi(is))
@@ -1518,9 +1518,21 @@ contains
         end do
       else
         ! Special 17th Gauss-point
-        ig = ngauss
+        ig   = ngauss
         btop = (1 - exp(-dtaui(1,is,ig) * plev(2) / (plev(4) - plev(2)) / ubari)) * planckir(is,ntt)
-        ! call gfluxi
+        call gfluxi(        &
+          is              , &
+          tlev            , &
+          dtaui  (:,is,ig), &
+          taucumi(:,is,ig), &
+          wbari  (:,is,ig), &
+          cosbi  (:,is,ig), &
+          albi            , &
+          btop            , &
+          bsfc            , &
+          ftopup          , &
+          fmupi           , &
+          fmdni             )
         nfluxtopi = nfluxtopi + ftopup * dwni(is) * fzero
         do l = 1, nlevrad - 1
           fluxupi(l) = fluxupi(l) + fmupi(l) * dwni(is) * fzero
@@ -1532,7 +1544,7 @@ contains
 
   end subroutine sfluxi
 
-  subroutine gfluxi(is, tlev, dtau, taucum, wbar, cosb, albi, btop, bsfc, ftopup, fmidp, fmidm)
+  subroutine gfluxi(is, tlev, dtau, taucum, wbar, cosb, albi, btop, bsfc, ftopup, fmup, fmdn)
 
     integer , intent(in ) :: is
     real(r8), intent(in ) :: tlev  (2*nlev+3)
@@ -1544,8 +1556,8 @@ contains
     real(r8), intent(in ) :: btop
     real(r8), intent(in ) :: bsfc
     real(r8), intent(out) :: ftopup
-    real(r8), intent(out) :: fmidp (nlayrad)
-    real(r8), intent(out) :: fmidm (nlayrad)
+    real(r8), intent(out) :: fmup  (nlayrad)
+    real(r8), intent(out) :: fmdn  (nlayrad)
 
     integer, parameter :: nlp = 101 ! Must be larger than 2*nlev+3
     integer l, nt, nt2
@@ -1569,32 +1581,32 @@ contains
     do l = 1, nlayrad - 1
       alpha (l) = sqrt((1 - wbar(l)) / (1 - wbar(l) * cosb(l)))
       lambda(l) = alpha(l) * (1 - wbar(l) * cosb(l)) / ubari
-      nt2 = tlev(2*l+2) * 10 - 499
-      nt  = tlev(2*l  ) * 10 - 499
-      b1(l) = (planckir(is,nt2) - planckir(is,nt)) / dtau(l)
-      b0(l) = planckir(is,nt)
+      nt2       = tlev(2*l+2) * 10 - 499
+      nt        = tlev(2*l  ) * 10 - 499
+      b1    (l) = (planckir(is,nt2) - planckir(is,nt)) / dtau(l)
+      b0    (l) = planckir(is,nt)
     end do
 
-    l = nlayrad
+    l         = nlayrad
     alpha (l) = sqrt((1 - wbar(l)) / (1 - wbar(l) * cosb(l)))
     lambda(l) = alpha(l) * (1 - wbar(l) * cosb(l)) / ubari
-    nt  = tlev(2*l+1) * 10 - 499
-    nt2 = tlev(2*l  ) * 10 - 499
-    b1(l) = (planckir(is,nt) - planckir(is,nt2)) / dtau(l)
-    b0(l) = planckir(is,nt2)
+    nt        = tlev(2*l+1) * 10 - 499
+    nt2       = tlev(2*l  ) * 10 - 499
+    b1    (l) = (planckir(is,nt) - planckir(is,nt2)) / dtau(l)
+    b0    (l) = planckir(is,nt2)
 
     do l = 1, nlayrad
       gamma(l) = (1 - alpha(l)) / (1 + alpha(l))
-      term = ubari / (1 - wbar(l) * cosb(l))
-      cp(l) = b0(l) + b1(l) * dtau(l) + b1(l) * term
-      cm(l) = b0(l) + b1(l) * dtau(l) - b1(l) * term
+      term    = ubari / (1 - wbar(l) * cosb(l))
+      cp  (l) = b0(l) + b1(l) * dtau(l) + b1(l) * term
+      cm  (l) = b0(l) + b1(l) * dtau(l) - b1(l) * term
       cpm1(l) = b0(l) + b1(l) * term
       cmm1(l) = b0(l) - b1(l) * term
     end do
 
     do l = 1, nlayrad
-      ep = exp(min(lambda(l) * dtau(l), maxexp))
-      em = 1.0_r8 / ep
+      ep    = exp(min(lambda(l) * dtau(l), maxexp))
+      em    = 1.0_r8 / ep
       e1(l) = ep + gamma(l) * em
       e2(l) = ep - gamma(l) * em
       e3(l) = gamma(l) * ep + em
@@ -1604,35 +1616,35 @@ contains
     call dsolver(nlayrad, gamma, cp, cm, cpm1, cmm1, e1, e2, e3, e4, btop, bsfc, albi, x1, x2)
 
     do l = 1, nlayrad - 1
-      dtauk = taucum(2*l+1) - taucum(2*l)
-      ep = exp(min(lambda(l) * dtauk, maxexp))
-      em = 1.0_r8 / ep
-      term = ubari / (1 - wbar(l) * cosb(l))
-      cpmid = b0(l) + b1(l) * dtauk + b1(l) * term
-      cmmid = b0(l) + b1(l) * dtauk - b1(l) * term
-      fmidp(l) = x1(l) * ep + gamma(l) * x2(l) * em + cpmid
-      fmidm(l) = x1(l) * ep * gamma(l) + x2(l) * em + cmmid
+      dtauk   = taucum(2*l+1) - taucum(2*l)
+      ep      = exp(min(lambda(l) * dtauk, maxexp))
+      em      = 1.0_r8 / ep
+      term    = ubari / (1 - wbar(l) * cosb(l))
+      cpmid   = b0(l) + b1(l) * dtauk + b1(l) * term
+      cmmid   = b0(l) + b1(l) * dtauk - b1(l) * term
+      fmup(l) = x1(l) * ep + gamma(l) * x2(l) * em + cpmid
+      fmdn(l) = x1(l) * ep * gamma(l) + x2(l) * em + cmmid
       ! For flux, integrate over the hemisphere treating intensity constant.
-      fmidp(l) = fmidp(l) * pi
-      fmidm(l) = fmidm(l) * pi
+      fmup(l) = fmup(l) * pi
+      fmdn(l) = fmdn(l) * pi
     end do
 
-    l = nlayrad
-    ep = exp(min(lambda(l) * dtau(l), taumax))
-    em = 1.0_r8 / ep
-    term = ubari / (1 - wbar(l) * cosb(l))
-    cpmid = b0(l) + b1(l) * dtau(l) + b1(l) * term
-    cmmid = b0(l) + b1(l) * dtau(l) - b1(l) * term
-    fmidp(l) = x1(l) * ep + gamma(l) * x2(l) * em + cpmid
-    fmidm(l) = x1(l) * ep * gamma(l) + x2(l) * em + cmmid
-    fmidp(l) = fmidp(l) * pi
-    fmidm(l) = fmidm(l) * pi
+    l       = nlayrad
+    ep      = exp(min(lambda(l) * dtau(l), taumax))
+    em      = 1.0_r8 / ep
+    term    = ubari / (1 - wbar(l) * cosb(l))
+    cpmid   = b0(l) + b1(l) * dtau(l) + b1(l) * term
+    cmmid   = b0(l) + b1(l) * dtau(l) - b1(l) * term
+    fmup(l) = x1(l) * ep + gamma(l) * x2(l) * em + cpmid
+    fmdn(l) = x1(l) * ep * gamma(l) + x2(l) * em + cmmid
+    fmup(l) = fmup(l) * pi
+    fmdn(l) = fmdn(l) * pi
 
-    ep = 1
-    em = 1
-    term = ubari / (1 - wbar(1) * cosb(1))
-    cpmid = b0(1) + b1(1) * term
-    cmmid = b0(1) - b1(1) * term
+    ep     = 1
+    em     = 1
+    term   = ubari / (1 - wbar(1) * cosb(1))
+    cpmid  = b0(1) + b1(1) * term
+    cmmid  = b0(1) - b1(1) * term
     fluxup = x1(1) * ep + gamma(1) * x2(1) * em + cpmid
     fluxdn = x1(1) * ep * gamma(1) + x2(1) * em + cmmid
 
@@ -1848,7 +1860,7 @@ contains
     read(20) co2i8
     read(20) fzeroi
     close(20)
-    
+
     ! Take Log10 of the values - we interpolate the log10 of the values,
     ! not the values themselves.   Smallest value is 1.0E-200.
     do nt = 1, ntref

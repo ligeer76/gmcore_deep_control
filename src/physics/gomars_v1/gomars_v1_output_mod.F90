@@ -51,6 +51,8 @@ contains
     call fiona_add_var(tag, 'ustar'       , long_name='u* in similarity theory'                      , units='m s-1'  , dim_names=dims_2d  (1:3), dtype=dtype)
     call fiona_add_var(tag, 'tstar'       , long_name='Temperature scale'                            , units='K'      , dim_names=dims_2d  (1:3), dtype=dtype)
     call fiona_add_var(tag, 'co2ice_sfc'  , long_name='Ground CO2 ice'                               , units='kg m-2' , dim_names=dims_2d  (1:3), dtype=dtype)
+    call fiona_add_var(tag, 'pcon'        , long_name='Pressure of PBL'                              , units='Pa'     , dim_names=dims_2d  (1:3), dtype=dtype)
+    call fiona_add_var(tag, 'ptcon'       , long_name='Potential temperature of PBL'                 , units='K'      , dim_names=dims_2d  (1:3), dtype=dtype)
 
     ! Soil variables
     call fiona_add_var(tag, 'scond'       , long_name='Soil thermal conductivity'                    , units=''       , dim_names=soil_dims(1:3), dtype=dtype)
@@ -101,6 +103,8 @@ contains
     call fiona_output(tag, 'ustar'       , reshape(state%ustar       , mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
     call fiona_output(tag, 'tstar'       , reshape(state%tstar       , mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
     call fiona_output(tag, 'co2ice_sfc'  , reshape(state%co2ice_sfc  , mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
+    call fiona_output(tag, 'pcon'        , reshape(state%pcon        , mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
+    call fiona_output(tag, 'ptcon'       , reshape(state%ptcon       , mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
 
     ! Soil variables
     call fiona_output(tag, 'scond'       , reshape(state%scond       , soil_count        ), start=soil_start        , count=soil_count        )

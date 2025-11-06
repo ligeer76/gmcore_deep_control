@@ -158,7 +158,8 @@ contains
                tg           => state%tg          , & ! out
                t            => state%t           , & ! in
                q            => state%q           , & ! in
-               ht_sfc       => state%ht_sfc      , & ! in
+               ht_pbl       => state%ht_pbl      , & ! in
+               ht_sfc       => state%ht_sfc      , & ! out
                irflx_sfc_dn => state%irflx_sfc_dn, & ! in
                vsflx_sfc_dn => state%vsflx_sfc_dn, & ! in
                co2ice_sfc   => state%co2ice_sfc  , & ! in
@@ -167,6 +168,9 @@ contains
                dpsdt        => tend %dpsdt       )   ! out
     do i = 1, mesh%ncol
       dpsdt(i) = 0
+      ! ------------------------------------------------------------------------
+      ! Set exchange of heat between surface and air.
+      ht_sfc(i) = eg15gnd * irflx_sfc_dn(i) - ht_pbl(i)
       ! Set surface albedo.
       als(i) = alsp(i)
       if (co2ice_sfc(i) > 0) then

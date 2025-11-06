@@ -54,6 +54,8 @@ contains
     call fiona_add_var(tag, 'co2ice_sfc'  , long_name='Ground CO2 ice'                               , units='kg m-2' , dim_names=dims_2d  (1:3), dtype=dtype)
     call fiona_add_var(tag, 'pcon'        , long_name='Pressure of PBL'                              , units='Pa'     , dim_names=dims_2d  (1:3), dtype=dtype)
     call fiona_add_var(tag, 'ptcon'       , long_name='Potential temperature of PBL'                 , units='K'      , dim_names=dims_2d  (1:3), dtype=dtype)
+    call fiona_add_var(tag, 'ht_pbl'      , long_name='Sensible heat flux at the surface'            , units='W m-2'  , dim_names=dims_2d  (1:3), dtype=dtype)
+    call fiona_add_var(tag, 'ht_sfc'      , long_name='Heat flux at the surface'                     , units='W m-2'  , dim_names=dims_2d  (1:3), dtype=dtype)
 
     ! Soil variables
     call fiona_add_var(tag, 'scond'       , long_name='Soil thermal conductivity'                    , units=''       , dim_names=soil_dims(1:3), dtype=dtype)
@@ -107,6 +109,8 @@ contains
     call fiona_output(tag, 'co2ice_sfc'  , reshape(state%co2ice_sfc  , mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
     call fiona_output(tag, 'pcon'        , reshape(state%pcon        , mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
     call fiona_output(tag, 'ptcon'       , reshape(state%ptcon       , mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
+    call fiona_output(tag, 'ht_pbl'      , reshape(state%ht_pbl      , mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
+    call fiona_output(tag, 'ht_sfc'      , reshape(state%ht_sfc      , mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
 
     ! Soil variables
     call fiona_output(tag, 'scond'       , reshape(state%scond       , soil_count        ), start=soil_start        , count=soil_count        )

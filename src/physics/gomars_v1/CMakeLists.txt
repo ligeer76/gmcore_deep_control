@@ -30,8 +30,6 @@ target_sources(gmcore PRIVATE
   gomars_v1_damp_mod.F90
   gomars_v1_rad_mod.F90
   gomars_v1_utils_mod.F90
-  nasa/wsl_newman.F90
-  nasa/ddl.F90
   nasa/sedim.F90
   nasa/microphys.F90
 )

@@ -12,6 +12,8 @@
 
 module gomars_v1_namelist_mod
 
+  use flogger
+  use process_mod, only: proc
   use gomars_v1_const_mod
 
   implicit none
@@ -64,8 +66,14 @@ contains
 
     character(*), intent(in) :: file_path
 
+    integer ierr
+    character(256) err_msg
+
     open(10, file=file_path, status='old')
-    read(10, nml=gomars_v1_control)
+    read(10, nml=gomars_v1_control, iostat=ierr, iomsg=err_msg)
+    if (proc%is_root() .and. ierr /= 0) then
+      call log_error('Failed to read namelist "gomars_v1_control" in ' // trim(file_path) // ' due to ' // trim(err_msg) // '!')
+    end if
     close(10)
 
     psl = psf

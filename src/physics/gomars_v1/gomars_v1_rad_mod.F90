@@ -461,7 +461,7 @@ contains
         nonlte = 2.2e2_r8 * plev(2*k+2) / (1 + 2.2e2_r8 * plev(2*k+2))
         qrad(i,k) = (suntot(2*k+3) * nonlte + irtot(2*k+3)) / (cpd * dp(i,k) / g * pk(i,k))
       end do
-      ! Update stratospheric potential temperature.
+      ! Update stratospheric temperature.
       nonlte = 2.2e2_r8 * pstrat / (1 + 2.2e2_r8 * pstrat)
       tstrat(i) = tstrat(i) + dt * (suntot(3) * nonlte + irtot(3)) / (cpd * ptrop / g)
     end do

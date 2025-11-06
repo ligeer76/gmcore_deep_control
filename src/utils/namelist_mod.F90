@@ -375,6 +375,7 @@ contains
 
     if (planet == 'mars') then
       topo_type = 'mola32'
+      div_damp_pole = min(div_damp_pole, 10.0_r8)
     end if
 
     if (use_async_io .and. nproc_io < 1) then

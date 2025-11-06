@@ -121,8 +121,6 @@ module gomars_v1_types_mod
     real(r8), allocatable, dimension(:      ) :: h2osub_sfc     ! subflux
     ! [restart] Water ice at the surface (???)
     real(r8), allocatable, dimension(:      ) :: h2oice_sfc     ! gndice
-    ! Condensed CO2 on the ground (kg m-2 s-1)
-    real(r8), allocatable, dimension(:      ) :: dmsdt
     ! Wind stress dust lifting flux (kg m-2 s-1)
     real(r8), allocatable, dimension(:      ) :: dstflx_wsl
     ! Dust devil lifting flux (kg m-2 s-1)
@@ -205,7 +203,6 @@ contains
     allocate(this%zavgtg        (mesh%ncol                   )); this%zavgtg        = 0
     allocate(this%h2osub_sfc    (mesh%ncol                   )); this%h2osub_sfc    = 0
     allocate(this%h2oice_sfc    (mesh%ncol                   )); this%h2oice_sfc    = 0
-    allocate(this%dmsdt         (mesh%ncol                   )); this%dmsdt         = 0
     allocate(this%dstflx_wsl    (mesh%ncol                   )); this%dstflx_wsl    = 0
     allocate(this%dstflx_ddl    (mesh%ncol                   )); this%dstflx_ddl    = 0
     allocate(this%qh2o_rad      (2*mesh%nlev+3               )); this%qh2o_rad      = 0
@@ -268,7 +265,6 @@ contains
     if (allocated(this%zavgtg       )) deallocate(this%zavgtg       )
     if (allocated(this%h2osub_sfc   )) deallocate(this%h2osub_sfc   )
     if (allocated(this%h2oice_sfc   )) deallocate(this%h2oice_sfc   )
-    if (allocated(this%dmsdt        )) deallocate(this%dmsdt        )
     if (allocated(this%dstflx_wsl   )) deallocate(this%dstflx_wsl   )
     if (allocated(this%dstflx_ddl   )) deallocate(this%dstflx_ddl   )
     if (allocated(this%qh2o_rad     )) deallocate(this%qh2o_rad     )

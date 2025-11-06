@@ -58,7 +58,7 @@ module gomars_v1_namelist_mod
     use_wsl_newman           , &
     use_wsl_kmh              , &
     tau_thresh               , &
-    alpha_d
+    alpha_n
 
 contains
 

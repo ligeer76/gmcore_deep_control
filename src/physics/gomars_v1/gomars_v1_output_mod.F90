@@ -36,36 +36,39 @@ contains
 
     call fiona_add_dim(tag, 'soil', size=nsoil)
 
-    call fiona_add_var(tag, 'alsp'        , long_name='Surface albedo'                               , units=''       , dim_names=dims_2d  (1:2), dtype=dtype)
-    call fiona_add_var(tag, 'zin'         , long_name='Surface thermal inertia'                      , units=''       , dim_names=dims_2d  (1:2), dtype=dtype)
-    call fiona_add_var(tag, 'npcflag'     , long_name='Flag of northern polar cap of water ice'      , units=''       , dim_names=dims_2d  (1:2), dtype=dtype)
-    call fiona_add_var(tag, 'gnd_ice'     , long_name='Flag of GRS ground ice'                       , units=''       , dim_names=dims_2d  (1:2), dtype=dtype)
-    call fiona_add_var(tag, 'tg'          , long_name='Ground temperature'                           , units='K'      , dim_names=dims_2d  (1:3), dtype=dtype)
-    call fiona_add_var(tag, 'tstrat'      , long_name='Stratospheric temperature'                    , units='K'      , dim_names=dims_2d  (1:3), dtype=dtype)
-    call fiona_add_var(tag, 'solar_sfc_dn', long_name='Downward solar flux at the surface'           , units='W m-2'  , dim_names=dims_2d  (1:3), dtype=dtype)
-    call fiona_add_var(tag, 'vsflx_sfc_dn', long_name='Downward visible flux at the surface'         , units='W m-2'  , dim_names=dims_2d  (1:3), dtype=dtype)
-    call fiona_add_var(tag, 'vsdif_sfc_dn', long_name='Downward diffused visible flux at the surface', units='W m-2'  , dim_names=dims_2d  (1:3), dtype=dtype)
-    call fiona_add_var(tag, 'irflx_sfc_dn', long_name='Downward infrared flux at the surface'        , units='W m-2'  , dim_names=dims_2d  (1:3), dtype=dtype)
-    call fiona_add_var(tag, 'cosz'        , long_name='Cosine of solar zenith angle'                 , units=''       , dim_names=dims_2d  (1:3), dtype=dtype)
-    call fiona_add_var(tag, 'qrad'        , long_name='Heat rate due to radiation'                   , units='K s-1'  , dim_names=dims_3d  (1:4), dtype=dtype)
-    call fiona_add_var(tag, 'shr2'        , long_name='Square of wind shear'                         , units='s-2'    , dim_names=dims_3d  (1:4), dtype=dtype)
-    call fiona_add_var(tag, 'ustar'       , long_name='u* in similarity theory'                      , units='m s-1'  , dim_names=dims_2d  (1:3), dtype=dtype)
-    call fiona_add_var(tag, 'tstar'       , long_name='Temperature scale'                            , units='K'      , dim_names=dims_2d  (1:3), dtype=dtype)
-    call fiona_add_var(tag, 'co2ice_sfc'  , long_name='Ground CO2 ice'                               , units='kg m-2' , dim_names=dims_2d  (1:3), dtype=dtype)
-    call fiona_add_var(tag, 'pcon'        , long_name='Pressure of PBL'                              , units='Pa'     , dim_names=dims_2d  (1:3), dtype=dtype)
-    call fiona_add_var(tag, 'ptcon'       , long_name='Potential temperature of PBL'                 , units='K'      , dim_names=dims_2d  (1:3), dtype=dtype)
-    call fiona_add_var(tag, 'ht_pbl'      , long_name='Sensible heat flux at the surface'            , units='W m-2'  , dim_names=dims_2d  (1:3), dtype=dtype)
-    call fiona_add_var(tag, 'ht_sfc'      , long_name='Heat flux at the surface'                     , units='W m-2'  , dim_names=dims_2d  (1:3), dtype=dtype)
+    call fiona_add_var(tag, 'alsp'        , long_name='Surface albedo'                               , units=''          , dim_names=dims_2d  (1:2), dtype=dtype)
+    call fiona_add_var(tag, 'als'         , long_name='Surface albedo'                               , units=''          , dim_names=dims_2d  (1:3), dtype=dtype)
+    call fiona_add_var(tag, 'zin'         , long_name='Surface thermal inertia'                      , units=''          , dim_names=dims_2d  (1:2), dtype=dtype)
+    call fiona_add_var(tag, 'npcflag'     , long_name='Flag of northern polar cap of water ice'      , units=''          , dim_names=dims_2d  (1:2), dtype=dtype)
+    call fiona_add_var(tag, 'gnd_ice'     , long_name='Flag of GRS ground ice'                       , units=''          , dim_names=dims_2d  (1:2), dtype=dtype)
+    call fiona_add_var(tag, 'tg'          , long_name='Ground temperature'                           , units='K'         , dim_names=dims_2d  (1:3), dtype=dtype)
+    call fiona_add_var(tag, 'tstrat'      , long_name='Stratospheric temperature'                    , units='K'         , dim_names=dims_2d  (1:3), dtype=dtype)
+    call fiona_add_var(tag, 'solar_sfc_dn', long_name='Downward solar flux at the surface'           , units='W m-2'     , dim_names=dims_2d  (1:3), dtype=dtype)
+    call fiona_add_var(tag, 'vsflx_sfc_dn', long_name='Downward visible flux at the surface'         , units='W m-2'     , dim_names=dims_2d  (1:3), dtype=dtype)
+    call fiona_add_var(tag, 'vsdif_sfc_dn', long_name='Downward diffused visible flux at the surface', units='W m-2'     , dim_names=dims_2d  (1:3), dtype=dtype)
+    call fiona_add_var(tag, 'irflx_sfc_dn', long_name='Downward infrared flux at the surface'        , units='W m-2'     , dim_names=dims_2d  (1:3), dtype=dtype)
+    call fiona_add_var(tag, 'cosz'        , long_name='Cosine of solar zenith angle'                 , units=''          , dim_names=dims_2d  (1:3), dtype=dtype)
+    call fiona_add_var(tag, 'qrad'        , long_name='Heat rate due to radiation'                   , units='K s-1'     , dim_names=dims_3d  (1:4), dtype=dtype)
+    call fiona_add_var(tag, 'shr2'        , long_name='Square of wind shear'                         , units='s-2'       , dim_names=dims_3d  (1:4), dtype=dtype)
+    call fiona_add_var(tag, 'ustar'       , long_name='u* in similarity theory'                      , units='m s-1'     , dim_names=dims_2d  (1:3), dtype=dtype)
+    call fiona_add_var(tag, 'tstar'       , long_name='Temperature scale'                            , units='K'         , dim_names=dims_2d  (1:3), dtype=dtype)
+    call fiona_add_var(tag, 'co2ice_sfc'  , long_name='Ground CO2 ice'                               , units='kg m-2'    , dim_names=dims_2d  (1:3), dtype=dtype)
+    call fiona_add_var(tag, 'pcon'        , long_name='Pressure of PBL'                              , units='Pa'        , dim_names=dims_2d  (1:3), dtype=dtype)
+    call fiona_add_var(tag, 'ptcon'       , long_name='Potential temperature of PBL'                 , units='K'         , dim_names=dims_2d  (1:3), dtype=dtype)
+    call fiona_add_var(tag, 'ht_pbl'      , long_name='Sensible heat flux at the surface'            , units='W m-2'     , dim_names=dims_2d  (1:3), dtype=dtype)
+    call fiona_add_var(tag, 'ht_sfc'      , long_name='Heat flux at the surface'                     , units='W m-2'     , dim_names=dims_2d  (1:3), dtype=dtype)
+    call fiona_add_var(tag, 'dstflx_ddl'  , long_name='Devil dust lifting flux'                      , units='kg m-2 s-1', dim_names=dims_2d  (1:3), dtype=dtype)
+    call fiona_add_var(tag, 'dstflx_wsl'  , long_name='Wind stress dust lifting flux'                , units='kg m-2 s-1', dim_names=dims_2d  (1:3), dtype=dtype)
 
     ! Soil variables
-    call fiona_add_var(tag, 'scond'       , long_name='Soil thermal conductivity'                    , units=''       , dim_names=soil_dims(1:3), dtype=dtype)
-    call fiona_add_var(tag, 'stemp'       , long_name='Soil temperature'                             , units='K'      , dim_names=soil_dims     , dtype=dtype)
+    call fiona_add_var(tag, 'scond'       , long_name='Soil thermal conductivity'                    , units=''          , dim_names=soil_dims(1:3), dtype=dtype)
+    call fiona_add_var(tag, 'stemp'       , long_name='Soil temperature'                             , units='K'         , dim_names=soil_dims     , dtype=dtype)
 
     ! Tendencies
-    call fiona_add_var(tag, 'dudt_phys'   , long_name='Physics tendency of zonal wind'               , units='m s-2'  , dim_names=dims_3d  (1:4), dtype=dtype)
-    call fiona_add_var(tag, 'dvdt_phys'   , long_name='Physics tendency of meridional wind'          , units='m s-2'  , dim_names=dims_3d  (1:4), dtype=dtype)
-    call fiona_add_var(tag, 'dtdt_phys'   , long_name='Physics tendency of temperature'              , units='K s-1'  , dim_names=dims_3d  (1:4), dtype=dtype)
-    call fiona_add_var(tag, 'dpsdt_phys'  , long_name='Physics tendency of surface pressure'         , units='Pa s-1' , dim_names=dims_2d  (1:3), dtype=dtype)
+    call fiona_add_var(tag, 'dudt_phys'   , long_name='Physics tendency of zonal wind'               , units='m s-2'     , dim_names=dims_3d  (1:4), dtype=dtype)
+    call fiona_add_var(tag, 'dvdt_phys'   , long_name='Physics tendency of meridional wind'          , units='m s-2'     , dim_names=dims_3d  (1:4), dtype=dtype)
+    call fiona_add_var(tag, 'dtdt_phys'   , long_name='Physics tendency of temperature'              , units='K s-1'     , dim_names=dims_3d  (1:4), dtype=dtype)
+    call fiona_add_var(tag, 'dpsdt_phys'  , long_name='Physics tendency of surface pressure'         , units='Pa s-1'    , dim_names=dims_2d  (1:3), dtype=dtype)
 
   end subroutine gomars_v1_add_output
 
@@ -80,6 +83,7 @@ contains
     soil_start = [mesh%cell_start_2d(1), mesh%cell_start_2d(2), 1    ]
     soil_count = [mesh%cell_count_2d(1), mesh%cell_count_2d(2), nsoil]
     call fiona_output(tag, 'alsp'        , reshape(state%alsp        , mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
+    call fiona_output(tag, 'als'         , reshape(state%als         , mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
     call fiona_output(tag, 'zin'         , reshape(state%zin         , mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
     allocate(tmp(mesh%ncol))
     where (state%npcflag)
@@ -111,6 +115,8 @@ contains
     call fiona_output(tag, 'ptcon'       , reshape(state%ptcon       , mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
     call fiona_output(tag, 'ht_pbl'      , reshape(state%ht_pbl      , mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
     call fiona_output(tag, 'ht_sfc'      , reshape(state%ht_sfc      , mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
+    call fiona_output(tag, 'dstflx_ddl'  , reshape(state%dstflx_ddl  , mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
+    call fiona_output(tag, 'dstflx_wsl'  , reshape(state%dstflx_wsl  , mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
 
     ! Soil variables
     call fiona_output(tag, 'scond'       , reshape(state%scond       , soil_count        ), start=soil_start        , count=soil_count        )

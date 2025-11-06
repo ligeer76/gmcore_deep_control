@@ -71,7 +71,7 @@ contains
 
     open(10, file=file_path, status='old')
     read(10, nml=gomars_v1_control, iostat=ierr, iomsg=err_msg)
-    if (proc%is_root() .and. ierr /= 0) then
+    if (proc%is_root() .and. (ierr /= 0 .and. ierr /= -1)) then
       call log_error('Failed to read namelist "gomars_v1_control" in ' // trim(file_path) // ' due to ' // trim(err_msg) // '!')
     end if
     close(10)

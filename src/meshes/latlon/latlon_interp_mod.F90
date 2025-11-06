@@ -11,6 +11,7 @@ module latlon_interp_mod
 
   use flogger
   use const_mod
+  use math_mod
   use latlon_mesh_mod
   use latlon_parallel_mod
   use latlon_field_types_mod
@@ -598,8 +599,8 @@ contains
       count = 0
       do j1 = 1, ny1
         do i1 = 1, nx1
-          if (src_ilon(i1) <= dst_lon(icol2) .and. dst_lon(icol2) <= src_ilon(i1+1) .and. &
-              src_ilat(j1) <= dst_lat(icol2) .and. dst_lat(icol2) <= src_ilat(j1+1)) then
+          if (is_ge(dst_lon(icol2), src_ilon(i1)) .and. is_le(dst_lon(icol2), src_ilon(i1+1)) .and. &
+              is_ge(dst_lat(icol2), src_ilat(j1)) .and. is_le(dst_lat(icol2), src_ilat(j1+1))) then
             dst_data(icol2) = dst_data(icol2) + src_data(i1,j1)
             count = count + 1
           end if

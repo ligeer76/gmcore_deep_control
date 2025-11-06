@@ -251,7 +251,9 @@ contains
     call update_toa_solar_flux(ls)
 
     do iblk = 1, size(objects)
-      associate (mesh => objects(iblk)%mesh, state => objects(iblk)%state, tend => objects(iblk)%tend)
+      associate (mesh  => objects(iblk)%mesh , &
+                 state => objects(iblk)%state, &
+                 tend  => objects(iblk)%tend )
       call gomars_v1_orbit_cosz     (state)
       call update_sfc_solar_flux    (state)
       call gomars_v1_lsm_run        (state, tend)

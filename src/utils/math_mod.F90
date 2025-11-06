@@ -28,6 +28,7 @@ module math_mod
   public gaussw3, gaussx3
   public gaussw5, gaussx5
   public gaussw20, gaussx20
+  public is_ge, is_le
 
   interface cross_product
     module procedure cross_product_r8
@@ -420,5 +421,23 @@ contains
     res = merge(x**(a - 1) * exp(-x / b) / b**a / gamma(a), 0.0_r8, x > 0)
 
   end function gamma_dist
+
+  pure logical function is_ge(x, y) result(res)
+
+    real(r8), intent(in) :: x
+    real(r8), intent(in) :: y
+
+    res = x >= y .or. abs(x - y) <= eps
+
+  end function is_ge
+
+  pure logical function is_le(x, y) result(res)
+
+    real(r8), intent(in) :: x
+    real(r8), intent(in) :: y
+
+    res = x <= y .or. abs(x - y) <= eps
+
+  end function is_le
 
 end module math_mod

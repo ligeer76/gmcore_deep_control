@@ -12,8 +12,9 @@
 
 module gomars_v1_damp_mod
 
-  use gomars_v1_const_mod
   use vert_coord_mod
+  use gomars_v1_const_mod
+  use gomars_v1_types_mod
 
   implicit none
 
@@ -56,31 +57,36 @@ contains
 
   end subroutine gomars_v1_damp_init
 
-  subroutine gomars_v1_damp_run(upi, vpi, om, teta)
-
-    real(r8), intent(inout), dimension(2*nlev+3) :: upi
-    real(r8), intent(inout), dimension(2*nlev+3) :: vpi
-    real(r8), intent(in   ), dimension(2*nlev+3) :: om
-    real(r8), intent(inout), dimension(2*nlev+3) :: teta
-
-    integer k, l
-    real(r8) rkei, rkef
-
-    do k = 1, lray
-      l = 2 * k + 2
-      rkei = 0.5_r8 * (upi(l)**2 + vpi(l)**2)
-      upi(l) = upi(l) - rayk(k) * upi(l) * dt
-      vpi(l) = vpi(l) - rayk(k) * vpi(l) * dt
-      rkef = 0.5_r8 * (upi(l)**2 + vpi(l)**2)
-      teta(l) = teta(l) + (rkei - rkef) / (om(l) * cpd)
-    end do
-
-  end subroutine gomars_v1_damp_run
-
   subroutine gomars_v1_damp_final()
 
     if (allocated(rayk)) deallocate(rayk)
 
   end subroutine gomars_v1_damp_final
+
+  subroutine gomars_v1_damp_run(state)
+
+    type(gomars_v1_state_type), intent(inout) :: state
+
+    integer i, k
+    real(r8) rkei, rkef
+
+    associate (mesh => state%mesh, &
+               u    => state%u   , & ! inout
+               v    => state%v   , & ! inout
+               t    => state%t   )   ! inout
+    do i = 1, mesh%ncol
+      do k = 1, mesh%nlev
+        if (rayk(k) > 0.0_r8) then
+          rkei = 0.5_r8 * (u(i,k)**2 + v(i,k)**2)
+          u(i,k) = u(i,k) - rayk(k) * u(i,k) * dt
+          v(i,k) = v(i,k) - rayk(k) * v(i,k) * dt
+          rkef = 0.5_r8 * (u(i,k)**2 + v(i,k)**2)
+          t(i,k) = t(i,k) + (rkei - rkef) / cpd
+        end if
+      end do      
+    end do
+    end associate
+
+  end subroutine gomars_v1_damp_run
 
 end module gomars_v1_damp_mod

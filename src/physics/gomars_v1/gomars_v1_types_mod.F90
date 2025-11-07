@@ -83,7 +83,7 @@ module gomars_v1_types_mod
     real(r8), allocatable, dimension(:      ) :: fluxsfc
     ! Heat rate on full levels (including TOA) due to radiation (K s-1)
     real(r8), allocatable, dimension(:,:    ) :: qrad
-    ! Heat rate at the surface due to PBL (K s-1)
+    ! Heat rate at the surface due to PBL (positive upward) (W m-2)
     real(r8), allocatable, dimension(:      ) :: ht_pbl
     ! Exchange of heat between surface and air (positive downward) (W m-2)
     real(r8), allocatable, dimension(:      ) :: ht_sfc         ! fa

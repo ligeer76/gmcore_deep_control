@@ -15,6 +15,7 @@ module gomars_v1_output_mod
   use fiona
   use gomars_v1_const_mod
   use gomars_v1_objects_mod
+  use gomars_v1_tracers_mod
 
   implicit none
 
@@ -59,6 +60,19 @@ contains
     call fiona_add_var(tag, 'ht_sfc'      , long_name='Heat flux at the surface'                     , units='W m-2'     , dim_names=dims_2d  (1:3), dtype=dtype)
     call fiona_add_var(tag, 'dstflx_ddl'  , long_name='Devil dust lifting flux'                      , units='kg m-2 s-1', dim_names=dims_2d  (1:3), dtype=dtype)
     call fiona_add_var(tag, 'dstflx_wsl'  , long_name='Wind stress dust lifting flux'                , units='kg m-2 s-1', dim_names=dims_2d  (1:3), dtype=dtype)
+
+    call fiona_add_var(tag, 'qflx_sfc_dn_ma_dst', long_name='Downward dust flux at the surface'            , units='kg m-2 s-1', dim_names=dims_2d(1:3), dtype=dtype)
+    call fiona_add_var(tag, 'qflx_sfc_dn_nb_dst', long_name='Downward dust number flux at the surface'     , units='m-2 s-1'   , dim_names=dims_2d(1:3), dtype=dtype)
+    call fiona_add_var(tag, 'qflx_sfc_dn_ma_cld', long_name='Downward ice cloud flux at the surface'       , units='kg m-2 s-1', dim_names=dims_2d(1:3), dtype=dtype)
+    call fiona_add_var(tag, 'qflx_sfc_dn_nb_cld', long_name='Downward ice cloud number flux at the surface', units='m-2 s-1'   , dim_names=dims_2d(1:3), dtype=dtype)
+    call fiona_add_var(tag, 'qflx_sfc_dn_ma_cor', long_name='Downward dust core flux at the surface'       , units='kg m-2 s-1', dim_names=dims_2d(1:3), dtype=dtype)
+    call fiona_add_var(tag, 'qflx_sfc_dn_ma_vap', long_name='Downward water vapor flux at the surface'     , units='kg m-2 s-1', dim_names=dims_2d(1:3), dtype=dtype)
+    call fiona_add_var(tag, 'qsfc_ma_dst'       , long_name='Surface dust mass mixing ratio'               , units='kg kg-1'   , dim_names=dims_2d(1:3), dtype=dtype)
+    call fiona_add_var(tag, 'qsfc_nb_dst'       , long_name='Surface dust number mixing ratio'             , units='kg-1'      , dim_names=dims_2d(1:3), dtype=dtype)
+    call fiona_add_var(tag, 'qsfc_ma_cld'       , long_name='Surface ice cloud mass mixing ratio'          , units='kg kg-1'   , dim_names=dims_2d(1:3), dtype=dtype)
+    call fiona_add_var(tag, 'qsfc_nb_cld'       , long_name='Surface ice cloud number mixing ratio'        , units='kg-1'      , dim_names=dims_2d(1:3), dtype=dtype)
+    call fiona_add_var(tag, 'qsfc_ma_cor'       , long_name='Surface dust core mass mixing ratio'          , units='kg kg-1'   , dim_names=dims_2d(1:3), dtype=dtype)
+    call fiona_add_var(tag, 'qsfc_ma_vap'       , long_name='Surface water vapor mass mixing ratio'        , units='kg kg-1'   , dim_names=dims_2d(1:3), dtype=dtype)
 
     ! Soil variables
     call fiona_add_var(tag, 'scond'       , long_name='Soil thermal conductivity'                    , units=''          , dim_names=soil_dims(1:3), dtype=dtype)
@@ -117,6 +131,19 @@ contains
     call fiona_output(tag, 'ht_sfc'      , reshape(state%ht_sfc      , mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
     call fiona_output(tag, 'dstflx_ddl'  , reshape(state%dstflx_ddl  , mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
     call fiona_output(tag, 'dstflx_wsl'  , reshape(state%dstflx_wsl  , mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
+
+    call fiona_output(tag, 'qflx_sfc_dn_ma_dst', reshape(state%qflx_sfc_dn(:,iMa_dst), mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
+    call fiona_output(tag, 'qflx_sfc_dn_nb_dst', reshape(state%qflx_sfc_dn(:,iNb_dst), mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
+    call fiona_output(tag, 'qflx_sfc_dn_ma_cld', reshape(state%qflx_sfc_dn(:,iMa_cld), mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
+    call fiona_output(tag, 'qflx_sfc_dn_nb_cld', reshape(state%qflx_sfc_dn(:,iNb_cld), mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
+    call fiona_output(tag, 'qflx_sfc_dn_ma_cor', reshape(state%qflx_sfc_dn(:,iMa_cor), mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
+    call fiona_output(tag, 'qflx_sfc_dn_ma_vap', reshape(state%qflx_sfc_dn(:,iMa_vap), mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
+    call fiona_output(tag, 'qsfc_ma_dst'       , reshape(state%qsfc(:,iMa_dst)       , mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
+    call fiona_output(tag, 'qsfc_nb_dst'       , reshape(state%qsfc(:,iNb_dst)       , mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
+    call fiona_output(tag, 'qsfc_ma_cld'       , reshape(state%qsfc(:,iMa_cld)       , mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
+    call fiona_output(tag, 'qsfc_nb_cld'       , reshape(state%qsfc(:,iNb_cld)       , mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
+    call fiona_output(tag, 'qsfc_ma_cor'       , reshape(state%qsfc(:,iMa_cor)       , mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
+    call fiona_output(tag, 'qsfc_ma_vap'       , reshape(state%qsfc(:,iMa_vap)       , mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
 
     ! Soil variables
     call fiona_output(tag, 'scond'       , reshape(state%scond       , soil_count        ), start=soil_start        , count=soil_count        )

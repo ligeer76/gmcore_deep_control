@@ -35,8 +35,8 @@ module gomars_v1_tracers_mod
   public gomars_v1_tracers_init
   public ntracers
 
-  integer, public :: iMa_dst  = 0
-  integer, public :: iNb_dst  = 0
+  integer, public :: iMa_dst = 0
+  integer, public :: iNb_dst = 0
   integer, public :: iMa_cld = 0
   integer, public :: iNb_cld = 0
   integer, public :: iMa_cor = 0

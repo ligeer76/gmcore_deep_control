@@ -264,6 +264,7 @@ contains
       call gomars_v1_pbl_run        (state)
       call interp_temperature       (state)
       call gomars_v1_cnvadj_run     (state)
+      call interp_temperature       (state)
       call gomars_v1_dustcyc_run    (state)
       call gomars_v1_mp_run         (state)
       call gomars_v1_damp_run       (state)

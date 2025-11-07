@@ -94,7 +94,7 @@ contains
 
     associate (mesh       => state%mesh      , &
                ps         => state%ps        , & ! in
-               ts         => state%ts        , & ! in
+               tg         => state%tg        , & ! in
                dp         => state%dp_dry    , & ! in
                taux       => state%taux      , & ! in
                tauy       => state%tauy      , & ! in
@@ -103,7 +103,7 @@ contains
                qsfc       => state%qsfc      , & ! inout
                q          => state%q         )   ! inout
     do i = 1, mesh%ncol
-      rhos = dry_air_density(ts(i), ps(i))
+      rhos = dry_air_density(tg(i), ps(i))
       dstflx(i) = 0
       tau = sqrt(taux(i)**2 + tauy(i)**2)
       if (tau <= tau_thresh .or. co2ice_sfc(i) > 0) then

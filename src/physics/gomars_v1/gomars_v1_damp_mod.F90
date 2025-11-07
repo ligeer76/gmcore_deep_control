@@ -26,7 +26,6 @@ module gomars_v1_damp_mod
 
   ! Number of top levels for Rayleigh friction
   integer , parameter :: lray       = 3
-  integer , parameter :: k1         = 4
   real(r8), parameter :: alfray     = 2
   ! Relaxation time in days
   real(r8), parameter :: trefr      = 0.5_r8
@@ -38,21 +37,19 @@ contains
   subroutine gomars_v1_damp_init()
 
     integer k
-    real(r8) pl(nlev)
+    real(r8) p(nlev)
 
     call gomars_v1_damp_final()
 
     ! Set a reference pressure profile.
     do k = 1, nlev
-      pl(k) = vert_coord_calc_mg(k, psl)
+      p(k) = vert_coord_calc_mg(k, psl)
     end do
 
-    allocate(rayk(nlev))
-
-    rayk = 0
+    allocate(rayk(nlev)); rayk = 0
 
     do k = 1, lray
-      rayk(k) = (pl(k1) / pl(k))**alfray / (trefr * mars_sol_seconds)
+      rayk(k) = (p(1) / p(k))**alfray / (trefr * mars_sol_seconds)
     end do
 
   end subroutine gomars_v1_damp_init

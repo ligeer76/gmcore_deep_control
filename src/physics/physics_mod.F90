@@ -90,7 +90,7 @@ contains
         do i = mesh%full_ids, mesh%full_ide
           lon (icol,iblk) = mesh%full_lon (i)
           lat (icol,iblk) = mesh%full_lat (j)
-          area(icol,iblk) = mesh%area_cell(j)
+          area(icol,iblk) = mesh%area_cell_phys(j)
           gid (icol,iblk) = (j - 1) * global_mesh%full_nlon + i
           icol = icol + 1
         end do

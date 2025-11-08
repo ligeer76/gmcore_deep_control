@@ -79,6 +79,7 @@ module latlon_mesh_mod
     real(8) total_area
     real(8) area_pole_cap
     real(8), allocatable, dimension(:  ) :: area_cell
+    real(8), allocatable, dimension(:  ) :: area_cell_phys
     real(8), allocatable, dimension(:  ) :: area_lon
     real(8), allocatable, dimension(:  ) :: area_lat
     real(8), allocatable, dimension(:  ) :: area_vtx
@@ -238,6 +239,16 @@ contains
     end do
 
     do j = this%full_jds, this%full_jde
+      if (this%is_south_pole(j)) then
+        this%area_cell_phys(j) = radius**2 * this%dlon * (this%half_sin_lat(j) + 1.0d0)
+      else if (this%is_north_pole(j)) then
+        this%area_cell_phys(j) = radius**2 * this%dlon * (1.0 - this%half_sin_lat(j-1))
+      else
+        this%area_cell_phys(j) = radius**2 * this%dlon * (this%half_sin_lat(j) - this%half_sin_lat(j-1)) 
+      end if
+    end do
+
+    do j = this%full_jds, this%full_jde
       this%f_lon(j) = 2 * omega * this%full_sin_lat(j)
     end do
     do j = this%half_jds, this%half_jde
@@ -326,6 +337,7 @@ contains
       this%full_sin_lat  (j) = parent%full_sin_lat  (j)
       this%full_cos_lat  (j) = parent%full_cos_lat  (j)
       this%area_cell     (j) = parent%area_cell     (j)
+      this%area_cell_phys(j) = parent%area_cell_phys(j)
       this%area_lon      (j) = parent%area_lon      (j)
       this%le_lon        (j) = parent%le_lon        (j)
       this%de_lon        (j) = parent%de_lon        (j)
@@ -421,6 +433,7 @@ contains
     allocate(this%full_lat_deg       (this%full_jms:this%full_jme)); this%full_lat_deg        = inf
     allocate(this%half_lat_deg       (this%half_jms:this%half_jme)); this%half_lat_deg        = inf
     allocate(this%area_cell          (this%full_jms:this%full_jme)); this%area_cell           = 0
+    allocate(this%area_cell_phys     (this%full_jms:this%full_jme)); this%area_cell_phys      = 0
     allocate(this%area_lon           (this%full_jms:this%full_jme)); this%area_lon            = 0
     allocate(this%area_lat           (this%half_jms:this%half_jme)); this%area_lat            = 0
     allocate(this%area_vtx           (this%half_jms:this%half_jme)); this%area_vtx            = 0
@@ -516,6 +529,7 @@ contains
     if (allocated(this%full_lat_deg  )) deallocate(this%full_lat_deg  )
     if (allocated(this%half_lat_deg  )) deallocate(this%half_lat_deg  )
     if (allocated(this%area_cell     )) deallocate(this%area_cell     )
+    if (allocated(this%area_cell_phys)) deallocate(this%area_cell_phys)
     if (allocated(this%area_lon      )) deallocate(this%area_lon      )
     if (allocated(this%area_lat      )) deallocate(this%area_lat      )
     if (allocated(this%area_vtx      )) deallocate(this%area_vtx      )

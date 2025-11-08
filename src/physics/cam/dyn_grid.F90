@@ -286,7 +286,7 @@ contains
       icol = 1
       do j = global_mesh%full_jds, global_mesh%full_jde
         do i = global_mesh%full_ids, global_mesh%full_ide
-          area_d_out(icol) = global_mesh%area_cell(j) / radius**2
+          area_d_out(icol) = global_mesh%area_cell_phys(j) / radius**2
           icol = icol + 1
         end do
       end do
@@ -295,7 +295,7 @@ contains
       icol = 1
       do j = global_mesh%full_jds, global_mesh%full_jde
         do i = global_mesh%full_ids, global_mesh%full_ide
-          wght_d_out(icol) = global_mesh%area_cell(j) / radius**2
+          wght_d_out(icol) = global_mesh%area_cell_phys(j) / radius**2
           icol = icol + 1
         end do
       end do

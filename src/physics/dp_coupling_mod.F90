@@ -108,7 +108,7 @@ contains
             icol = 1
             do j = mesh%full_jds, mesh%full_jde
               do i = mesh%full_ids, mesh%full_ide
-                pstate%q    (icol,k,m) = wet_mixing_ratio(tracers%q%d(i,j,k,m), tracers%qm%d(i,j,k))
+                pstate%q    (icol,k,m) = pstate%dp_dry(icol,k) / pstate%dp(icol,k) * tracers%q%d(i,j,k,m)
                 pstate%q_old(icol,k,m) = pstate%q(icol,k,m)
                 icol = icol + 1
               end do
@@ -264,7 +264,7 @@ contains
               do j = mesh%full_jds, mesh%full_jde
                 do i = mesh%full_ids, mesh%full_ide
                   ! NOTE: Here we make an approximation on (1 + qm).
-                  dqdt%d(i,j,k,m) = dstate%dmg%d(i,j,k) * ptend%dqdt(icol,k,m) * (1 + qm_old%d(i,j,k))
+                  dqdt%d(i,j,k,m) = pstate%dp(icol,k) * ptend%dqdt(icol,k,m)
                   icol = icol + 1
                 end do
               end do

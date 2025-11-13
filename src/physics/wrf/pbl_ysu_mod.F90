@@ -734,14 +734,14 @@ contains
           dk     = (zk * rlamdz / (rlamdz + zk))**2 * sqrt(ss)
           if (ri < 0) then
             ! Unstable regime
-            ri        = max(ri, ri_min)
-            sri       = sqrt(-ri)
-            kzm (i,k) = dk * (1 + 8 * (-ri) / (1 + 1.746_r8 * sri))
+            ri       = max(ri, ri_min)
+            sri      = sqrt(-ri)
+            kzm(i,k) = dk * (1 + 8 * (-ri) / (1 + 1.746_r8 * sri))
             kzh(i,k) = dk * (1 + 8 * (-ri) / (1 + 1.286_r8 * sri))
           else
             ! Stable regime
             kzh(i,k) = dk / (1 + 5 * ri)**2
-            prnum     = min(1.0 + 2.1 * ri, prmax)
+            prnum    = min(1.0 + 2.1 * ri, prmax)
             kzm(i,k) = kzh(i,k) * prnum
           end if
           kzm (i,k) = min(kzm(i,k) + kzm_min, kz_max)

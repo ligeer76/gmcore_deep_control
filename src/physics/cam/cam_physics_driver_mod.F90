@@ -42,7 +42,6 @@ module cam_physics_driver_mod
   ! GMCORE modules
   use flogger
   use string            , only: to_int
-  use formula_mod       , only: dry_mixing_ratio
   use namelist_mod      , only: dt_phys, dt_adv, restart, cam_namelist_path, case_name, case_desc, use_aqua_planet
   use process_mod       , only: proc, process_barrier
   use time_mod          , only: start_time, end_time, curr_time

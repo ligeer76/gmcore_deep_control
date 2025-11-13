@@ -62,6 +62,8 @@ contains
     logical west_halo_opt, east_halo_opt, south_halo_opt, north_halo_opt, async_opt
     integer t1, t2, tag, ierr
 
+    call wait_halo(field)
+
     call perf_start('fill_halo_2d')
 
     west_halo_opt  = .true. ; if (present(west_halo )) west_halo_opt  = west_halo
@@ -266,6 +268,8 @@ contains
 
     logical west_halo_opt, east_halo_opt, south_halo_opt, north_halo_opt, async_opt
     integer t1, t2, t3, tag, ierr
+
+    call wait_halo(field)
 
     call perf_start('fill_halo_3d')
 
@@ -473,6 +477,8 @@ contains
 
     logical west_halo_opt, east_halo_opt, south_halo_opt, north_halo_opt, async_opt
     integer t1, t2, t3, tag, ierr
+
+    call wait_halo(field, i4)
 
     call perf_start('fill_halo_4d')
 

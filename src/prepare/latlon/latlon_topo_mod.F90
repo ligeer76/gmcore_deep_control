@@ -263,7 +263,7 @@ contains
         end do
       end if
       call div_operator(fx, fy, df)
-      call filter_run(block%small_filter, df)
+      call filter_run(block%big_filter, df)
       call gzs%sub(df)
       call fill_halo(gzs)
       call calc_zs_slope(gzs, dzsdx, dzsdy)

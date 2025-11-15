@@ -293,7 +293,7 @@ contains
                  aux    => blocks(iblk)%aux          , &
                  q      => tracers(iblk)%q           )
       if (.not. use_div_damp .and. .not. advection) then
-        call calc_div(blocks(iblk), dstate)
+        call calc_div(blocks(iblk), dstate, .false.)
       end if
       if (.not. advection) call wind_c2a_operator(dstate%u_lon, dstate%v_lat, aux%u, aux%v)
       call write_fields('h0', mesh, dstate                   %fields)

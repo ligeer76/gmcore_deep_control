@@ -195,6 +195,7 @@ contains
                u_lon     => dstate%u_lon       , & ! inout
                v_lat     => dstate%v_lat       )   ! inout
     call wait_halo(dudt_phys)
+    call wait_halo(u_lon)
     do k = mesh%full_kds, mesh%full_kde
       do j = mesh%full_jds_no_pole, mesh%full_jde_no_pole
         do i = mesh%half_ids, mesh%half_ide
@@ -204,6 +205,7 @@ contains
     end do
     call fill_halo(u_lon, async=.true.)
     call wait_halo(dvdt_phys)
+    call wait_halo(v_lat)
     do k = mesh%full_kds, mesh%full_kde
       do j = mesh%half_jds, mesh%half_jde
         do i = mesh%full_ids, mesh%full_ide
@@ -229,6 +231,7 @@ contains
     associate (mesh  => block%mesh          , &
                dpsdt => block%aux%dpsdt_phys, & ! in
                mgs   => dstate%mgs          )   ! inout
+    call wait_halo(mgs)
     do j = mesh%full_jds, mesh%full_jde
       do i = mesh%full_ids, mesh%full_ide
         mgs%d(i,j) = mgs%d(i,j) + dt * dpsdt%d(i,j)
@@ -258,6 +261,7 @@ contains
                dmg   => dstate%dmg          , & ! in
                q     => tracers(block%id)%q , & ! in
                pt    => dstate%pt           )   ! inout
+    call wait_halo(pt)
     if (block%aux%updated_t) then
       ! ------------------------------------------------------------------------
       ! Update temperature.
@@ -338,6 +342,7 @@ contains
                dmg       => dstate%dmg         , & ! in
                q         => tracers(block%id)%q)   ! inout
     do m = 1, ntracers
+      call wait_halo(q, m)
       do k = mesh%full_kds, mesh%full_kde
         do j = mesh%full_jds, mesh%full_jde
           do i = mesh%full_ids, mesh%full_ide

@@ -251,7 +251,7 @@ contains
           end do
         end if
         if (.not. advection) call wind_c2a_operator(block%dstate(old)%u_lon, block%dstate(old)%v_lat, block%aux%u, block%aux%v)
-        call calc_div(block, dstate)
+        call calc_div(block, dstate, .false.)
         if (baroclinic .and. .not. restart) call block%static%ref_ps%copy(dstate%mgs, with_halo=.true.)
         end associate
       end do
@@ -592,7 +592,7 @@ contains
     integer, intent(in) :: itime
 
     call calc_grad_mf(block, block%dstate(itime))
-    call calc_div    (block, block%dstate(itime))
+    call calc_div    (block, block%dstate(itime), .false.)
     call calc_omg    (block, block%dstate(itime))
     call wind_c2a_operator(block%dstate(itime)%u_lon, block%dstate(itime)%v_lat, block%aux%u, block%aux%v)
 

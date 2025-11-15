@@ -99,7 +99,7 @@ contains
 
     integer i, j, k
 
-    call calc_div(block, dstate)
+    call calc_div(block, dstate, .true.)
 
     associate (mesh => block%mesh         , &
                div  => block%aux%div      , &

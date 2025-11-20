@@ -313,7 +313,6 @@ module namelist_mod
     filter_ptend              , &
     gmcore_data_dir           , &
     use_zs_grad_filter        , &
-    use_zs_polar_filter       , &
     use_zs_zonal_filter       , &
     topo_smooth_order         , &
     topo_smooth_coef          , &
@@ -508,8 +507,8 @@ contains
       write(*, *) 'topo_smooth_coef    = ', topo_smooth_coef
       write(*, *) 'topo_smooth_cycles  = ', to_str(topo_smooth_cycles)
     end if
-      write(*, *) 'use_zs_polar_filter = ', to_str(use_zs_polar_filter)
-      write(*, *) 'use_div_damp        = ', to_str(use_zs_zonal_filter
+      write(*, *) 'use_zs_zonal_filter = ', to_str(use_zs_zonal_filter)
+      write(*, *) 'use_div_damp        = ', to_str(use_div_damp)
     if (use_div_damp) then
       write(*, *) 'div_damp_cycles     = ', to_str(div_damp_cycles)
       write(*, *) 'div_damp_order      = ', to_str(div_damp_order)
@@ -584,8 +583,8 @@ contains
     call fiona_add_att(tag, 'filter_coef_c', filter_coef_c)
     call fiona_add_att(tag, 'filter_gauss_sigma', filter_gauss_sigma)
     call fiona_add_att(tag, 'use_zs_grad_filter', merge(1, 0, use_zs_grad_filter))
-    call fiona_add_att(tag, 'use_zs_polar_filter', merge(1, 0, use_zs_polar_filter))
-    call fiona_add_att(tag, 'use_div_damp', merge(1, 0, use_divuse_zs_zonal_filter
+    call fiona_add_att(tag, 'use_zs_zonal_filter', merge(1, 0, use_zs_zonal_filter))
+    call fiona_add_att(tag, 'use_div_damp', merge(1, 0, use_div_damp))
     if (use_div_damp) then
       call fiona_add_att(tag, 'div_damp_coef2', div_damp_coef2)
       call fiona_add_att(tag, 'div_damp_top'  , div_damp_top)

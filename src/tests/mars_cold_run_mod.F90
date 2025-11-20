@@ -46,7 +46,7 @@ contains
 
     if (proc%is_model()) then
       call latlon_topo_regrid(block)
-      if (use_topo_smooth) then
+      if (use_zs_grad_filter .or. use_zs_zonal_filter) then
         call latlon_topo_smooth(block)
       end if
 

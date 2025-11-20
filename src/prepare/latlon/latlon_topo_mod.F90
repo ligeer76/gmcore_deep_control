@@ -144,23 +144,27 @@ contains
 
     real(r8) tmp
 
-    if (.not. use_topo_smooth) return
+    if (.not. use_zs_grad_filter .and. .not. use_zs_zonal_filter) return
     if (proc%is_root()) call log_notice('Filter topography.')
 
     associate (lnd    => block%static%landmask, &
                gzs    => block%static%gzs     , &
                dzsdx  => block%static%dzsdx   , &
                dzsdy  => block%static%dzsdy   )
-    tmp = global_max(proc%comm_model, maxval(gzs%d / g))
-    if (proc%is_root()) call log_notice('Maximum zs is ' // to_str(tmp, 'F8.1') // ' m.')
-    tmp = global_max(proc%comm_model, max(dzsdx%absmax(), dzsdy%absmax()))
-    if (proc%is_root()) call log_notice('Maximum topography slope angle before filter is ' // to_str(atan(tmp) * deg, 'F7.2') // ' deg.')
-    if (use_zs_polar_filter) call zs_polar_filter(block, gzs, dzsdx, dzsdy)
-    call zs_grad_filter(block, lnd, gzs, dzsdx, dzsdy)
-    tmp = global_max(proc%comm_model, maxval(gzs%d / g))
-    if (proc%is_root()) call log_notice('Maximum zs is ' // to_str(tmp, 'F8.1') // ' m.')
-    tmp = global_max(proc%comm_model, max(dzsdx%absmax(), dzsdy%absmax()))
-    if (proc%is_root()) call log_notice('Maximum topography slope angle after filter is ' // to_str(atan(tmp) * deg, 'F7.2') // ' deg.')
+    if (use_zs_zonal_filter) then
+      call zs_polar_filter(block, gzs, dzsdx, dzsdy)
+    end if
+    if (use_zs_grad_filter) then
+      tmp = global_max(proc%comm_model, maxval(gzs%d / g))
+      if (proc%is_root()) call log_notice('Maximum zs is ' // to_str(tmp, 'F8.1') // ' m.')
+      tmp = global_max(proc%comm_model, max(dzsdx%absmax(), dzsdy%absmax()))
+      if (proc%is_root()) call log_notice('Maximum topography slope angle before grad filter is ' // to_str(atan(tmp) * deg, 'F7.2') // ' deg.')
+      call zs_grad_filter(block, lnd, gzs, dzsdx, dzsdy)
+      tmp = global_max(proc%comm_model, maxval(gzs%d / g))
+      if (proc%is_root()) call log_notice('Maximum zs is ' // to_str(tmp, 'F8.1') // ' m.')
+      tmp = global_max(proc%comm_model, max(dzsdx%absmax(), dzsdy%absmax()))
+      if (proc%is_root()) call log_notice('Maximum topography slope angle after grad filter is ' // to_str(atan(tmp) * deg, 'F7.2') // ' deg.')
+    end if
     end associate
 
   end subroutine latlon_topo_smooth
@@ -193,7 +197,7 @@ contains
     associate (mesh => block%filter_mesh, halo => block%filter_halo)
     call gzs_f%init('', '', '', 'cell', mesh, halo)
     lat0 = abs(global_mesh%full_lat_deg(2))
-    do cyc = 1, 3
+    do cyc = 1, 20
       call filter_run(block%big_filter, gzs, gzs_f)
       do j = mesh%full_jds_no_pole, mesh%full_jde_no_pole
         wgt = exp_two_values(1.0_r8, 0.0_r8, lat0, 60.0_r8, abs(mesh%full_lat_deg(j)))

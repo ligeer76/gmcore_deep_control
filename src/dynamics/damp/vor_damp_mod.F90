@@ -46,7 +46,7 @@ contains
       do k = global_mesh%full_kds, global_mesh%full_kde
         do j = global_mesh%full_jds_no_pole, global_mesh%full_jde_no_pole
           cx(j,k) = vor_damp_coef2 * global_mesh%full_cos_lat(j)**(r - 1) * &
-            exp_two_values(vor_damp_pole, 1.0_r8, lat0, vor_damp_lat0, abs(global_mesh%full_lat_deg(j))) * &
+            exp_two_values(1.0_r8, 0.0_r8, lat0, vor_damp_lat0, abs(global_mesh%full_lat_deg(j))) * &
             global_mesh%le_lon(j) * global_mesh%de_lon(j) / dt_dyn
         end do
       end do
@@ -54,7 +54,7 @@ contains
       do k = global_mesh%full_kds, global_mesh%full_kde
         do j = global_mesh%half_jds, global_mesh%half_jde
           cy(j,k) = vor_damp_coef2 * global_mesh%half_cos_lat(j)**(r - 1) * &
-            exp_two_values(vor_damp_pole, 1.0_r8, lat0, vor_damp_lat0, abs(global_mesh%half_lat_deg(j))) * &
+            exp_two_values(1.0_r8, 0.0_r8, lat0, vor_damp_lat0, abs(global_mesh%half_lat_deg(j))) * &
             global_mesh%le_lat(j) * global_mesh%de_lat(j) / dt_dyn
         end do
       end do

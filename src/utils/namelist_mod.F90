@@ -145,14 +145,14 @@ module namelist_mod
   ! Filter settings
   real(r8)        :: filter_wave_speed    = 300.0_r8
   real(r8)        :: filter_coef_a        = 3.5_r8
-  real(r8)        :: filter_coef_b        = 0.1_r8
-  real(r8)        :: filter_coef_c        = 0.3_r8
+  real(r8)        :: filter_coef_b        = 0.3_r8
+  real(r8)        :: filter_coef_c        = 0.2_r8
   real(r8)        :: filter_gauss_sigma   = 8.8_r8
   real(r8)        :: filter_min_width     = 0.0_r8
 
   ! Damping settings
-  logical         :: use_topo_smooth      = .false.
-  logical         :: use_zs_polar_filter  = .false.
+  logical         :: use_zs_grad_filter   = .false.
+  logical         :: use_zs_zonal_filter  = .false.
   real(r8)        :: topo_max_slope       = 0.12_r8
   integer         :: topo_smooth_order    = 2
   real(r8)        :: topo_smooth_coef     = 1.0e6_r8
@@ -162,15 +162,14 @@ module namelist_mod
   integer         :: div_damp_order       = 2
   real(r8)        :: div_damp_top         = 1
   integer         :: div_damp_k0          = 10
-  real(r8)        :: div_damp_pole        = 5
+  real(r8)        :: div_damp_pole        = 100
   real(r8)        :: div_damp_lat0        = 80
   real(r8)        :: div_damp_coef2       = 1.0_r8 / 128.0_r8
   real(r8)        :: div_damp_coef4       = 0.01_r8
   logical         :: use_vor_damp         = .false.
   integer         :: vor_damp_cycles      = 1
   integer         :: vor_damp_order       = 2
-  real(r8)        :: vor_damp_coef2       = 0.0005_r8
-  real(r8)        :: vor_damp_pole        = 100
+  real(r8)        :: vor_damp_coef2       = 0.005_r8
   real(r8)        :: vor_damp_lat0        = 80
   logical         :: use_rayleigh_damp_w  = .false.
   real(r8)        :: rayleigh_damp_w_coef = 0.2       ! s-1
@@ -188,7 +187,7 @@ module namelist_mod
   real(r8)        :: sponge_layer_coef    = 1.0e6_r8
   logical         :: use_pole_damp        = .true.
   real(r8)        :: pole_damp_coef       = 0.25_r8
-  real(r8)        :: pole_damp_lat0       = 80
+  real(r8)        :: pole_damp_lat0       = 70
 
   ! Input settings
   integer         :: input_ngroups        = 0
@@ -313,9 +312,9 @@ module namelist_mod
     cam_namelist_path         , &
     filter_ptend              , &
     gmcore_data_dir           , &
-    use_topo_smooth           , &
+    use_zs_grad_filter        , &
     use_zs_polar_filter       , &
-    topo_max_slope            , &
+    use_zs_zonal_filter       , &
     topo_smooth_order         , &
     topo_smooth_coef          , &
     topo_smooth_cycles        , &
@@ -332,7 +331,6 @@ module namelist_mod
     vor_damp_cycles           , &
     vor_damp_order            , &
     vor_damp_coef2            , &
-    vor_damp_pole             , &
     vor_damp_lat0             , &
     use_rayleigh_damp_w       , &
     rayleigh_damp_w_coef      , &
@@ -505,11 +503,13 @@ contains
       write(*, *) 'weno_order_h        = ', to_str(weno_order_h)
       write(*, *) 'weno_order_v        = ', to_str(weno_order_v)
     end if
-      write(*, *) 'use_topo_smooth     = ', to_str(use_topo_smooth)
-    if (use_topo_smooth) then
+      write(*, *) 'use_zs_grad_filter  = ', to_str(use_zs_grad_filter)
+    if (use_zs_grad_filter) then
+      write(*, *) 'topo_smooth_coef    = ', topo_smooth_coef
       write(*, *) 'topo_smooth_cycles  = ', to_str(topo_smooth_cycles)
     end if
-      write(*, *) 'use_div_damp        = ', to_str(use_div_damp)
+      write(*, *) 'use_zs_polar_filter = ', to_str(use_zs_polar_filter)
+      write(*, *) 'use_div_damp        = ', to_str(use_zs_zonal_filter
     if (use_div_damp) then
       write(*, *) 'div_damp_cycles     = ', to_str(div_damp_cycles)
       write(*, *) 'div_damp_order      = ', to_str(div_damp_order)
@@ -525,7 +525,6 @@ contains
       write(*, *) 'vor_damp_cycles     = ', to_str(vor_damp_cycles)
       write(*, *) 'vor_damp_order      = ', to_str(vor_damp_order)
       write(*, *) 'vor_damp_coef2      = ', vor_damp_coef2
-      write(*, *) 'vor_damp_pole       = ', to_str(vor_damp_pole, 3)
       write(*, *) 'vor_damp_lat0       = ', to_str(vor_damp_lat0, 3)
     end if
     if (nonhydrostatic) then
@@ -583,7 +582,10 @@ contains
     call fiona_add_att(tag, 'filter_coef_a', filter_coef_a)
     call fiona_add_att(tag, 'filter_coef_b', filter_coef_b)
     call fiona_add_att(tag, 'filter_coef_c', filter_coef_c)
-    call fiona_add_att(tag, 'use_div_damp', merge(1, 0, use_div_damp))
+    call fiona_add_att(tag, 'filter_gauss_sigma', filter_gauss_sigma)
+    call fiona_add_att(tag, 'use_zs_grad_filter', merge(1, 0, use_zs_grad_filter))
+    call fiona_add_att(tag, 'use_zs_polar_filter', merge(1, 0, use_zs_polar_filter))
+    call fiona_add_att(tag, 'use_div_damp', merge(1, 0, use_divuse_zs_zonal_filter
     if (use_div_damp) then
       call fiona_add_att(tag, 'div_damp_coef2', div_damp_coef2)
       call fiona_add_att(tag, 'div_damp_top'  , div_damp_top)
@@ -594,7 +596,6 @@ contains
     call fiona_add_att(tag, 'use_vor_damp', merge(1, 0, use_vor_damp))
     if (use_vor_damp) then
       call fiona_add_att(tag, 'vor_damp_coef2', vor_damp_coef2)
-      call fiona_add_att(tag, 'vor_damp_pole' , vor_damp_pole)
       call fiona_add_att(tag, 'vor_damp_lat0' , vor_damp_lat0)
     end if
     call fiona_add_att(tag, 'use_smag_damp', merge(1, 0, use_smag_damp))

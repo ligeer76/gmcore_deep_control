@@ -295,8 +295,6 @@ contains
                cflx_my     => batch%bg%cflx    , & ! borrowed array
                cfly        => batch%cfly       , & ! in
                cfly_mx     => batch%bg%cfly    , & ! borrowed array
-               divx        => batch%divx       , & ! in
-               divy        => batch%divy       , & ! in
                qx          => batch%qx         , & ! work array
                qy          => batch%qy         , & ! work array
                qmfx0       => batch%qmfx0      , & ! work array

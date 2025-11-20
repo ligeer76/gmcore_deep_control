@@ -35,7 +35,7 @@ contains
         do iblk = 1, size(blocks)
           call latlon_topo_regrid(blocks(iblk))
         end do
-        if (use_topo_smooth) then
+        if (use_zs_grad_filter .or. use_zs_zonal_filter) then
           do iblk = 1, size(blocks)
             call latlon_topo_smooth(blocks(iblk))
           end do

@@ -392,7 +392,7 @@ contains
         loc             ='lev'                                               , &
         mesh            =mesh                                                , &
         halo            =halo                                                , &
-        output          =''                                                  , &
+        output          ='h1'                                                , &
         restart         =.false.                                             , &
         field           =this%ph_lev                                         )
     end if
@@ -1218,7 +1218,7 @@ contains
         loc             ='cell'                                              , &
         mesh            =mesh                                                , &
         halo            =halo                                                , &
-        output          =''                                                  , &
+        output          ='h1'                                                , &
         restart         =.false.                                             , &
         field           =this%tv                                             )
     end if

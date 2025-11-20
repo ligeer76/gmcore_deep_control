@@ -152,7 +152,7 @@ contains
                dzsdx  => block%static%dzsdx   , &
                dzsdy  => block%static%dzsdy   )
     if (use_zs_zonal_filter) then
-      call zs_polar_filter(block, gzs, dzsdx, dzsdy)
+      call zs_zonal_filter(block, gzs, dzsdx, dzsdy)
     end if
     if (use_zs_grad_filter) then
       tmp = global_max(proc%comm_model, maxval(gzs%d / g))
@@ -183,7 +183,7 @@ contains
 
   end subroutine calc_zs_slope
 
-  subroutine zs_polar_filter(block, gzs, dzsdx, dzsdy)
+  subroutine zs_zonal_filter(block, gzs, dzsdx, dzsdy)
 
     type(block_type), intent(in) :: block
     type(latlon_field2d_type), intent(inout) :: gzs
@@ -197,10 +197,10 @@ contains
     associate (mesh => block%filter_mesh, halo => block%filter_halo)
     call gzs_f%init('', '', '', 'cell', mesh, halo)
     lat0 = abs(global_mesh%full_lat_deg(2))
-    do cyc = 1, 20
+    do cyc = 1, zs_zonal_filter_cycles
       call filter_run(block%big_filter, gzs, gzs_f)
       do j = mesh%full_jds_no_pole, mesh%full_jde_no_pole
-        wgt = exp_two_values(1.0_r8, 0.0_r8, lat0, 60.0_r8, abs(mesh%full_lat_deg(j)))
+        wgt = exp_two_values(1.0_r8, 0.0_r8, lat0, zs_zonal_filter_lat0, abs(mesh%full_lat_deg(j)))
         gzs%d(:,j) = wgt * gzs_f%d(:,j) + (1 - wgt) * gzs%d(:,j)
       end do
       call fill_halo(gzs)
@@ -209,7 +209,7 @@ contains
     call gzs_f%clear()
     end associate
 
-  end subroutine zs_polar_filter
+  end subroutine zs_zonal_filter
 
   subroutine zs_grad_filter(block, lnd, gzs, dzsdx, dzsdy)
 
@@ -229,10 +229,10 @@ contains
                fx   => block%aux%fx_2d, &
                fy   => block%aux%fy_2d, &
                df   => block%aux%df_2d)
-    c0 = (-1)**(topo_smooth_order / 2) * topo_smooth_coef
-    do cyc = 1, topo_smooth_cycles
+    c0 = (-1)**(zs_grad_filter_order / 2) * zs_grad_filter_coef
+    do cyc = 1, zs_grad_filter_cycles
       call f%copy(gzs, with_halo=.true.)
-      do k = 1, (topo_smooth_order - 2) / 2
+      do k = 1, (zs_grad_filter_order - 2) / 2
         call grad_operator(f, fx, fy, with_halo=.true.)
         call div_operator(fx, fy, f)
         call fill_halo(f)
@@ -254,7 +254,7 @@ contains
           fy%d(i,j) = c0 * max(0.0_r8, min(lnd%d(i,j), lnd%d(i,j+1))) * fy%d(i,j)
         end do
       end do
-      if (topo_smooth_order > 2) then
+      if (zs_grad_filter_order > 2) then
         do j = mesh%full_jds_no_pole, mesh%full_jde_no_pole
           do i = mesh%half_ids - 1, mesh%half_ide
             fx%d(i,j) = fx%d(i,j) * max(0.0_r8, sign(1.0_r8, -fx%d(i,j) * (gzs%d(i+1,j) - gzs%d(i,j))))

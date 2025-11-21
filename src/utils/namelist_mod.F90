@@ -152,7 +152,6 @@ module namelist_mod
 
   ! Damping settings
   logical         :: use_zs_zonal_filter      = .false.
-  real(r8)        :: zs_zonal_filter_lat0     = 0.0_r8
   integer         :: zs_zonal_filter_cycles   = 1
   logical         :: use_zs_grad_filter       = .false.
   real(r8)        :: topo_max_slope           = 0.12_r8
@@ -316,7 +315,6 @@ module namelist_mod
     gmcore_data_dir           , &
     use_zs_grad_filter        , &
     use_zs_zonal_filter       , &
-    zs_zonal_filter_lat0      , &
     zs_zonal_filter_cycles    , &
     zs_grad_filter_order      , &
     zs_grad_filter_coef       , &
@@ -513,7 +511,6 @@ contains
     end if
       write(*, *) 'use_zs_zonal_filter    = ', to_str(use_zs_zonal_filter)
     if (use_zs_zonal_filter) then
-      write(*, *) 'zs_zonal_filter_lat0   = ', zs_zonal_filter_lat0
       write(*, *) 'zs_zonal_filter_cycles = ', to_str(zs_zonal_filter_cycles)
     end if
       write(*, *) 'use_div_damp           = ', to_str(use_div_damp)
@@ -598,7 +595,6 @@ contains
     end if
     call fiona_add_att(tag, 'use_zs_zonal_filter', merge(1, 0, use_zs_zonal_filter))
     if (use_zs_zonal_filter) then
-      call fiona_add_att(tag, 'zs_zonal_filter_lat0', zs_zonal_filter_lat0)
       call fiona_add_att(tag, 'zs_zonal_filter_cycles', zs_zonal_filter_cycles)
     end if
     call fiona_add_att(tag, 'use_div_damp', merge(1, 0, use_div_damp))

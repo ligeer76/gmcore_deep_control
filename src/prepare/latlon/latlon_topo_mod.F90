@@ -190,23 +190,14 @@ contains
     type(latlon_field2d_type), intent(inout) :: dzsdx
     type(latlon_field2d_type), intent(inout) :: dzsdy
 
-    type(latlon_field2d_type) gzs_f
-    real(r8) lat0, wgt
     integer j, cyc
 
     associate (mesh => block%filter_mesh, halo => block%filter_halo)
-    call gzs_f%init('', '', '', 'cell', mesh, halo)
-    lat0 = abs(global_mesh%full_lat_deg(2))
     do cyc = 1, zs_zonal_filter_cycles
-      call filter_run(block%big_filter, gzs, gzs_f)
-      do j = mesh%full_jds_no_pole, mesh%full_jde_no_pole
-        wgt = exp_two_values(1.0_r8, 0.0_r8, lat0, zs_zonal_filter_lat0, abs(mesh%full_lat_deg(j)))
-        gzs%d(:,j) = wgt * gzs_f%d(:,j) + (1 - wgt) * gzs%d(:,j)
-      end do
-      call fill_halo(gzs)
+      call filter_run(block%big_filter, gzs)
     end do
+    call fill_halo(gzs)
     call calc_zs_slope(gzs, dzsdx, dzsdy)
-    call gzs_f%clear()
     end associate
 
   end subroutine zs_zonal_filter

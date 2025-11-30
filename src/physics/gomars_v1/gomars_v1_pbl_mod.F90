@@ -55,7 +55,7 @@ contains
     real(r8) km0, kh0, kmin
     real(r8) lnzz, dpt, wsp, rib, fm, fh
     real(r8) rhos, alpha, qsat, coef
-    real(r8) kdf(nlev), rhs(nlev), bnd, var(nlev)
+    real(r8) kdf(nlev+1), rhs(nlev), bnd, var(nlev)
 
     associate (mesh       => state%mesh      , &
                zs         => state%zs        , & ! in

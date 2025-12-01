@@ -152,7 +152,7 @@ module gomars_v1_rad_mod
     0.214d0, &
     0.316d0]
 
-  real(r8), parameter :: pgasref(npref) = [ &
+  real(r8), parameter :: pgasref(npref) = [ & ! hPa
     1.0d-6, &
     1.0d-5, &
     1.0d-4, &
@@ -276,7 +276,7 @@ contains
     ! Interpolate CO2 k coefficients to the finer pressure grid.
     call laginterp(pgasref, pfgasref, co2i, co2v, fzeroi, fzerov)
 
-    ptop = 10**pfgasref(1)
+    ptop = 10**pfgasref(1) * 100 ! Pa
 
   end subroutine gomars_v1_rad_init
 
@@ -1748,7 +1748,7 @@ contains
     ! Get the upper and lower Pressure-grid indicies that bound the
     ! requested pressure.  If the requested pressure is outside
     ! the P-grid, set up to extrapolate from the appropiate end.
-    plog = log10(p)
+    plog = log10(p / 100) ! hPa
     idx_p = 0
     do i = 2, npint - 1
       if (plog <= pfgasref(i)) then

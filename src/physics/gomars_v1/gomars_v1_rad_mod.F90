@@ -1021,43 +1021,42 @@ contains
             diffvt = diffvt + diffv * gweight(ig) * (1 - fzerov(is))
           end if
         end do
-      else
-        ! Special 17th Gauss point
-        ig = ngauss
-        call getdetau(      &
-          dtauv  (1,is,ig), &
-          tauv   (1,is,ig), &
-          taucumv(1,is,ig), &
-          wbarv  (1,is,ig), &
-          cosbv  (1,is,ig), &
-          detau  (  is,ig))
-        btop = 0
-        bsfc = als * cosz * solar(is) * exp(-min(detau(is,ig) / cosz, maxexp))
-        call gfluxv(        &
-          solar  (  is   ), &
-          dtauv  (1,is,ig), &
-          tauv   (1,is,ig), &
-          taucumv(1,is,ig), &
-          wbarv  (1,is,ig), &
-          cosbv  (1,is,ig), &
-          cosz            , &
-          als             , &
-          btop            , &
-          bsfc            , &
-          fmupv           , &
-          fmdnv           , &
-          diffv           , &
-          fluxup          , &
-          fluxdn          , &
-          detau    (is,ig))
-        nfluxtopv = nfluxtopv + (fluxup - fluxdn) * gweight(ig) * fzero
-        do l = 1, nlayrad
-          fmnetv (l) = fmnetv (l) + (fmupv(l) - fmdnv(l)) * gweight(ig) * fzero
-          fluxupv(l) = fluxupv(l) + fmupv(l) * gweight(ig) * fzero
-          fluxdnv(l) = fluxdnv(l) + fmdnv(l) * gweight(ig) * fzero
-        end do
-        diffvt = diffvt + diffv * gweight(ig) * fzero
       end if
+      ! Special 17th Gauss point
+      ig = ngauss
+      call getdetau(      &
+        dtauv  (1,is,ig), &
+        tauv   (1,is,ig), &
+        taucumv(1,is,ig), &
+        wbarv  (1,is,ig), &
+        cosbv  (1,is,ig), &
+        detau  (  is,ig))
+      btop = 0
+      bsfc = als * cosz * solar(is) * exp(-min(detau(is,ig) / cosz, maxexp))
+      call gfluxv(        &
+        solar  (  is   ), &
+        dtauv  (1,is,ig), &
+        tauv   (1,is,ig), &
+        taucumv(1,is,ig), &
+        wbarv  (1,is,ig), &
+        cosbv  (1,is,ig), &
+        cosz            , &
+        als             , &
+        btop            , &
+        bsfc            , &
+        fmupv           , &
+        fmdnv           , &
+        diffv           , &
+        fluxup          , &
+        fluxdn          , &
+        detau    (is,ig))
+      nfluxtopv = nfluxtopv + (fluxup - fluxdn) * gweight(ig) * fzero
+      do l = 1, nlayrad
+        fmnetv (l) = fmnetv (l) + (fmupv(l) - fmdnv(l)) * gweight(ig) * fzero
+        fluxupv(l) = fluxupv(l) + fmupv(l) * gweight(ig) * fzero
+        fluxdnv(l) = fluxdnv(l) + fmdnv(l) * gweight(ig) * fzero
+      end do
+      diffvt = diffvt + diffv * gweight(ig) * fzero
     end do
 
   end subroutine sfluxv

@@ -106,7 +106,7 @@ contains
     real(r8), intent(in) :: lat         ! Latitude (rad)
     real(r8), intent(in) :: time_of_day ! Time fraction of a day (1)
 
-    res = sin(lat) * sin_decl + cos(lat) * cos_decl * cos(pi2 * time_of_day + lon - pi)
+    res = sin(lat) * sin_decl + cos(lat) * cos_decl * cos(pi2 * time_of_day + lon)
     if (res < 1.0e-5_r8) res = 0
 
   end function solar_cos_zenith_angle

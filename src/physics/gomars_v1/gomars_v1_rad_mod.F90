@@ -1510,30 +1510,29 @@ contains
             end do
           end if
         end do
-      else
-        ! Special 17th Gauss-point
-        ig   = ngauss
-        btop = (1 - exp(-dtaui(1,is,ig) * plev(2) / (plev(4) - plev(2)) / ubari)) * planckir(is,ntt)
-        call gfluxi(        &
-          is              , &
-          tlev            , &
-          dtaui  (:,is,ig), &
-          taucumi(:,is,ig), &
-          wbari  (:,is,ig), &
-          cosbi  (:,is,ig), &
-          albi            , &
-          btop            , &
-          bsfc            , &
-          ftopup          , &
-          fmupi           , &
-          fmdni           )
-        nfluxtopi = nfluxtopi + ftopup * dwni(is) * fzero
-        do l = 1, nlevrad - 1
-          fluxupi(l) = fluxupi(l) + fmupi(l) * dwni(is) * fzero
-          fluxdni(l) = fluxdni(l) + fmdni(l) * dwni(is) * fzero
-          fmneti (l) = fmneti (l) + (fmupi(l) - fmdni(l)) * dwni(is) * fzero
-        end do
       end if
+      ! Special 17th Gauss-point
+      ig   = ngauss
+      btop = (1 - exp(-dtaui(1,is,ig) * plev(2) / (plev(4) - plev(2)) / ubari)) * planckir(is,ntt)
+      call gfluxi(        &
+        is              , &
+        tlev            , &
+        dtaui  (:,is,ig), &
+        taucumi(:,is,ig), &
+        wbari  (:,is,ig), &
+        cosbi  (:,is,ig), &
+        albi            , &
+        btop            , &
+        bsfc            , &
+        ftopup          , &
+        fmupi           , &
+        fmdni           )
+      nfluxtopi = nfluxtopi + ftopup * dwni(is) * fzero
+      do l = 1, nlevrad - 1
+        fluxupi(l) = fluxupi(l) + fmupi(l) * dwni(is) * fzero
+        fluxdni(l) = fluxdni(l) + fmdni(l) * dwni(is) * fzero
+        fmneti (l) = fmneti (l) + (fmupi(l) - fmdni(l)) * dwni(is) * fzero
+      end do
     end do
 
   end subroutine sfluxi

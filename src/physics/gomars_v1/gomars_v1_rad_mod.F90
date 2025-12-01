@@ -463,7 +463,7 @@ contains
       end do
       ! Update stratospheric temperature.
       nonlte = 2.2e2_r8 * pstrat / (1 + 2.2e2_r8 * pstrat)
-      tstrat(i) = tstrat(i) + dt * (suntot(3) * nonlte + irtot(3)) / (cpd * ptrop / g)
+      tstrat(i) = tstrat(i) + dt * (suntot(3) * nonlte + irtot(3)) / cpd
     end do
     end associate
 

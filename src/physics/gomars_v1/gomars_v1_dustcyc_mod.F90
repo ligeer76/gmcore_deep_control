@@ -33,8 +33,8 @@ contains
 
     type(gomars_v1_state_type), intent(inout) :: state
 
-    call ddl_lift(state)
-    call wsl_lift(state)
+    if (use_ddl) call ddl_lift(state)
+    if (use_wsl) call wsl_lift(state)
 
   end subroutine gomars_v1_dustcyc_run
 

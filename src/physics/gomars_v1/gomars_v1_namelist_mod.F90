@@ -35,7 +35,8 @@ module gomars_v1_namelist_mod
   real(r8) :: alpha_d          = 5.0e-11_r8
 
   character(8) :: wsl_scheme   = 'newman'  ! newman or kmh
-  logical  :: use_wsl_newman   = .true.
+  logical  :: use_wsl          = .true.
+  logical  :: use_wsl_newman   = .false.
   logical  :: use_wsl_kmh      = .false.
   real(r8) :: tau_thresh       = 0.04_r8   ! Wind stress threshold for wind stress dust lifting (Pa)
   ! Wind stress lifting efficiency
@@ -80,8 +81,10 @@ contains
 
     icethresh_kgm2 = icethresh_depth * rho_ice * 1.0e-6_r8
 
-    use_wsl_newman = wsl_scheme == 'newman'
-    use_wsl_kmh    = wsl_scheme == 'kmh'
+    if (use_wsl) then
+      use_wsl_newman = wsl_scheme == 'newman'
+      use_wsl_kmh    = wsl_scheme == 'kmh'
+    end if
 
   end subroutine gomars_v1_parse_namelist
 

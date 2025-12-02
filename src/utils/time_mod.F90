@@ -87,7 +87,7 @@ contains
         call start_time%init(my    =start_time_array(1), &
                              sol   =start_time_array(2), &
                              hour  =start_time_array(3), &
-                             minute=start_time_array(4))
+                             minute=start_time_array(4), planet='mars')
       else
         call start_time%init(my=0, sol=0, hour=0, minute=0, planet='mars')
       end if
@@ -106,7 +106,7 @@ contains
                            month =end_time_array(2), &
                            day   =end_time_array(3), &
                            hour  =end_time_array(4), &
-                           minute=end_time_array(5))
+                           minute=end_time_array(5), planet='mars')
       end if
     case ('mars')
       if (run_my > 0 .or. run_sol > 0 .or. run_hours > 0) then

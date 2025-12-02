@@ -64,6 +64,8 @@ contains
     real(r8), intent(in), optional :: ptop
     real(r8), intent(in), optional :: ztop
 
+    integer i
+
     call this%clear()
 
     this%ncol = ncol
@@ -79,6 +81,11 @@ contains
     allocate(this%gid    (ncol  )); this%gid     = gid
     if (present(ptop)) this%ptop = ptop
     if (present(ztop)) this%ztop = ztop
+
+    ! Ensure cos_lat is zero at the poles.
+    do i = 1, ncol
+      if (abs(abs(this%lat(i)) - pi05) < 1.0e-16) this%cos_lat(i) = 0
+    end do
 
     this%min_lon = min_lon
     this%max_lon = max_lon

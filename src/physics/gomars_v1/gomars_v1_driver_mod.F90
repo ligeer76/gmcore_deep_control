@@ -156,6 +156,7 @@ contains
       call fiona_input_range('alb', 'albedo', dat, coord_range_1=[mesh%min_lon, mesh%max_lon], coord_range_2=[mesh%min_lat, mesh%max_lat])
       call fiona_end_input('alb')
       call latlon_interp_bilinear_column(lon, lat, dat, mesh%lon, mesh%lat, state%alsp)
+      call physics_pole_sum(mesh%lat, state%alsp)
       deallocate(lon, lat, dat)
 
       ! Surface thermal inertia
@@ -232,6 +233,7 @@ contains
       call fiona_input_range('zavgtg', 'zavgtg', dat, coord_range_1=[mesh%min_lon, mesh%max_lon], coord_range_2=[mesh%min_lat, mesh%max_lat])
       call fiona_end_input('zavgtg')
       call latlon_interp_bilinear_column(lon, lat, dat, mesh%lon, mesh%lat, state%zavgtg)
+      call physics_pole_sum(mesh%lat, state%zavgtg)
       deallocate(lon, lat, dat)
       end associate
     end if

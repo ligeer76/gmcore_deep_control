@@ -53,8 +53,8 @@ contains
       ! ------------------------------------------------------------------------
       ! Calculate stratospheric condensation.
       if (tstrat(i) < tsat_strat) then
-        dm     (  0) = cpd * (tsat - tstrat(i)) * ptrop / g / xlhtc ! [kg m-2]
-        tstrat (i  ) = tsat
+        dm     (  0) = cpd * (tsat_strat - tstrat(i)) * ptrop / g / xlhtc ! [kg m-2]
+        tstrat (i  ) = tsat_strat
         dpsdt  (i  ) = dpsdt(i) + dm(0) / dt * g
       end if
       ! ------------------------------------------------------------------------

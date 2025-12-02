@@ -55,6 +55,7 @@ module gomars_v1_namelist_mod
     latent_heat              , &
     use_ddl                  , &
     alpha_d                  , &
+    use_wsl                  , &
     wsl_scheme               , &
     use_wsl_newman           , &
     use_wsl_kmh              , &

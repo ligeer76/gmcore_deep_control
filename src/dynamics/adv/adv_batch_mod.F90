@@ -344,6 +344,7 @@ contains
         loc             =loc0                                                , &
         mesh            =mesh                                                , &
         halo            =halo                                                , &
+        output          ='h1'                                                , &
         restart         =.false.                                             , &
         field           =this%divx                                           )
       call append_field(this%fields                                          , &
@@ -353,6 +354,7 @@ contains
         loc             =loc0                                                , &
         mesh            =mesh                                                , &
         halo            =halo                                                , &
+        output          ='h1'                                                , &
         restart         =.false.                                             , &
         field           =this%divy                                           )
       call append_field(this%fields                                          , &

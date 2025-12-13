@@ -35,6 +35,10 @@ module formula_mod
   public local_richardson_number
   public water_vapor_saturation_mixing_ratio_mars
   public dewpoint_temperature_mars
+  public wind_direction
+  public wind_speed
+  public wind_u_component
+  public wind_v_component
 
 contains
 
@@ -246,5 +250,42 @@ contains
     res = 3182.48_r8 / (23.3494_r8 - log(p / 100.0_r8))
 
   end function dewpoint_temperature_mars
+
+  pure elemental real(r8) function wind_direction(u, v) result(res)
+
+    real(r8), intent(in) :: u
+    real(r8), intent(in) :: v
+
+    res = mod(atan2(u, v) + pi, pi2)
+    res = merge(res + pi2, res, res < 0)
+
+  end function wind_direction
+
+  pure elemental real(r8) function wind_speed(u, v) result(res)
+
+    real(r8), intent(in) :: u
+    real(r8), intent(in) :: v
+
+    res = sqrt(u**2 + v**2)
+
+  end function wind_speed
+
+  pure elemental real(r8) function wind_u_component(dir, spd) result(res)
+
+    real(r8), intent(in) :: dir
+    real(r8), intent(in) :: spd
+
+    res = -spd * sin(dir)
+
+  end function wind_u_component
+
+  pure elemental real(r8) function wind_v_component(dir, spd) result(res)
+
+    real(r8), intent(in) :: dir
+    real(r8), intent(in) :: spd
+
+    res = -spd * cos(dir)
+
+  end function wind_v_component
 
 end module formula_mod

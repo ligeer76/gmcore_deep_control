@@ -303,7 +303,7 @@ contains
             do k = mesh%full_kds, mesh%full_kde
               do j = mesh%full_jds, mesh%full_jde
                 do i = mesh%full_ids, mesh%full_ide
-                  qxy%d(i,j,k) = (m_old%d(i,j,k) * q_old%d(i,j,k) - dt_adv * dqdt%d(i,j,k)) / mxy%d(i,j,k)
+                  qxy%d(i,j,k) = (m_old%d(i,j,k) * q_old%d(i,j,k) - dt_adv * dqdt%d(i,j,k)) / mxy%d(i,j,k) ! (40), (42)
                 end do
               end do
             end do
@@ -324,6 +324,10 @@ contains
                     end if
                   end if
 #endif
+                  if (is_nan(q_new%d(i,j,k))) then
+                    call log_error('Mixing ratio of ' // trim(tracer_names(idx)) // ' is NaN after advection update at grid (' // &
+                      to_str(i) // ', ' // to_str(j) // ', ' // to_str(k) // ')!', __FILE__, __LINE__)
+                  end if
                 end do
               end do
             end do

@@ -173,7 +173,7 @@ def plot_contour_lat(ax, var,
 		exit(1)
 	if 'lev' in var.dims:
 		lev = var.lev.copy()
-	elif 'ilev' in res.dims:
+	elif 'ilev' in var.dims:
 		lev = var.ilev.copy()
 	elif 'z' in var.dims:
 		lev = var.z.copy()

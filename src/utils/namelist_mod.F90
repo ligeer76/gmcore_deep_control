@@ -152,7 +152,7 @@ module namelist_mod
 
   ! Damping settings
   logical         :: use_zs_zonal_filter      = .false.
-  integer         :: zs_zonal_filter_cycles   = 1
+  integer         :: zs_zonal_filter_cycles   = 3
   logical         :: use_zs_grad_filter       = .false.
   real(r8)        :: topo_max_slope           = 0.12_r8
   integer         :: zs_grad_filter_order     = 2

@@ -274,13 +274,13 @@ contains
     end if
 
     if (first_call .or. time_has_alert('h0_new_file')) then
-      call fiona_output('h0', 'lon' , global_mesh%full_lon_deg(1:global_mesh%full_nlon), only_root=.true.)
-      call fiona_output('h0', 'lat' , global_mesh%full_lat_deg(1:global_mesh%full_nlat), only_root=.true.)
-      call fiona_output('h0', 'lev' , global_mesh%full_lev    (1:global_mesh%full_nlev), only_root=.true.)
-      call fiona_output('h0', 'ilon', global_mesh%half_lon_deg(1:global_mesh%half_nlon), only_root=.true.)
-      call fiona_output('h0', 'ilat', global_mesh%half_lat_deg(1:global_mesh%half_nlat), only_root=.true.)
-      call fiona_output('h0', 'ilev', global_mesh%half_lev    (1:global_mesh%half_nlev), only_root=.true.)
-      call fiona_output('h0', 'area', global_mesh%area_cell(1:global_mesh%full_nlat)   , only_root=.true.)
+      call fiona_output('h0', 'lon' , global_mesh%full_lon_deg  (1:global_mesh%full_nlon), only_root=.true.)
+      call fiona_output('h0', 'lat' , global_mesh%full_lat_deg  (1:global_mesh%full_nlat), only_root=.true.)
+      call fiona_output('h0', 'lev' , global_mesh%full_lev      (1:global_mesh%full_nlev), only_root=.true.)
+      call fiona_output('h0', 'ilon', global_mesh%half_lon_deg  (1:global_mesh%half_nlon), only_root=.true.)
+      call fiona_output('h0', 'ilat', global_mesh%half_lat_deg  (1:global_mesh%half_nlat), only_root=.true.)
+      call fiona_output('h0', 'ilev', global_mesh%half_lev      (1:global_mesh%half_nlev), only_root=.true.)
+      call fiona_output('h0', 'area', global_mesh%area_cell_phys(1:global_mesh%full_nlat), only_root=.true.)
       do iblk = 1, size(blocks)
         call write_fields('h0', blocks(iblk)%mesh, blocks(iblk)%static%fields)
       end do
@@ -345,7 +345,11 @@ contains
     call add_fields('h1', blocks(1)%adv_batch_bg%fields)
     call add_fields('h1', blocks(1)%adv_batch_pt%fields)
     call add_fields('h1', blocks(1)%adv_batch_nh%fields)
-
+    if (allocated(blocks(1)%adv_batches)) then
+      do i = 1, size(blocks(1)%adv_batches)
+        call add_fields('h1', blocks(1)%adv_batches(i)%fields)
+      end do
+    end if
     ! Filter parameters
     call fiona_add_var('h1', 'fw', long_name='Filter width', units='', dim_names=['lat'])
 
@@ -357,7 +361,7 @@ contains
 
     logical, save :: first_call = .true.
     real(8) time1, time2
-    integer iblk
+    integer iblk, i
 
     if (proc%is_root()) then
       call log_notice('Write h1 file.')
@@ -392,7 +396,11 @@ contains
       call write_fields('h1', mesh, blocks(iblk)%adv_batch_bg%fields)
       call write_fields('h1', mesh, blocks(iblk)%adv_batch_pt%fields)
       call write_fields('h1', mesh, blocks(iblk)%adv_batch_nh%fields)
-
+      if (allocated(blocks(iblk)%adv_batches)) then
+        do i = 1, size(blocks(iblk)%adv_batches)
+          call write_fields('h1', mesh, blocks(iblk)%adv_batches(i)%fields)
+        end do
+      end if
       ! Filter parameters
       call fiona_output('h1', 'fw', blocks(iblk)%big_filter%width_lon(mesh%full_jds:mesh%full_jde), start=[mesh%full_jds], count=[mesh%full_nlat])
       end associate

@@ -164,6 +164,7 @@ contains
         time1 = time2
       end if
       call history_write_h0(itime)
+      if (output_h1) call history_write_h1(itime)
     end if
 
   end subroutine output

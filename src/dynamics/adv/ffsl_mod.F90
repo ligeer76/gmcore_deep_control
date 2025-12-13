@@ -218,21 +218,21 @@ contains
 
     dt_opt = batch%dt; if (present(dt)) dt_opt = dt
 
-    associate (mesh     => batch%mesh       , &
-               m        => batch%m          , & ! in
-               mx       => batch%bg%qx      , & ! borrowed array
-               my       => batch%bg%qy      , & ! borrowed array
-               mxy      => batch%bg%m       , & ! borrowed array
-               mfx      => batch%mfx        , & ! in
-               mfy      => batch%mfy        , & ! in
-               mfz      => batch%mfz        , & ! in
-               cflx     => batch%bg%cflx    , & ! borrowed array
-               cfly     => batch%bg%cfly    , & ! borrowed array
-               cflz     => batch%cflz       , & ! work array
-               mfx_frac => batch%bg%mfx_frac, & ! borrowed array
-               mfz_frac => batch%mfz_frac   , & ! work array
-               dmxdt    => batch%qx         , & ! borrowed array
-               dmydt    => batch%qy         )   ! borrowed array
+    associate (mesh        => batch%mesh       , &
+               m           => batch%m          , & ! in
+               mx          => batch%bg%qx      , & ! borrowed array
+               my          => batch%bg%qy      , & ! borrowed array
+               mxy         => batch%bg%m       , & ! borrowed array
+               mfx         => batch%mfx        , & ! in
+               mfy         => batch%mfy        , & ! in
+               mfz         => batch%mfz        , & ! in
+               cflx_my     => batch%bg%cflx    , & ! borrowed array
+               cfly_mx     => batch%bg%cfly    , & ! borrowed array
+               cflz        => batch%cflz       , & ! work array
+               mfx_my_frac => batch%bg%mfx_frac, & ! borrowed array
+               mfz_frac    => batch%mfz_frac   , & ! work array
+               dmxdt       => batch%qx         , & ! borrowed array
+               dmydt       => batch%qy         )   ! borrowed array
     ks = merge(mesh%full_kds, mesh%half_kds, batch%loc(1:3) /= 'lev')
     ke = merge(mesh%full_kde, mesh%half_kde, batch%loc(1:3) /= 'lev')
     ! Calculate new mx and my from final mfx and mfy.
@@ -250,7 +250,7 @@ contains
     call fill_halo(my, south_halo=.false., north_halo=.false., async=.true.)
     ! Update cflx, cfly and mfx_frac for tracer advection.
     ! NOTE: Swap mx and my.
-    call batch%calc_cflxy_tracer(my, mx, mfx, mfy, cflx, cfly, mfx_frac, dt_opt)
+    call batch%calc_cflxy_tracer(my, mx, mfx, mfy, cflx_my, cfly_mx, mfx_my_frac, dt_opt)
     ! Calculate intermediate mass due to horizontal advection, which is used for horizontal-vertical splitting (see adv_run_tracers).
     do k = ks, ke
       do j = mesh%full_jds, mesh%full_jde

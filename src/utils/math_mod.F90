@@ -29,6 +29,7 @@ module math_mod
   public gaussw5, gaussx5
   public gaussw20, gaussx20
   public is_ge, is_le
+  public is_nan
 
   interface cross_product
     module procedure cross_product_r8
@@ -48,6 +49,11 @@ module math_mod
   interface tanh_two_values
     module procedure tanh_two_values_r8
   end interface tanh_two_values
+
+  interface is_nan
+    module procedure is_nan_r4
+    module procedure is_nan_r8
+  end interface is_nan
 
   real(8), target :: gaussx3(3) = &
     [-0.7745966692414834d0, 0.0d0, 0.7745966692414834d0]
@@ -439,5 +445,27 @@ contains
     res = x <= y .or. abs(x - y) <= eps
 
   end function is_le
+
+  pure logical function is_nan_r4(x) result(res)
+
+    real(4), intent(in) :: x
+
+    integer(4) ix
+
+    ix = transfer(x, 0_4)
+    res = iand(ishft(ix, -23), 255_4) == 255_4 .and. iand(ix, 8388607_4) /= 0_4
+
+  end function is_nan_r4
+
+  pure logical function is_nan_r8(x) result(res)
+
+    real(8), intent(in) :: x
+
+    integer(8) ix
+
+    ix = transfer(x, 0_8)
+    res = iand(ishft(ix, -52), 2047_8) == 2047_8 .and. iand(ix, 4503599627370495_8) /= 0_8
+
+  end function is_nan_r8
 
 end module math_mod

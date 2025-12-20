@@ -696,9 +696,7 @@ contains
                u_lat   => block%aux%u_lat  , & ! out
                v_lon   => block%aux%v_lon  , & ! out
                mfx_lon => block%aux%mfx_lon, & ! out
-               mfy_lat => block%aux%mfy_lat, & ! out
-               mfy_lon => block%aux%mfy_lon, & ! out
-               mfx_lat => block%aux%mfx_lat)   ! out
+               mfy_lat => block%aux%mfy_lat)   ! out
     do k = mesh%full_kds, mesh%full_kde
       do j = mesh%full_jds_no_pole, mesh%full_jde_no_pole + merge(0, 1, mesh%has_north_pole())
         do i = mesh%half_ids - 1, mesh%half_ide
@@ -714,23 +712,8 @@ contains
       end do
     end do
 
-    call interp_run(mfx_lon, mfx_lat)
-    do k = mesh%full_kds, mesh%full_kde
-      do j = mesh%half_jds, mesh%half_jde
-        do i = mesh%full_ids, mesh%full_ide
-          u_lat%d(i,j,k) = mfx_lat%d(i,j,k) / dmg_lat%d(i,j,k)
-        end do
-      end do
-    end do
-
-    call interp_run(mfy_lat, mfy_lon)
-    do k = mesh%full_kds, mesh%full_kde
-      do j = mesh%full_jds_no_pole, mesh%full_jde_no_pole
-        do i = mesh%half_ids, mesh%half_ide
-          v_lon%d(i,j,k) = mfy_lon%d(i,j,k) / dmg_lon%d(i,j,k)
-        end do
-      end do
-    end do
+    call interp_run(u_lon, u_lat)
+    call interp_run(v_lat, v_lon)
     end associate
 
     call perf_stop('calc_mf')
@@ -1048,70 +1031,50 @@ contains
     associate (mesh    => block%mesh       , &
                mfx_lon => block%aux%mfx_lon, & ! in
                mfy_lat => block%aux%mfy_lat, & ! in
-               mfy_lon => block%aux%mfy_lon, & ! in
-               mfx_lat => block%aux%mfx_lat, & ! in
                pv_lon  => block%aux%pv_lon , & ! in
                pv_lat  => block%aux%pv_lat , & ! in
                dudt    => dtend%dudt       , & ! out
                dvdt    => dtend%dvdt       )   ! out
-    select case (coriolis_scheme)
-    case (1)
-      do k = mesh%full_kds, mesh%full_kde
-        do j = mesh%half_jds, mesh%half_jde
-          do i = mesh%full_ids, mesh%full_ide
-            tmp = - (                                                            &
-              mesh%tg_wgt_lat(1,j) * (                                           &
-                mfx_lon%d(i-1,j  ,k) * (pv_lat%d(i,j,k) + pv_lon%d(i-1,j  ,k)) + &
-                mfx_lon%d(i  ,j  ,k) * (pv_lat%d(i,j,k) + pv_lon%d(i  ,j  ,k))   &
-              ) +                                                                &
-              mesh%tg_wgt_lat(2,j) * (                                           &
-                mfx_lon%d(i-1,j+1,k) * (pv_lat%d(i,j,k) + pv_lon%d(i-1,j+1,k)) + &
-                mfx_lon%d(i  ,j+1,k) * (pv_lat%d(i,j,k) + pv_lon%d(i  ,j+1,k))   &
-              )                                                                  &
-            ) * 0.5_r8
-            dvdt%d(i,j,k) = dvdt%d(i,j,k) + tmp
+    do k = mesh%full_kds, mesh%full_kde
+      do j = mesh%half_jds, mesh%half_jde
+        do i = mesh%full_ids, mesh%full_ide
+          tmp = - (                                                            &
+            mesh%tg_wgt_lat(1,j) * (                                           &
+              mfx_lon%d(i-1,j  ,k) * (pv_lat%d(i,j,k) + pv_lon%d(i-1,j  ,k)) + &
+              mfx_lon%d(i  ,j  ,k) * (pv_lat%d(i,j,k) + pv_lon%d(i  ,j  ,k))   &
+            ) +                                                                &
+            mesh%tg_wgt_lat(2,j) * (                                           &
+              mfx_lon%d(i-1,j+1,k) * (pv_lat%d(i,j,k) + pv_lon%d(i-1,j+1,k)) + &
+              mfx_lon%d(i  ,j+1,k) * (pv_lat%d(i,j,k) + pv_lon%d(i  ,j+1,k))   &
+            )                                                                  &
+          ) * 0.5_r8
+          dvdt%d(i,j,k) = dvdt%d(i,j,k) + tmp
 #ifdef OUTPUT_H1_DTEND
-            dtend%dvdt_coriolis%d(i,j,k) = tmp
+          dtend%dvdt_coriolis%d(i,j,k) = tmp
 #endif
-          end do
         end do
       end do
-      do k = mesh%full_kds, mesh%full_kde
-        do j = mesh%full_jds_no_pole, mesh%full_jde_no_pole
-          do i = mesh%half_ids, mesh%half_ide
-            tmp = (                                                              &
-              mesh%tg_wgt_lon(1,j) * (                                           &
-                mfy_lat%d(i  ,j-1,k) * (pv_lon%d(i,j,k) + pv_lat%d(i  ,j-1,k)) + &
-                mfy_lat%d(i+1,j-1,k) * (pv_lon%d(i,j,k) + pv_lat%d(i+1,j-1,k))   &
-              ) +                                                                &
-              mesh%tg_wgt_lon(2,j) * (                                           &
-                mfy_lat%d(i  ,j  ,k) * (pv_lon%d(i,j,k) + pv_lat%d(i  ,j  ,k)) + &
-                mfy_lat%d(i+1,j  ,k) * (pv_lon%d(i,j,k) + pv_lat%d(i+1,j  ,k))   &
-              )                                                                  &
-            ) * 0.5_r8
-            dudt%d(i,j,k) = dudt%d(i,j,k) + tmp
+    end do
+    do k = mesh%full_kds, mesh%full_kde
+      do j = mesh%full_jds_no_pole, mesh%full_jde_no_pole
+        do i = mesh%half_ids, mesh%half_ide
+          tmp = (                                                              &
+            mesh%tg_wgt_lon(1,j) * (                                           &
+              mfy_lat%d(i  ,j-1,k) * (pv_lon%d(i,j,k) + pv_lat%d(i  ,j-1,k)) + &
+              mfy_lat%d(i+1,j-1,k) * (pv_lon%d(i,j,k) + pv_lat%d(i+1,j-1,k))   &
+            ) +                                                                &
+            mesh%tg_wgt_lon(2,j) * (                                           &
+              mfy_lat%d(i  ,j  ,k) * (pv_lon%d(i,j,k) + pv_lat%d(i  ,j  ,k)) + &
+              mfy_lat%d(i+1,j  ,k) * (pv_lon%d(i,j,k) + pv_lat%d(i+1,j  ,k))   &
+            )                                                                  &
+          ) * 0.5_r8
+          dudt%d(i,j,k) = dudt%d(i,j,k) + tmp
 #ifdef OUTPUT_H1_DTEND
-            dtend%dudt_coriolis%d(i,j,k) = tmp
+          dtend%dudt_coriolis%d(i,j,k) = tmp
 #endif
-          end do
         end do
       end do
-    case (2)
-      do k = mesh%full_kds, mesh%full_kde
-        do j = mesh%half_jds, mesh%half_jde
-          do i = mesh%full_ids, mesh%full_ide
-            dvdt%d(i,j,k) = dvdt%d(i,j,k) - mfx_lat%d(i,j,k) * pv_lat%d(i,j,k)
-          end do
-        end do
-      end do
-      do k = mesh%full_kds, mesh%full_kde
-        do j = mesh%full_jds_no_pole, mesh%full_jde_no_pole
-          do i = mesh%half_ids, mesh%half_ide
-            dudt%d(i,j,k) = dudt%d(i,j,k) + mfy_lon%d(i,j,k) * pv_lon%d(i,j,k)
-          end do
-        end do
-      end do
-    end select
+    end do
     end associate
 
     call perf_stop('calc_coriolis')

@@ -158,8 +158,6 @@ module dynamics_types_mod
     type(latlon_field3d_type) mfz_lev_lat ! Vertical coordinate speed multiplied by 𝛛π/𝛛η on merdional edge
     type(latlon_field3d_type) mfx_lon     ! Normal mass flux on zonal edge
     type(latlon_field3d_type) mfy_lat     ! Normal mass flux on merdional edge
-    type(latlon_field3d_type) mfx_lat     ! Tangient mass flux on zonal edge
-    type(latlon_field3d_type) mfy_lon     ! Tangient mass flux on merdional edge
     type(latlon_field3d_type) vor         ! Vorticity (s-1)
     type(latlon_field3d_type) pv          ! Potential vorticity
     type(latlon_field3d_type) div         ! Divergence (s-1)
@@ -1426,26 +1424,6 @@ contains
       output            ='h1'                                                , &
       restart           =.false.                                             , &
       field             =this%mfy_lat                                        )
-    call append_field(this%fields                                            , &
-      name              ='mfx_lat'                                           , &
-      long_name         ='Zonal mass flux'                                   , &
-      units             ='Pa m s-1'                                          , &
-      loc               ='lat'                                               , &
-      mesh              =mesh                                                , &
-      halo              =halo                                                , &
-      output            ='h1'                                                , &
-      restart           =.false.                                             , &
-      field             =this%mfx_lat                                        )
-    call append_field(this%fields                                            , &
-      name              ='mfy_lon'                                           , &
-      long_name         ='Meridional mass flux'                              , &
-      units             ='Pa m s-1'                                          , &
-      loc               ='lon'                                               , &
-      mesh              =mesh                                                , &
-      halo              =halo                                                , &
-      output            ='h1'                                                , &
-      restart           =.false.                                             , &
-      field             =this%mfy_lon                                        )
     if (.not. advection) then
       call append_field(this%fields                                          , &
         name            ='vor'                                               , &

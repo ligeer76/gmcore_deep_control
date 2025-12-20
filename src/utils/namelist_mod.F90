@@ -109,8 +109,6 @@ module namelist_mod
   real(r8)        :: hybrid_coord_ncep_dppre  = 0
   real(r8)        :: hybrid_coord_ncep_dptop  = 0
 
-  integer         :: coriolis_scheme          = 1
-
   integer         :: ke_scheme                = 2
   real(r8)        :: ke_cell_wgt              = 0.55_r8
 
@@ -276,7 +274,6 @@ module namelist_mod
     hybrid_coord_ncep_dpsig   , &
     hybrid_coord_ncep_dppre   , &
     hybrid_coord_ncep_dptop   , &
-    coriolis_scheme           , &
     ke_scheme                 , &
     ke_cell_wgt               , &
     pv_adv_scheme             , &
@@ -483,7 +480,6 @@ contains
     if (pt_adv_scheme == 'ffsl') then
       write(*, *) 'ffsl_flux_type         = ', trim(ffsl_flux_type)
     end if
-      write(*, *) 'coriolis_scheme        = ', to_str(coriolis_scheme)
       write(*, *) 'ke_scheme              = ', to_str(ke_scheme)
     if (ke_scheme == 2) then
       write(*, *) 'ke_cell_wgt            = ', to_str(ke_cell_wgt, 2)

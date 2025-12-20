@@ -39,7 +39,6 @@ module adv_batch_mod
   use latlon_field_types_mod
   use latlon_operators_mod
   use latlon_parallel_mod
-  use filter_mod
   use vert_coord_mod
 
   implicit none
@@ -59,6 +58,7 @@ module adv_batch_mod
     logical  :: initialized = .false.
     logical  :: dynamic     = .false.
     logical  :: passive     = .true.
+    logical  :: semilag     = .false.
     integer  :: ntracers    = 1
     integer  :: nstep       = 0     ! Number of dynamic steps for one adv step
     integer  :: step        = 0     ! Step counter
@@ -76,7 +76,7 @@ module adv_batch_mod
     type(latlon_field3d_type) qmfx
     type(latlon_field3d_type) qmfy
     type(latlon_field3d_type) qmfz
-    ! FFSL variables
+    ! Semi-Lagrangian variables
     type(latlon_field3d_type) u_frac
     type(latlon_field3d_type) w_frac
     type(latlon_field3d_type) mfx_frac
@@ -84,13 +84,15 @@ module adv_batch_mod
     type(latlon_field3d_type) cflx
     type(latlon_field3d_type) cfly
     type(latlon_field3d_type) cflz
+    ! FFSL variables
     type(latlon_field3d_type) divx
     type(latlon_field3d_type) divy
     type(latlon_field3d_type) qmfx0 ! Inner tracer mass flux in x direction
     type(latlon_field3d_type) qmfy0 ! Inner tracer mass flux in y direction
     type(latlon_field3d_type) qx
     type(latlon_field3d_type) qy
-    type(adv_batch_type), pointer :: bg => null() ! Background batch
+    ! Background batch
+    type(adv_batch_type), pointer :: bg => null()
   contains
     procedure :: init       => adv_batch_init
     procedure :: clear      => adv_batch_clear
@@ -101,17 +103,16 @@ module adv_batch_mod
     procedure :: calc_cflxy_tracer => adv_batch_calc_cflxy_tracer
     procedure :: calc_cflz_mass    => adv_batch_calc_cflz_mass
     procedure :: calc_cflz_tracer  => adv_batch_calc_cflz_tracer
-    procedure, private :: prepare_ffsl_h => adv_batch_prepare_ffsl_h
-    procedure, private :: prepare_ffsl_v => adv_batch_prepare_ffsl_v
+    procedure, private :: prepare_semilag_h => adv_batch_prepare_semilag_h
+    procedure, private :: prepare_semilag_v => adv_batch_prepare_semilag_v
     final :: adv_batch_final
   end type adv_batch_type
 
 contains
 
-  subroutine adv_batch_init(this, filter, filter_mesh, filter_halo, mesh, halo, scheme, batch_loc, batch_name, dt, dynamic, passive, idx, bg)
+  subroutine adv_batch_init(this, filter_mesh, filter_halo, mesh, halo, scheme, batch_loc, batch_name, dt, dynamic, passive, semilag, idx, bg)
 
     class(adv_batch_type), intent(inout) :: this
-    type(filter_type), intent(in) :: filter
     type(latlon_mesh_type), intent(in), target :: filter_mesh
     type(latlon_halo_type), intent(in) :: filter_halo(:)
     type(latlon_mesh_type), intent(in), target :: mesh
@@ -122,6 +123,7 @@ contains
     real(r8), intent(in) :: dt
     logical, intent(in) :: dynamic
     logical, intent(in) :: passive
+    logical, intent(in) :: semilag
     integer, intent(in), optional :: idx(:)
     class(adv_batch_type), intent(in), target, optional :: bg
 
@@ -137,6 +139,7 @@ contains
     this%dt       = dt
     this%dynamic  = dynamic
     this%passive  = passive
+    this%semilag  = semilag
     this%nstep    = dt / dt_dyn
     this%step     = 0
 
@@ -281,8 +284,7 @@ contains
       output            ='h1'                                                , &
       restart           =.false.                                             , &
       field             =this%qmfz                                           )
-    select case (this%scheme_h)
-    case ('ffsl')
+    if (this%semilag) then
       call append_field(this%fields                                          , &
         name            =trim(this%name) // '_mfx_frac'                      , &
         long_name       ='Fractional mass flux in x direction'               , &
@@ -337,6 +339,31 @@ contains
         output          ='h1'                                                , &
         restart         =.false.                                             , &
         field           =this%cfly                                           )
+      if (this%passive) then
+        call append_field(this%fields                                        , &
+          name          =trim(this%name) // '_mfz_frac'                      , &
+          long_name     ='Fractional vertical mass flux'                     , &
+          units         ='Pa m-2 s-1'                                        , &
+          loc           =locz                                                , &
+          mesh          =mesh                                                , &
+          halo          =halo                                                , &
+          output        ='h1'                                                , &
+          restart       =.false.                                             , &
+          field         =this%mfz_frac                                        )
+      end if
+      call append_field(this%fields                                          , &
+        name            =trim(this%name) // '_cflz'                          , &
+        long_name       ='CFL number in z direction'                         , &
+        units           =''                                                  , &
+        loc             =locz                                                , &
+        mesh            =mesh                                                , &
+        halo            =halo                                                , &
+        output          ='h1'                                                , &
+        restart         =.false.                                             , &
+        field           =this%cflz                                           )
+    end if
+    select case (this%scheme_h)
+    case ('ffsl')
       call append_field(this%fields                                          , &
         name            =trim(this%name) // '_divx'                          , &
         long_name       ='Mass flux divergence in x direction'               , &
@@ -395,31 +422,6 @@ contains
         restart         =.false.                                             , &
         field           =this%qy                                             )
     end select
-    select case (this%scheme_v)
-    case ('ffsl')
-      if (this%passive) then
-        call append_field(this%fields                                        , &
-          name          =trim(this%name) // '_mfz_frac'                      , &
-          long_name     ='Fractional vertical mass flux'                     , &
-          units         ='Pa m-2 s-1'                                        , &
-          loc           =locz                                                , &
-          mesh          =mesh                                                , &
-          halo          =halo                                                , &
-          output        ='h1'                                                , &
-          restart       =.false.                                             , &
-          field         =this%mfz_frac                                        )
-      end if
-      call append_field(this%fields                                          , &
-        name            =trim(this%name) // '_cflz'                          , &
-        long_name       ='CFL number in z direction'                         , &
-        units           =''                                                  , &
-        loc             =locz                                                , &
-        mesh            =mesh                                                , &
-        halo            =halo                                                , &
-        output          ='h1'                                                , &
-        restart         =.false.                                             , &
-        field           =this%cflz                                           )
-    end select
 
     if (present(idx)) then
       this%ntracers = size(idx)
@@ -473,7 +475,7 @@ contains
 
     call this%m%copy(m)
     call adv_fill_vhalo(this%m, no_negvals=.true.)
-    if (this%scheme_h == 'ffsl') call fill_halo(this%m, async=.true.)
+    if (this%semilag) call fill_halo(this%m, async=.true.)
 
   end subroutine adv_batch_copy_m_old
 
@@ -499,8 +501,10 @@ contains
     if (present(mfz)) call this%mfz%link(mfz)
     if (present(m  )) call this%copy_m_old(m)
 
-    if (this%scheme_h == 'ffsl') call this%prepare_ffsl_h(dt)
-    if (this%scheme_v == 'ffsl') call this%prepare_ffsl_v(dt)
+    if (this%semilag) then
+      call this%prepare_semilag_h(dt)
+      call this%prepare_semilag_v(dt)
+    end if
 
     call perf_stop('adv_batch_set_wind')
 
@@ -545,8 +549,10 @@ contains
     this%step = this%step + 1
     if (this%step > this%nstep) then
       this%step = 0
-      if (this%scheme_h == 'ffsl') call this%prepare_ffsl_h(dt)
-      if (this%scheme_v == 'ffsl') call this%prepare_ffsl_v(dt)
+      if (this%semilag) then
+        call this%prepare_semilag_h(dt)
+        call this%prepare_semilag_v(dt)
+      end if
     end if
 
   end subroutine adv_batch_accum_wind
@@ -774,7 +780,7 @@ contains
 
   end subroutine adv_batch_calc_cflz_tracer
 
-  subroutine adv_batch_prepare_ffsl_h(this, dt)
+  subroutine adv_batch_prepare_semilag_h(this, dt)
 
     class(adv_batch_type), intent(inout) :: this
     real(r8), intent(in), optional :: dt
@@ -799,13 +805,15 @@ contains
     else
       call this%calc_cflxy_mass(dt_opt)
     end if
-    call divx_operator(u, divx)
-    call divy_operator(v, divy)
+    if (this%scheme_h == 'ffsl') then
+      call divx_operator(u, divx)
+      call divy_operator(v, divy)
+    end if
     end associate
 
-  end subroutine adv_batch_prepare_ffsl_h
+  end subroutine adv_batch_prepare_semilag_h
 
-  subroutine adv_batch_prepare_ffsl_v(this, dt)
+  subroutine adv_batch_prepare_semilag_v(this, dt)
 
     class(adv_batch_type), intent(inout) :: this
     real(r8), intent(in), optional :: dt
@@ -825,7 +833,7 @@ contains
     end if
     end associate
 
-  end subroutine adv_batch_prepare_ffsl_v
+  end subroutine adv_batch_prepare_semilag_v
 
   subroutine adv_batch_final(this)
 

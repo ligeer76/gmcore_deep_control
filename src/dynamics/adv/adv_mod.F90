@@ -66,24 +66,24 @@ contains
     ! Initialize advection batches.
     do iblk = 1, size(blocks)
         call blocks(iblk)%adv_batch_bg%init(                  &
-          blocks(iblk)%big_filter                           , &
           blocks(iblk)%filter_mesh, blocks(iblk)%filter_halo, &
           blocks(iblk)%mesh, blocks(iblk)%halo              , &
-          bg_adv_scheme, 'cell', 'bg', dt_dyn, dynamic=.true., passive=.false.)
+          bg_adv_scheme, 'cell', 'bg', dt_dyn, dynamic=.true.,&
+          passive=.false., semilag=bg_adv_scheme=='ffsl')
       if (baroclinic) then
         call blocks(iblk)%adv_batch_pt%init(                  &
-          blocks(iblk)%big_filter                           , &
           blocks(iblk)%filter_mesh, blocks(iblk)%filter_halo, &
           blocks(iblk)%mesh, blocks(iblk)%halo              , &
-          pt_adv_scheme, 'cell', 'pt', dt_dyn, dynamic=.true., passive=.true., &
+          pt_adv_scheme, 'cell', 'pt', dt_dyn, dynamic=.true.,&
+          passive=.true., semilag=.false., &
           bg=blocks(iblk)%adv_batch_bg)
       end if
       if (nonhydrostatic) then
         call blocks(iblk)%adv_batch_nh%init(                  &
-          blocks(iblk)%big_filter                           , &
           blocks(iblk)%filter_mesh, blocks(iblk)%filter_halo, &
           blocks(iblk)%mesh, blocks(iblk)%halo              , &
-          nh_adv_scheme, 'lev', 'nh', dt_dyn, dynamic=.true., passive=.true., &
+          nh_adv_scheme, 'lev', 'nh', dt_dyn, dynamic=.true., &
+          passive=.true., semilag=.false., &
           bg=blocks(iblk)%adv_batch_bg)
       end if
     end do
@@ -104,12 +104,11 @@ contains
           end if
         end do
         call blocks(iblk)%adv_batches(ibat)%init(             &
-          blocks(iblk)%big_filter                           , &
           blocks(iblk)%filter_mesh, blocks(iblk)%filter_halo, &
           blocks(iblk)%mesh, blocks(iblk)%halo              , &
           'ffsl', 'cell', batch_names(ibat), batch_dts(ibat), &
-          dynamic=.false., passive=.true., idx=idx(1:n)     , &
-          bg=blocks(iblk)%adv_batch_bg)
+          dynamic=.false., passive=.true., semilag=.true.   , &
+          idx=idx(1:n), bg=blocks(iblk)%adv_batch_bg)
       end do
     end do
 

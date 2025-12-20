@@ -161,7 +161,7 @@ module namelist_mod
   integer         :: div_damp_order           = 2
   real(r8)        :: div_damp_top             = 1
   integer         :: div_damp_k0              = 10
-  real(r8)        :: div_damp_pole            = 100
+  real(r8)        :: div_damp_pole            = 10
   real(r8)        :: div_damp_lat0            = 80
   real(r8)        :: div_damp_coef2           = 1.0_r8 / 128.0_r8
   real(r8)        :: div_damp_coef4           = 0.01_r8

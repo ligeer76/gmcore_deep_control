@@ -284,12 +284,11 @@ contains
           call fiona_input('r0', 'adv_batch_ntracers', n       )
           call fiona_input('r0', 'adv_batch_idx'     , idx     , start=[1,i], count=[ntracers     ,1])
           call batch%init(                                      &
-            blocks(iblk)%big_filter                           , &
             blocks(iblk)%filter_mesh, blocks(iblk)%filter_halo, &
             blocks(iblk)%mesh, blocks(iblk)%halo              , &
             trim(scheme_h)//':'//trim(scheme_v), loc, name, dt, &
-            dynamic=.false., passive=.true., idx=idx(1:n)     , &
-            bg=blocks(iblk)%adv_batch_bg)
+            dynamic=.false., passive=.true., semilag=.true.   , &
+            idx=idx(1:n), bg=blocks(iblk)%adv_batch_bg)
           end associate
         end do
       end do

@@ -34,7 +34,7 @@ contains
     type(latlon_field3d_type), intent(in   ) :: m
     type(latlon_field3d_type), intent(inout) :: mfx
     type(latlon_field3d_type), intent(inout) :: mfy
-    real(r8), intent(in), optional :: dt
+    real(r8), intent(in) :: dt
 
     integer ks, ke, i, j, k
 
@@ -90,7 +90,7 @@ contains
     type(latlon_field3d_type), intent(in   ) :: q
     type(latlon_field3d_type), intent(inout) :: qmfx
     type(latlon_field3d_type), intent(inout) :: qmfy
-    real(r8), intent(in), optional :: dt
+    real(r8), intent(in) :: dt
 
     integer ks, ke, i, j, k
 
@@ -171,7 +171,7 @@ contains
     type(adv_batch_type), intent(inout) :: batch
     type(latlon_field3d_type), intent(in) :: q
     type(latlon_field3d_type), intent(inout) :: qmfz
-    real(r8), intent(in), optional :: dt
+    real(r8), intent(in) :: dt
 
     integer i, j, k
 

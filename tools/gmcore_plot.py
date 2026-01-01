@@ -300,9 +300,12 @@ def plot_contour_map(ax, var,
 		circle = mpath.Path(verts * radius + center)
 		ax.set_boundary(circle, transform=ax.transAxes)
 
-def plot_time_series(ax, time, var, ylim=None, label=None, color=None, font_size=8):
+def plot_time_series(ax, time, var, ylim=None, label=None, color=None, font_size=8, xlabel=None, xticks=None, xticklabels=None):
 	ax.plot(time, var, '-', color=color, label=label)
 	ax.tick_params(axis='both', labelsize=font_size)
+	if xticks is not None and xticklabels is not None:
+		ax.set_xticks(list(xticks))
+		ax.set_xticklabels(list(xticklabels))
 	if ylim is not None: ax.set_ylim(ylim)
 	if 'long_name' in var.attrs:
 		ax.set_title(var.long_name)
@@ -315,7 +318,8 @@ def plot_time_series(ax, time, var, ylim=None, label=None, color=None, font_size
 		ax.xaxis.set_major_formatter(formatter)
 		ax.set_xlabel('Time')
 	else:
-		ax.set_xlabel('Sol')
+		ax.set_xlabel('Hours')
+	if xlabel is not None: ax.set_xlabel(xlabel)
 
 def window_closed(event):
 	plt.close()

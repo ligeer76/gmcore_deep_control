@@ -149,14 +149,20 @@ contains
   subroutine adv_calc_mass_hflx(batch, m, mfx, mfy, dt)
 
     type(adv_batch_type     ), intent(inout) :: batch
-    type(latlon_field3d_type), intent(in   ) :: m
+    type(latlon_field3d_type), intent(inout) :: m
     type(latlon_field3d_type), intent(inout) :: mfx
     type(latlon_field3d_type), intent(inout) :: mfy
     real(r8), intent(in), optional :: dt
 
+    real(r8) dt_opt
+
+    call wait_halo(m)
+
+    dt_opt = batch%dt; if (present(dt)) dt_opt = dt
+
     select case (batch%scheme_h)
     case ('ffsl')
-      call ffsl_calc_mass_hflx_swift(batch, m, mfx, mfy, dt)
+      call ffsl_calc_mass_hflx_swift(batch, m, mfx, mfy, dt_opt)
     end select
 
   end subroutine adv_calc_mass_hflx
@@ -168,9 +174,13 @@ contains
     type(latlon_field3d_type), intent(inout) :: mfz
     real(r8), intent(in), optional :: dt
 
+    real(r8) dt_opt
+
+    dt_opt = batch%dt; if (present(dt)) dt_opt = dt
+
     select case (batch%scheme_v)
     case ('ffsl')
-      call ffsl_calc_mass_vflx(batch, m, mfz, dt)
+      call ffsl_calc_mass_vflx(batch, m, mfz, dt_opt)
     end select
 
   end subroutine adv_calc_mass_vflx
@@ -183,13 +193,17 @@ contains
     type(latlon_field3d_type), intent(inout) :: qmfy
     real(r8), intent(in), optional :: dt
 
+    real(r8) dt_opt
+
+    dt_opt = batch%dt; if (present(dt)) dt_opt = dt
+
     select case (batch%scheme_h)
     case ('upwind')
-      call upwind_calc_tracer_hflx(batch, q, qmfx, qmfy, dt)
+      call upwind_calc_tracer_hflx(batch, q, qmfx, qmfy, dt_opt)
     case ('weno')
-      call weno_calc_tracer_hflx(batch, q, qmfx, qmfy, dt)
+      call weno_calc_tracer_hflx(batch, q, qmfx, qmfy, dt_opt)
     case ('ffsl')
-      call ffsl_calc_tracer_hflx_swift(batch, q, qmfx, qmfy, dt)
+      call ffsl_calc_tracer_hflx_swift(batch, q, qmfx, qmfy, dt_opt)
     end select
 
   end subroutine adv_calc_tracer_hflx

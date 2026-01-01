@@ -70,6 +70,7 @@ contains
                u         => dstate%u_lon        , & ! inout
                v         => dstate%v_lat        , & ! inout
                pt        => dstate%pt           )   ! inout
+    ! --------------------------------------------------------------------------
     ! Horizontal tension strain on centers
     ! ∂u   ∂v
     ! -- - --
@@ -84,6 +85,7 @@ contains
       end do
     end do
 
+    ! --------------------------------------------------------------------------
     ! Horizontal shearing strain on vertices
     ! ∂u   ∂v
     ! -- + --

@@ -111,13 +111,8 @@ module dynamics_types_mod
     ! Smagorinsky damping variables
     type(latlon_field3d_type) smag_t      ! Tension strain
     type(latlon_field3d_type) smag_s      ! Shear strain on vertex
-    type(latlon_field3d_type) kmh         ! Nonlinear diffusion coef
-    type(latlon_field3d_type) kmh_lon     ! Nonlinear diffusion coef on zonal edge
-    type(latlon_field3d_type) kmh_lat     ! Nonlinear diffusion coef on meridional edge
-    type(latlon_field3d_type) kmh_lev     ! Nonlinear diffusion coef on half level
     type(latlon_field3d_type) dudx, dudy
     type(latlon_field3d_type) dvdx, dvdy
-    type(latlon_field3d_type) dwdx, dwdy
     type(latlon_field3d_type) dptdx, dptdy
     ! Laplacian damping variables
     type(latlon_field2d_type) g_2d
@@ -894,7 +889,6 @@ contains
         loc             ='cell'                                              , &
         mesh            =mesh                                                , &
         halo            =halo                                                , &
-        output          ='h1'                                                , &
         restart         =.false.                                             , &
         field           =this%smag_t                                         )
       call append_field(this%fields                                          , &
@@ -904,51 +898,8 @@ contains
         loc             ='vtx'                                               , &
         mesh            =mesh                                                , &
         halo            =halo                                                , &
-        output          ='h1'                                                , &
         restart         =.false.                                             , &
         field           =this%smag_s                                         )
-      call append_field(this%fields                                          , &
-        name            ='kmh'                                               , &
-        long_name       ='Horizontal eddy viscosity for Smagorinsky damping' , &
-        units           ='s-1'                                               , &
-        loc             ='cell'                                              , &
-        mesh            =mesh                                                , &
-        halo            =halo                                                , &
-        output          ='h0'                                                , &
-        restart         =.false.                                             , &
-        field           =this%kmh                                            )
-      call append_field(this%fields                                          , &
-        name            ='kmh_lon'                                           , &
-        long_name       ='Horizontal eddy viscosity for Smagorinsky damping' , &
-        units           ='s-1'                                               , &
-        loc             ='lon'                                               , &
-        mesh            =mesh                                                , &
-        halo            =halo                                                , &
-        output          ='h1'                                                , &
-        restart         =.false.                                             , &
-        field           =this%kmh_lon                                        )
-      call append_field(this%fields                                          , &
-        name            ='kmh_lat'                                           , &
-        long_name       ='Horizontal eddy viscosity for Smagorinsky damping' , &
-        units           ='s-1'                                               , &
-        loc             ='lat'                                               , &
-        mesh            =mesh                                                , &
-        halo            =halo                                                , &
-        output          ='h1'                                                , &
-        restart         =.false.                                             , &
-        field           =this%kmh_lat                                        )
-      if (nonhydrostatic) then
-        call append_field(this%fields                                        , &
-          name          ='kmh_lev'                                           , &
-          long_name     ='Horizontal eddy viscosity for Smagorinsky damping' , &
-          units         ='s-1'                                               , &
-          loc           ='lev'                                               , &
-          mesh          =mesh                                                , &
-          halo          =halo                                                , &
-          output        ='h1'                                                , &
-          restart       =.false.                                             , &
-          field         =this%kmh_lev                                        )
-      end if
       call append_field(this%fields                                          , &
         name            ='dudx'                                              , &
         long_name       ='dudx'                                              , &
@@ -989,28 +940,6 @@ contains
         output          ='h1'                                                , &
         restart         =.false.                                             , &
         field           =this%dvdy                                           )
-      if (nonhydrostatic) then
-        call append_field(this%fields                                        , &
-          name          ='dwdx'                                              , &
-          long_name     ='dwdx'                                              , &
-          units         ='s-1'                                               , &
-          loc           ='lev_lon'                                           , &
-          mesh          =mesh                                                , &
-          halo          =halo                                                , &
-          output        ='h1'                                                , &
-          restart       =.false.                                             , &
-          field         =this%dwdx                                           )
-        call append_field(this%fields                                        , &
-          name          ='dwdy'                                              , &
-          long_name     ='dwdy'                                              , &
-          units         ='s-1'                                               , &
-          loc           ='lev_lat'                                           , &
-          mesh          =mesh                                                , &
-          halo          =halo                                                , &
-          output        ='h1'                                                , &
-          restart       =.false.                                             , &
-          field         =this%dwdy                                           )
-      end if
       call append_field(this%fields                                          , &
         name            ='dptdx'                                             , &
         long_name       ='dptdx'                                             , &

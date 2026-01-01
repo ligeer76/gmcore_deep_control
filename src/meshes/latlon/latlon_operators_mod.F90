@@ -72,9 +72,9 @@ contains
     ke = merge(mesh%full_kde, mesh%half_kde, divx%loc(1:3) /= 'lev')
     select case (divx%loc)
     case ('cell', 'lev')
-      is = mesh%full_ids
+      is = mesh%full_ids - merge(1, 0, with_halo_opt)
       ie = mesh%full_ide + merge(1, 0, with_halo_opt)
-      js = mesh%full_jds_no_pole
+      js = mesh%full_jds_no_pole - merge(1, 0, with_halo_opt .and. .not. mesh%has_south_pole())
       je = mesh%full_jde_no_pole + merge(1, 0, with_halo_opt .and. .not. mesh%has_north_pole())
       do k = ks, ke
         do j = js, je
@@ -126,9 +126,9 @@ contains
     ke = merge(mesh%full_kde, mesh%half_kde, divy%loc(1:3) /= 'lev')
     select case (divy%loc)
     case ('cell', 'lev')
-      is = mesh%full_ids
+      is = mesh%full_ids - merge(1, 0, with_halo_opt)
       ie = mesh%full_ide + merge(1, 0, with_halo_opt)
-      js = mesh%full_jds_no_pole
+      js = mesh%full_jds_no_pole - merge(1, 0, with_halo_opt .and. .not. mesh%has_south_pole())
       je = mesh%full_jde_no_pole + merge(1, 0, with_halo_opt .and. .not. mesh%has_north_pole())
       do k = ks, ke
         do j = js, je

@@ -217,13 +217,17 @@ contains
     type(latlon_field3d_type), intent(inout) :: qmfz
     real(r8), intent(in), optional :: dt
 
+    real(r8) dt_opt
+
+    dt_opt = batch%dt; if (present(dt)) dt_opt = dt
+
     select case (batch%scheme_v)
     case ('upwind')
-      call upwind_calc_tracer_vflx(batch, q, qmfz, dt)
+      call upwind_calc_tracer_vflx(batch, q, qmfz, dt_opt)
     case ('weno')
-      call weno_calc_tracer_vflx(batch, q, qmfz, dt)
+      call weno_calc_tracer_vflx(batch, q, qmfz, dt_opt)
     case ('ffsl')
-      call ffsl_calc_tracer_vflx(batch, q, qmfz, dt)
+      call ffsl_calc_tracer_vflx(batch, q, qmfz, dt_opt)
     end select
 
   end subroutine adv_calc_tracer_vflx

@@ -156,7 +156,7 @@ contains
         end do
       end do
     end do
-    call filter_run(block%big_filter, dqdt_lev)
+    call filter_run(block%small_filter, dqdt_lev)
     end associate
 
   end subroutine calc_adv_lev

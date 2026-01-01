@@ -184,7 +184,7 @@ contains
       if (dtend%update_pt) then
         if (.not. dtend%update_mgs .and. proc%is_root()) call log_error('Mass is not updated or copied!')
         ! ----------------------------------------------------------------------
-        call filter_run(block%big_filter, dptdt)
+        call filter_run(block%small_filter, dptdt)
         ! ----------------------------------------------------------------------
         do k = mesh%full_kds, mesh%full_kde
           do j = mesh%full_jds, mesh%full_jde

@@ -87,9 +87,9 @@ contains
       if (mesh%has_north_pole()) divx%d(:,mesh%full_jde,:) = 0
     case ('vtx')
       is = mesh%half_ids - merge(1, 0, with_halo_opt)
-      ie = mesh%half_ide
+      ie = mesh%half_ide + merge(1, 0, with_halo_opt)
       js = mesh%half_jds - merge(1, 0, with_halo_opt .and. .not. mesh%has_south_pole())
-      je = mesh%half_jde
+      je = mesh%half_jde + merge(1, 0, with_halo_opt .and. .not. mesh%has_north_pole())
       do k = ks, ke
         do j = js, je
           do i = is, ie
@@ -172,9 +172,9 @@ contains
       end if
     case ('vtx')
       is = mesh%half_ids - merge(1, 0, with_halo_opt)
-      ie = mesh%half_ide
+      ie = mesh%half_ide + merge(1, 0, with_halo_opt)
       js = mesh%half_jds - merge(1, 0, with_halo_opt .and. .not. mesh%has_south_pole())
-      je = mesh%half_jde
+      je = mesh%half_jde + merge(1, 0, with_halo_opt .and. .not. mesh%has_north_pole())
       do k = ks, ke
         do j = js, je
           do i = is, ie
@@ -212,9 +212,9 @@ contains
     call perf_start('div_operator_2d')
 
     associate (mesh => div%mesh)
-    is = mesh%full_ids
+    is = mesh%full_ids - merge(1, 0, with_halo_opt)
     ie = mesh%full_ide + merge(1, 0, with_halo_opt)
-    js = mesh%full_jds_no_pole
+    js = mesh%full_jds_no_pole - merge(1, 0, with_halo_opt .and. .not. mesh%has_south_pole())
     je = mesh%full_jde_no_pole + merge(1, 0, with_halo_opt .and. .not. mesh%has_north_pole())
     do j = js, je
       do i = is, ie
@@ -278,9 +278,9 @@ contains
     ke = merge(mesh%full_kde, mesh%half_kde, div%loc(1:3) /= 'lev')
     select case (div%loc)
     case ('cell', 'lev')
-      is = mesh%full_ids
+      is = mesh%full_ids - merge(1, 0, with_halo_opt)
       ie = mesh%full_ide + merge(1, 0, with_halo_opt)
-      js = mesh%full_jds_no_pole
+      js = mesh%full_jds_no_pole - merge(1, 0, with_halo_opt .and. .not. mesh%has_south_pole())
       je = mesh%full_jde_no_pole + merge(1, 0, with_halo_opt .and. .not. mesh%has_north_pole())
       do k = ks, ke
         do j = js, je
@@ -325,10 +325,10 @@ contains
         end do
       end if
     case ('lon')
-      is = mesh%half_ids
-      ie = mesh%half_ide
-      js = mesh%full_jds_no_pole
-      je = mesh%full_jde_no_pole
+      is = mesh%half_ids - merge(1, 0, with_halo_opt)
+      ie = mesh%half_ide + merge(1, 0, with_halo_opt)
+      js = mesh%full_jds_no_pole - merge(1, 0, with_halo_opt .and. .not. mesh%has_south_pole())
+      je = mesh%full_jde_no_pole + merge(1, 0, with_halo_opt .and. .not. mesh%has_north_pole())
       do k = ks, ke
         do j = js, je
           do i = is, ie
@@ -343,10 +343,10 @@ contains
       end do
       ! No need to handle poles.
     case ('lat')
-      is = mesh%full_ids
-      ie = mesh%full_ide
-      js = mesh%half_jds
-      je = mesh%half_jde
+      is = mesh%full_ids - merge(1, 0, with_halo_opt)
+      ie = mesh%full_ide + merge(1, 0, with_halo_opt)
+      js = mesh%half_jds - merge(1, 0, with_halo_opt .and. .not. mesh%has_south_pole())
+      je = mesh%half_jde + merge(1, 0, with_halo_opt .and. .not. mesh%has_north_pole())
       do k = ks, ke
         do j = js, je
           do i = is, ie
@@ -428,9 +428,9 @@ contains
     select case (f%loc)
     case ('cell')
       is = mesh%half_ids - merge(1, 0, with_halo_opt)
-      ie = mesh%half_ide
-      js = mesh%full_jds_no_pole
-      je = mesh%full_jde_no_pole
+      ie = mesh%half_ide + merge(1, 0, with_halo_opt)
+      js = mesh%full_jds_no_pole - merge(1, 0, with_halo_opt .and. .not. mesh%has_south_pole())
+      je = mesh%full_jde_no_pole + merge(1, 0, with_halo_opt .and. .not. mesh%has_north_pole())
       do j = js, je
         do i = is, ie
           gradx%d(i,j) = (f%d(i+1,j) - f%d(i,j)) / mesh%de_lon(j)
@@ -474,9 +474,9 @@ contains
     select case (f%loc)
     case ('cell', 'lev')
       is = mesh%half_ids - merge(1, 0, with_halo_opt)
-      ie = mesh%half_ide
-      js = mesh%full_jds_no_pole
-      je = mesh%full_jde_no_pole
+      ie = mesh%half_ide + merge(1, 0, with_halo_opt)
+      js = mesh%full_jds_no_pole - merge(1, 0, with_halo_opt .and. .not. mesh%has_south_pole())
+      je = mesh%full_jde_no_pole + merge(1, 0, with_halo_opt .and. .not. mesh%has_north_pole())
       do k = ks, ke
         do j = js, je
           do i = is, ie
@@ -496,10 +496,10 @@ contains
         end do
       end do
     case ('lon')
-      is = mesh%full_ids
+      is = mesh%full_ids - merge(1, 0, with_halo_opt)
       ie = mesh%full_ide + merge(1, 0, with_halo_opt)
-      js = mesh%full_jds_no_pole
-      je = mesh%full_jde_no_pole
+      js = mesh%full_jds_no_pole - merge(1, 0, with_halo_opt .and. .not. mesh%has_south_pole())
+      je = mesh%full_jde_no_pole + merge(1, 0, with_halo_opt .and. .not. mesh%has_north_pole())
       do k = ks, ke
         do j = js, je
           do i = is, ie
@@ -520,9 +520,9 @@ contains
       end do
     case ('lat')
       is = mesh%half_ids - merge(1, 0, with_halo_opt)
-      ie = mesh%half_ide
-      js = mesh%half_jds
-      je = mesh%half_jde
+      ie = mesh%half_ide + merge(1, 0, with_halo_opt)
+      js = mesh%half_jds - merge(1, 0, with_halo_opt .and. .not. mesh%has_south_pole())
+      je = mesh%half_jde + merge(1, 0, with_halo_opt .and. .not. mesh%has_north_pole())
       do k = ks, ke
         do j = js, je
           do i = is, ie

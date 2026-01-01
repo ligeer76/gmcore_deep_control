@@ -6,6 +6,7 @@ module ksp15_test_mod
   use block_mod
   use formula_mod
   use operators_mod
+  use latlon_topo_mod
 
   implicit none
 
@@ -72,6 +73,9 @@ contains
         end do
       end do
       call fill_halo(gzs)
+      if (use_zs_grad_filter .or. use_zs_zonal_filter) then
+        call latlon_topo_smooth(block)
+      end if
 
       do j = mesh%full_jds, mesh%full_jde
         do i = mesh%full_ids, mesh%full_ide

@@ -121,6 +121,7 @@ module namelist_mod
   character(8)    :: pgf_scheme               = ''       ! lin97, ptb
 
   character(30)   :: bg_adv_scheme            = 'ffsl'
+  integer         :: upwind_order_bg          = 3
   character(30)   :: pt_adv_scheme            = 'upwind'
   character(30)   :: nh_adv_scheme            = 'upwind'
   character(8)    :: limiter_type             = 'mono'
@@ -295,6 +296,7 @@ module namelist_mod
     upwind_order              , &
     upwind_order_h            , &
     upwind_order_v            , &
+    upwind_order_bg           , &
     upwind_wgt                , &
     time_scheme               , &
     save_dyn_calc             , &
@@ -398,6 +400,7 @@ contains
     end if
 
     if (advection) then
+      bg_adv_scheme  = 'ffsl'
       hydrostatic    = .false.
       baroclinic     = .false.
       nonhydrostatic = .false.
@@ -457,7 +460,7 @@ contains
       write(*, *) 'ideal_dry_core         = ', to_str(ideal_dry_core)
       write(*, *) 'vert_coord_scheme      = ', trim(vert_coord_scheme)
       write(*, *) 'vert_coord_template    = ', trim(vert_coord_template)
-      write(*, *) 'ptop                   = ', to_str(ptop, 4)
+      write(*, *) 'ptop                   = ', ptop
       write(*, *) 'hybrid_coord_p0        = ', to_str(hybrid_coord_p0, 2)
       write(*, *) 'dt_dyn                 = ', to_str(dt_dyn , 2)
       write(*, *) 'dt_adv                 = ', to_str(dt_adv , 2)

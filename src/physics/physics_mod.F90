@@ -90,7 +90,7 @@ contains
         do i = mesh%full_ids, mesh%full_ide
           lon (icol,iblk) = mesh%full_lon      (i)
           lat (icol,iblk) = mesh%full_lat      (j)
-          area(icol,iblk) = mesh%area_cell_phys(j)
+          area(icol,iblk) = mesh%area_cell     (j)
           gid (icol,iblk) = (j - 1) * global_mesh%full_nlon + i
           icol = icol + 1
         end do
@@ -158,7 +158,7 @@ contains
 
     call perf_start('physics_run')
 
-    if (proc%is_root()) call log_notice('Run ' // to_upper(trim(physics_suite)) // ' physics.')
+    ! if (proc%is_root()) call log_notice('Run ' // to_upper(trim(physics_suite)) // ' physics.')
 
     call dp_coupling_d2p(block, itime)
 
@@ -382,6 +382,9 @@ contains
       call physics_update_uv (block, block%dstate(itime), dt)
       call physics_update_mgs(block, block%dstate(itime), dt)
       call physics_update_q  (block, block%dstate(itime), dt)
+    case (6)
+      call physics_update_uv (block, block%dstate(itime), dt)
+      call physics_update_pt (block, block%dstate(itime), dt)
     end select
 
     call perf_stop('physics_update_after_dynamics')
@@ -420,6 +423,8 @@ contains
     integer, intent(in) :: itime
     real(r8), intent(in) :: dt
 
+    if (.not. time_is_alerted('phys')) return
+
     call perf_start('physics_update_after_physics')
 
     select case (pdc_type)
@@ -430,6 +435,9 @@ contains
       call physics_update_q  (block, block%dstate(itime), dt)
     case (34)
       call physics_update_uv (block, block%dstate(itime), dt)
+      call physics_update_mgs(block, block%dstate(itime), dt)
+      call physics_update_q  (block, block%dstate(itime), dt)
+    case (6)
       call physics_update_mgs(block, block%dstate(itime), dt)
       call physics_update_q  (block, block%dstate(itime), dt)
     end select

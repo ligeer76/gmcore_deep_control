@@ -18,11 +18,17 @@ module physics_parallel_mod
   private
 
   public physics_pole_sum
+  public physics_sum
 
   interface physics_pole_sum
     module procedure physics_pole_sum_0d
     module procedure physics_pole_sum_1d
   end interface physics_pole_sum
+
+  interface physics_sum
+    module procedure physics_sum_0d_r8
+    module procedure physics_sum_1d_r8
+  end interface physics_sum
 
 contains
 
@@ -134,5 +140,26 @@ contains
     end if
 
   end subroutine physics_pole_sum_1d
+
+  real(8) function physics_sum_0d_r8(x) result(res)
+
+    real(8), intent(in) :: x
+
+    integer ierr
+
+    call MPI_ALLREDUCE(x, res, 1, MPI_DOUBLE, MPI_SUM, proc%comm_model, ierr)
+
+  end function physics_sum_0d_r8
+
+  real(8) function physics_sum_1d_r8(x)
+
+    real(8), intent(in) :: x(:)
+    real(8) res(size(x))
+
+    integer k, ierr
+
+    call MPI_ALLREDUCE(x, res, size(x), MPI_DOUBLE, MPI_SUM, proc%comm_model, ierr)
+
+  end function physics_sum_1d_r8
 
 end module physics_parallel_mod

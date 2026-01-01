@@ -165,33 +165,26 @@ contains
       locx = 'lev_lon'
       locy = 'lev_lat'
       locz = 'cell'
+    case ('vtx')
+      loc0 = 'vtx'
+      locx = 'lat'
+      locy = 'lon'
+      locz = 'none'
     case default
       call log_error('Invalid grid location ' // trim(this%loc) // '!', __FILE__, __LINE__, pid=proc%id_model)
     end select
 
-    if (this%passive) then
-      call append_field(this%fields                                          , &
-        name            =trim(this%name) // '_m'                             , &
-        long_name       ='Dry-air weight'                                    , &
-        units           ='Pa'                                                , &
-        loc             =loc0                                                , &
-        mesh            =filter_mesh                                         , &
-        halo            =filter_halo                                         , &
-        output          =merge('h0', '  ', advection)                        , &
-        restart         =.true.                                              , &
-        field           =this%m                                              )
-    else
-      call append_field(this%fields                                          , &
-        name            =trim(this%name) // '_m'                             , &
-        long_name       ='Dry-air weight'                                    , &
-        units           ='Pa'                                                , &
-        loc             =loc0                                                , &
-        mesh            =mesh                                                , &
-        halo            =halo                                                , &
-        output          =merge('h0', '  ', advection)                        , &
-        restart         =.false.                                             , &
-        field           =this%m                                              )
-    end if
+    call append_field(this%fields                                            , &
+      name              =trim(this%name) // '_m'                             , &
+      long_name         ='Dry-air weight'                                    , &
+      units             ='Pa'                                                , &
+      loc               =loc0                                                , &
+      mesh              =filter_mesh                                         , &
+      halo              =filter_halo                                         , &
+      halo_cross_pole   =.true.                                              , &
+      output            =merge('h0', '  ', advection)                        , &
+      restart           =.true.                                              , &
+      field             =this%m                                              )
     call append_field(this%fields                                            , &
       name              =trim(this%name) // '_u'                             , &
       long_name         ='U wind component'                                  , &
@@ -212,7 +205,7 @@ contains
       output            =merge('h0', '  ', advection)                        , &
       restart           =.false.                                             , &
       field             =this%v                                              )
-    if (advection .and. nlev > 1) then
+    if (advection .and. nlev > 1 .and. locz /= 'none') then
       call append_field(this%fields                                          , &
         name            =trim(this%name) // '_w'                             , &
         long_name       ='Vertical coordinate velocity'                      , &
@@ -224,16 +217,18 @@ contains
         restart         =.false.                                             , &
         field           =this%w                                              )
     end if
-    call append_field(this%fields                                            , &
-      name              =trim(this%name) // '_mfz'                           , &
-      long_name         ='Vertical mass flux'                                , &
-      units             ='Pa s-1'                                            , &
-      loc               =locz                                                , &
-      mesh              =mesh                                                , &
-      halo              =halo                                                , &
-      output            ='h1'                                                , &
-      restart           =.false.                                             , &
-      field             =this%mfz                                            )
+    if (locz /= 'none') then
+      call append_field(this%fields                                          , &
+        name            =trim(this%name) // '_mfz'                           , &
+        long_name       ='Vertical mass flux'                                , &
+        units           ='Pa s-1'                                            , &
+        loc             =locz                                                , &
+        mesh            =mesh                                                , &
+        halo            =halo                                                , &
+        output          ='h1'                                                , &
+        restart         =.false.                                             , &
+        field           =this%mfz                                            )
+    end if
     call append_field(this%fields                                            , &
       name              =trim(this%name) // '_mfx'                           , &
       long_name         ='Mass flux in x direction'                          , &
@@ -274,17 +269,43 @@ contains
       output            ='h1'                                                , &
       restart           =.false.                                             , &
       field             =this%qmfy                                           )
-    call append_field(this%fields                                            , &
-      name              =trim(this%name) // '_qmfz'                          , &
-      long_name         ='Tracer mass flux in z direction'                   , &
-      units             ='Pa kg kg-1 m s-1'                                  , &
-      loc               =locz                                                , &
-      mesh              =mesh                                                , &
-      halo              =halo                                                , &
-      output            ='h1'                                                , &
-      restart           =.false.                                             , &
-      field             =this%qmfz                                           )
-    if (this%semilag) then
+    if (locz /= 'none') then
+      call append_field(this%fields                                          , &
+        name            =trim(this%name) // '_qmfz'                          , &
+        long_name       ='Tracer mass flux in z direction'                   , &
+        units           ='Pa kg kg-1 m s-1'                                  , &
+        loc             =locz                                                , &
+        mesh            =mesh                                                , &
+        halo            =halo                                                , &
+        output          ='h1'                                                , &
+        restart         =.false.                                             , &
+        field           =this%qmfz                                           )
+    end if
+    if (.not. this%passive) then
+      call append_field(this%fields                                          , &
+        name            =trim(this%name) // '_u_frac'                        , &
+        long_name       ='Fractional U wind component'                       , &
+        units           ='m s-1'                                             , &
+        loc             =locx                                                , &
+        mesh            =mesh                                                , &
+        halo            =halo                                                , &
+        output          ='h1'                                                , &
+        restart         =.false.                                             , &
+        field           =this%u_frac                                         )
+    end if
+    if (advection .and. nlev > 1 .and. locz /= 'none') then
+      call append_field(this%fields                                          , &
+        name            =trim(this%name) // '_w_frac'                        , &
+        long_name       ='Fractional vertical coordinate velocity'           , &
+        units           ='s-1'                                               , &
+        loc             =locz                                                , &
+        mesh            =mesh                                                , &
+        halo            =halo                                                , &
+        output          ='h1'                                                , &
+        restart         =.false.                                             , &
+        field           =this%w_frac                                         )
+    end if
+    if (.not. this%passive .or. this%semilag) then
       call append_field(this%fields                                          , &
         name            =trim(this%name) // '_mfx_frac'                      , &
         long_name       ='Fractional mass flux in x direction'               , &
@@ -295,30 +316,20 @@ contains
         output          ='h1'                                                , &
         restart         =.false.                                             , &
         field           =this%mfx_frac                                       )
-      if (.not. this%passive) then
-        call append_field(this%fields                                        , &
-          name          =trim(this%name) // '_u_frac'                        , &
-          long_name     ='Fractional U wind component'                       , &
-          units         ='m s-1'                                             , &
-          loc           =locx                                                , &
-          mesh          =mesh                                                , &
-          halo          =halo                                                , &
-          output        ='h1'                                                , &
-          restart       =.false.                                             , &
-          field         =this%u_frac                                         )
-        if (advection .and. nlev > 1) then
-          call append_field(this%fields                                      , &
-            name        =trim(this%name) // '_w_frac'                        , &
-            long_name   ='Fractional vertical coordinate velocity'           , &
-            units       ='s-1'                                               , &
-            loc         =locz                                                , &
-            mesh        =mesh                                                , &
-            halo        =halo                                                , &
-            output      ='h1'                                                , &
-            restart     =.false.                                             , &
-            field       =this%w_frac                                         )
-        end if
-      end if
+    end if
+    if ((.not. this%passive .or. this%semilag) .and. locz /= 'none') then
+      call append_field(this%fields                                          , &
+        name            =trim(this%name) // '_mfz_frac'                      , &
+        long_name       ='Fractional vertical mass flux'                     , &
+        units           ='Pa m-2 s-1'                                        , &
+        loc             =locz                                                , &
+        mesh            =mesh                                                , &
+        halo            =halo                                                , &
+        output          ='h1'                                                , &
+        restart         =.false.                                             , &
+        field           =this%mfz_frac                                       )
+    end if
+    if (.not. this%passive .or. this%semilag) then
       call append_field(this%fields                                          , &
         name            =trim(this%name) // '_cflx'                          , &
         long_name       ='CFL number in x direction'                         , &
@@ -329,6 +340,8 @@ contains
         output          ='h1'                                                , &
         restart         =.false.                                             , &
         field           =this%cflx                                           )
+    end if
+    if (.not. this%passive .or. this%semilag) then
       call append_field(this%fields                                          , &
         name            =trim(this%name) // '_cfly'                          , &
         long_name       ='CFL number in y direction'                         , &
@@ -339,18 +352,8 @@ contains
         output          ='h1'                                                , &
         restart         =.false.                                             , &
         field           =this%cfly                                           )
-      if (this%passive) then
-        call append_field(this%fields                                        , &
-          name          =trim(this%name) // '_mfz_frac'                      , &
-          long_name     ='Fractional vertical mass flux'                     , &
-          units         ='Pa m-2 s-1'                                        , &
-          loc           =locz                                                , &
-          mesh          =mesh                                                , &
-          halo          =halo                                                , &
-          output        ='h1'                                                , &
-          restart       =.false.                                             , &
-          field         =this%mfz_frac                                        )
-      end if
+    end if
+    if ((.not. this%passive .or. this%semilag) .and. locz /= 'none') then
       call append_field(this%fields                                          , &
         name            =trim(this%name) // '_cflz'                          , &
         long_name       ='CFL number in z direction'                         , &
@@ -402,6 +405,8 @@ contains
         halo            =halo                                                , &
         restart         =.false.                                             , &
         field           =this%qmfy0                                          )
+    end select
+    if (.not. this%passive .or. this%scheme_h == 'ffsl') then
       call append_field(this%fields                                          , &
         name            =trim(this%name) // '_qx'                            , &
         long_name       ='Tracer dry mixing ratio after advection in x direction', &
@@ -421,7 +426,7 @@ contains
         halo            =filter_halo                                         , &
         restart         =.false.                                             , &
         field           =this%qy                                             )
-    end select
+    end if
 
     if (present(idx)) then
       this%ntracers = size(idx)
@@ -475,7 +480,7 @@ contains
 
     call this%m%copy(m)
     call adv_fill_vhalo(this%m, no_negvals=.true.)
-    if (this%semilag) call fill_halo(this%m, async=.true.)
+    if (.not. this%passive .or. this%semilag) call fill_halo(this%m, async=.true.)
 
   end subroutine adv_batch_copy_m_old
 
@@ -650,6 +655,57 @@ contains
             else
               do l = j + 1, mesh%full_jme
                 mc = my%d(i,l,k) * mesh%area_cell(l)
+                if (-dm < mc) exit
+                dm = dm + mc
+              end do
+              cfly%d(i,j,k) = j + 1 - l + dm / mc
+            end if
+            ! Clip CFL number that are out of range. This should be very rare and in the polar region.
+            cfly%d(i,j,k) = min(max(cfly%d(i,j,k), -1.0_r8), 1.0_r8)
+          end do
+        end do
+      end do
+    case ('vtx')
+      ks = mesh%full_kds
+      ke = mesh%full_kde
+      call wait_halo(mx)
+      do k = ks, ke
+        do j = mesh%half_jds, mesh%half_jde
+          do i = mesh%full_ids, mesh%full_ide + 1
+            dm = mfx%d(i,j,k) * mesh%de_lat(j) * dt
+            if (dm >= 0) then
+              do l = i, mesh%half_ims, -1
+                mc = mx%d(l,j,k) * mesh%area_vtx(j)
+                if (dm < mc) exit
+                dm = dm - mc
+              end do
+              cflx%d(i,j,k) = i - l + dm / mc
+            else
+              do l = i + 1, mesh%half_ime
+                mc = mx%d(l,j,k) * mesh%area_vtx(j)
+                if (-dm < mc) exit
+                dm = dm + mc
+              end do
+              cflx%d(i,j,k) = i + 1 - l + dm / mc
+            end if
+          end do
+        end do
+      end do
+      call wait_halo(my)
+      do k = ks, ke
+        do j = mesh%full_jds_no_pole, mesh%full_jde_no_pole + merge(0, 1, mesh%has_north_pole())
+          do i = mesh%half_ids, mesh%half_ide
+            dm = mfy%d(i,j,k) * mesh%de_lon(j) * dt
+            if (dm >= 0) then
+              do l = j, mesh%half_jms, -1
+                mc = my%d(i,l,k) * mesh%area_vtx(l)
+                if (dm < mc) exit
+                dm = dm - mc
+              end do
+              cfly%d(i,j,k) = j - l + dm / mc
+            else
+              do l = j + 1, mesh%half_jme
+                mc = my%d(i,l,k) * mesh%area_vtx(l)
                 if (-dm < mc) exit
                 dm = dm + mc
               end do

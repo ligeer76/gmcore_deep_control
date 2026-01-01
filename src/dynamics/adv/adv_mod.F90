@@ -161,6 +161,8 @@ contains
     dt_opt = batch%dt; if (present(dt)) dt_opt = dt
 
     select case (batch%scheme_h)
+    case ('upwind')
+      call upwind_calc_mass_hflx(batch, m, mfx, mfy, dt_opt)
     case ('ffsl')
       call ffsl_calc_mass_hflx_swift(batch, m, mfx, mfy, dt_opt)
     end select

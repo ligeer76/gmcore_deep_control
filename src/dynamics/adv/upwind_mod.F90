@@ -20,6 +20,7 @@ module upwind_mod
 
   private
 
+  public upwind_calc_mass_hflx
   public upwind_calc_tracer_hflx
   public upwind_calc_tracer_vflx
   public upwind1
@@ -36,25 +37,89 @@ contains
     type(latlon_field3d_type), intent(inout) :: mfy
     real(r8), intent(in) :: dt
 
-    integer ks, ke, i, j, k
+    integer ks, ke, i, j, k, iu, ci
+    real(r8) cf, mr
 
     call perf_start('upwind_calc_mass_hflx')
 
-    associate (mesh => m%mesh , &
-               u    => batch%u, & ! in
-               v    => batch%v)   ! in
+    associate (mesh   => m%mesh      , &
+               cflx   => batch%cflx  , & ! in
+               u_frac => batch%u_frac, & ! in
+               u      => batch%u     , & ! in
+               v      => batch%v     )   ! in
     select case (batch%loc)
-    case ('cell', 'lev')
+    case ('cell')
       ks = merge(mesh%full_kds, mesh%half_kds, batch%loc == 'cell')
       ke = merge(mesh%full_kde, mesh%half_kde, batch%loc == 'cell')
-      select case (upwind_order_h)
-      case (3)
-        do k = ks, ke
-          do j = mesh%full_jds_no_pole, mesh%full_jde_no_pole
-            do i = mesh%half_ids, mesh%half_ide
-              mfx%d(i,j,k) = upwind3(sign(1.0_r8, u%d(i,j,k)), upwind_wgt, m%d(i-1:i+2,j,k)) * u%d(i,j,k)
+      select case (upwind_order_bg)
+      case (0)
+        if (batch%semilag) then
+          do k = ks, ke
+            do j = mesh%full_jds_no_pole, mesh%full_jde_no_pole
+              do i = mesh%half_ids, mesh%half_ide
+                ci = int(cflx%d(i,j,k))
+                cf = cflx%d(i,j,k) - ci
+                if (abs(cflx%d(i,j,k)) < 1.0e-16_r8) then
+                  mfx%d(i,j,k) = 0
+                else if (cflx%d(i,j,k) > 0) then
+                  iu = i - ci
+                  mr = 0.5_r8 * (m%d(iu,j,k) + m%d(iu+1,j,k))
+                  mfx%d(i,j,k) = u_frac%d(i,j,k) * mr + sum(m%d(iu+1:i  ,j,k)) * mesh%de_lon(j) / dt
+                else
+                  iu = i - ci + 1
+                  mr = 0.5_r8 * (m%d(iu-1,j,k) + m%d(iu,j,k))
+                  mfx%d(i,j,k) = u_frac%d(i,j,k) * mr - sum(m%d(i+1:iu-1,j,k)) * mesh%de_lon(j) / dt
+                end if
+              end do
             end do
           end do
+        else
+          do k = ks, ke
+            do j = mesh%full_jds_no_pole, mesh%full_jde_no_pole
+              do i = mesh%half_ids, mesh%half_ide
+                mfx%d(i,j,k) = 0.5_r8 * (m%d(i-1,j,k) + m%d(i,j,k)) * u%d(i,j,k)
+              end do
+            end do
+          end do
+        end if
+        do k = ks, ke
+          do j = mesh%half_jds, mesh%half_jde
+            do i = mesh%full_ids, mesh%full_ide
+              mfy%d(i,j,k) = 0.5_r8 * (m%d(i,j-1,k) + m%d(i,j,k)) * v%d(i,j,k)
+            end do
+          end do
+        end do
+      case (3)
+        if (batch%semilag) then
+          do k = ks, ke
+            do j = mesh%full_jds_no_pole, mesh%full_jde_no_pole
+              do i = mesh%half_ids, mesh%half_ide
+                ci = int(cflx%d(i,j,k))
+                cf = cflx%d(i,j,k) - ci
+                if (abs(cflx%d(i,j,k)) < 1.0e-16_r8) then
+                  mfx%d(i,j,k) = 0
+                else if (cflx%d(i,j,k) > 0) then
+                  iu = i - ci
+                  mr = upwind3(sign(1.0_r8, u%d(i,j,k)), upwind_wgt, m%d(iu-1:iu+2,j,k))
+                  mfx%d(i,j,k) = u_frac%d(i,j,k) * mr + sum(m%d(iu+1:i  ,j,k)) * mesh%de_lon(j) / dt
+                else
+                  iu = i - ci + 1
+                  mr = upwind3(sign(1.0_r8, u%d(i,j,k)), upwind_wgt, m%d(iu-2:iu+1,j,k))
+                  mfx%d(i,j,k) = u_frac%d(i,j,k) * mr - sum(m%d(i+1:iu-1,j,k)) * mesh%de_lon(j) / dt
+                end if
+              end do
+            end do
+          end do
+        else
+          do k = ks, ke
+            do j = mesh%full_jds_no_pole, mesh%full_jde_no_pole
+              do i = mesh%half_ids, mesh%half_ide
+                mfx%d(i,j,k) = upwind3(sign(1.0_r8, u%d(i,j,k)), upwind_wgt, m%d(i-1:i+2,j,k)) * u%d(i,j,k)
+              end do
+            end do
+          end do
+        end if
+        do k = ks, ke
           do j = mesh%half_jds, mesh%half_jde
             do i = mesh%full_ids, mesh%full_ide
               mfy%d(i,j,k) = upwind3(sign(1.0_r8, v%d(i,j,k)), upwind_wgt, m%d(i,j-1:j+2,k)) * v%d(i,j,k)
@@ -62,12 +127,36 @@ contains
           end do
         end do
       case (5)
-        do k = ks, ke
-          do j = mesh%full_jds_no_pole, mesh%full_jde_no_pole
-            do i = mesh%half_ids, mesh%half_ide
-              mfx%d(i,j,k) = upwind5(sign(1.0_r8, u%d(i,j,k)), upwind_wgt, m%d(i-2:i+3,j,k)) * u%d(i,j,k)
+        if (batch%semilag) then
+          do k = ks, ke
+            do j = mesh%full_jds_no_pole, mesh%full_jde_no_pole
+              do i = mesh%half_ids, mesh%half_ide
+                ci = int(cflx%d(i,j,k))
+                cf = cflx%d(i,j,k) - ci
+                if (abs(cflx%d(i,j,k)) < 1.0e-16_r8) then
+                  mfx%d(i,j,k) = 0
+                else if (cflx%d(i,j,k) > 0) then
+                  iu = i - ci
+                  mr = upwind5(sign(1.0_r8, u%d(i,j,k)), upwind_wgt, m%d(iu-2:iu+3,j,k))
+                  mfx%d(i,j,k) = u_frac%d(i,j,k) * mr + sum(m%d(iu+1:i  ,j,k)) * mesh%de_lon(j) / dt
+                else
+                  iu = i - ci + 1
+                  mr = upwind5(sign(1.0_r8, u%d(i,j,k)), upwind_wgt, m%d(iu-3:iu+2,j,k))
+                  mfx%d(i,j,k) = u_frac%d(i,j,k) * mr - sum(m%d(i+1:iu-1,j,k)) * mesh%de_lon(j) / dt
+                end if
+              end do
             end do
           end do
+        else
+          do k = ks, ke
+            do j = mesh%full_jds_no_pole, mesh%full_jde_no_pole
+              do i = mesh%half_ids, mesh%half_ide
+                mfx%d(i,j,k) = upwind5(sign(1.0_r8, u%d(i,j,k)), upwind_wgt, m%d(i-2:i+3,j,k)) * u%d(i,j,k)
+              end do
+            end do
+          end do
+        end if
+        do k = ks, ke
           do j = mesh%half_jds, mesh%half_jde
             do i = mesh%full_ids, mesh%full_ide
               mfy%d(i,j,k) = upwind5(sign(1.0_r8, v%d(i,j,k)), upwind_wgt, m%d(i,j-2:j+3,k)) * v%d(i,j,k)
@@ -76,8 +165,8 @@ contains
         end do
       end select
     end select
-    call fill_halo(mfx, south_halo=.false., north_halo=.false., east_halo =.false.)
-    call fill_halo(mfy, west_halo =.false., east_halo =.false., north_halo=.false.)
+    call fill_halo(mfx, east_halo=.false., south_halo=.false., async=.true.)
+    call fill_halo(mfy, west_halo=.false., north_halo=.false., async=.true.)
     end associate
 
     call perf_stop('upwind_calc_mass_hflx')
@@ -92,13 +181,17 @@ contains
     type(latlon_field3d_type), intent(inout) :: qmfy
     real(r8), intent(in) :: dt
 
-    integer ks, ke, i, j, k
+    integer ks, ke, i, j, k, iu, ci
+    real(r8) cf, qr
 
     call perf_start('upwind_calc_tracer_hflx')
 
-    associate (mesh => q%mesh   , &
-               mfx  => batch%mfx, & ! in
-               mfy  => batch%mfy)   ! in
+    associate (mesh     => q%mesh        , &
+               cflx     => batch%cflx    , & ! in
+               m        => batch%m       , & ! in
+               mfx_frac => batch%mfx_frac, & ! in
+               mfx      => batch%mfx     , & ! in
+               mfy      => batch%mfy     )   ! in
     select case (batch%loc)
     case ('cell', 'lev')
       ks = merge(mesh%full_kds, mesh%half_kds, batch%loc == 'cell')
@@ -131,12 +224,36 @@ contains
           end do
         end do
       case (3)
-        do k = ks, ke
-          do j = mesh%full_jds_no_pole, mesh%full_jde_no_pole
-            do i = mesh%half_ids, mesh%half_ide
-              qmfx%d(i,j,k) = upwind3(sign(1.0_r8, mfx%d(i,j,k)), upwind_wgt, q%d(i-1:i+2,j,k)) * mfx%d(i,j,k)
+        if (batch%semilag) then
+          do k = ks, ke
+            do j = mesh%full_jds_no_pole, mesh%full_jde_no_pole
+              do i = mesh%half_ids, mesh%half_ide
+                ci = int(cflx%d(i,j,k))
+                cf = cflx%d(i,j,k) - ci
+                if (abs(cflx%d(i,j,k)) < 1.0e-16_r8) then
+                  qmfx%d(i,j,k) = 0
+                else if (cflx%d(i,j,k) > 0) then
+                  iu = i - ci
+                  qr = upwind3(sign(1.0_r8, mfx%d(i,j,k)), upwind_wgt, q%d(iu-1:iu+2,j,k))
+                  qmfx%d(i,j,k) = mfx_frac%d(i,j,k) * qr + sum(m%d(iu+1:i  ,j,k) * q%d(iu+1:i  ,j,k)) * mesh%de_lon(j) / dt
+                else
+                  iu = i - ci + 1
+                  qr = upwind3(sign(1.0_r8, mfx%d(i,j,k)), upwind_wgt, q%d(iu-2:iu+1,j,k))
+                  qmfx%d(i,j,k) = mfx_frac%d(i,j,k) * qr - sum(m%d(i+1:iu-1,j,k) * q%d(i+1:iu-1,j,k)) * mesh%de_lon(j) / dt
+                end if
+              end do
             end do
           end do
+        else
+          do k = ks, ke
+            do j = mesh%full_jds_no_pole, mesh%full_jde_no_pole
+              do i = mesh%half_ids, mesh%half_ide
+                qmfx%d(i,j,k) = upwind3(sign(1.0_r8, mfx%d(i,j,k)), upwind_wgt, q%d(i-1:i+2,j,k)) * mfx%d(i,j,k)
+              end do
+            end do
+          end do
+        end if
+        do k = ks, ke
           do j = mesh%half_jds, mesh%half_jde
             do i = mesh%full_ids, mesh%full_ide
               qmfy%d(i,j,k) = upwind3(sign(1.0_r8, mfy%d(i,j,k)), upwind_wgt, q%d(i,j-1:j+2,k)) * mfy%d(i,j,k)
@@ -144,15 +261,100 @@ contains
           end do
         end do
       case (5)
-        do k = ks, ke
-          do j = mesh%full_jds_no_pole, mesh%full_jde_no_pole
-            do i = mesh%half_ids, mesh%half_ide
-              qmfx%d(i,j,k) = upwind5(sign(1.0_r8, mfx%d(i,j,k)), upwind_wgt, q%d(i-2:i+3,j,k)) * mfx%d(i,j,k)
+        if (batch%semilag) then
+          do k = ks, ke
+            do j = mesh%full_jds_no_pole, mesh%full_jde_no_pole
+              do i = mesh%half_ids, mesh%half_ide
+                ci = int(cflx%d(i,j,k))
+                cf = cflx%d(i,j,k) - ci
+                if (abs(cflx%d(i,j,k)) < 1.0e-16_r8) then
+                  qmfx%d(i,j,k) = 0
+                else if (cflx%d(i,j,k) > 0) then
+                  iu = i - ci
+                  qr = upwind5(sign(1.0_r8, mfx%d(i,j,k)), upwind_wgt, q%d(iu-2:iu+3,j,k))
+                  qmfx%d(i,j,k) = mfx_frac%d(i,j,k) * qr + sum(m%d(iu+1:i  ,j,k) * q%d(iu+1:i  ,j,k)) * mesh%de_lon(j) / dt
+                else
+                  iu = i - ci + 1
+                  qr = upwind5(sign(1.0_r8, mfx%d(i,j,k)), upwind_wgt, q%d(iu-3:iu+2,j,k))
+                  qmfx%d(i,j,k) = mfx_frac%d(i,j,k) * qr - sum(m%d(i+1:iu-1,j,k) * q%d(i+1:iu-1,j,k)) * mesh%de_lon(j) / dt
+                end if
+              end do
             end do
           end do
+        else
+          do k = ks, ke
+            do j = mesh%full_jds_no_pole, mesh%full_jde_no_pole
+              do i = mesh%half_ids, mesh%half_ide
+                qmfx%d(i,j,k) = upwind5(sign(1.0_r8, mfx%d(i,j,k)), upwind_wgt, q%d(i-2:i+3,j,k)) * mfx%d(i,j,k)
+              end do
+            end do
+          end do
+        end if
+        do k = ks, ke
           do j = mesh%half_jds, mesh%half_jde
             do i = mesh%full_ids, mesh%full_ide
               qmfy%d(i,j,k) = upwind5(sign(1.0_r8, mfy%d(i,j,k)), upwind_wgt, q%d(i,j-2:j+3,k)) * mfy%d(i,j,k)
+            end do
+          end do
+        end do
+      end select
+    case ('vtx')
+      ks = mesh%full_kds
+      ke = mesh%full_kde
+      select case (upwind_order_pv)
+      case (3)
+        if (batch%semilag) then
+          do k = ks, ke
+            do j = mesh%half_jds, mesh%half_jde
+              do i = mesh%full_ids, mesh%full_ide
+                ci = int(cflx%d(i,j,k))
+                cf = cflx%d(i,j,k) - ci
+                if (abs(cflx%d(i,j,k)) < 1.0e-16_r8) then
+                  qmfx%d(i,j,k) = 0
+                else if (cflx%d(i,j,k) > 0) then
+                  iu = i - ci - 1
+                  qr = upwind3(sign(1.0_r8, mfx%d(i,j,k)), upwind_wgt_pv, q%d(iu-2:iu+1,j,k))
+                  qmfx%d(i,j,k) = mfx_frac%d(i,j,k) * qr + sum(m%d(iu+1:i  ,j,k) * q%d(iu+1:i  ,j,k)) * mesh%le_lat(j) / dt
+                else
+                  iu = i - ci
+                  qr = upwind3(sign(1.0_r8, mfx%d(i,j,k)), upwind_wgt_pv, q%d(iu-1:iu+2,j,k))
+                  qmfx%d(i,j,k) = mfx_frac%d(i,j,k) * qr - sum(m%d(i+1:iu-1,j,k) * q%d(i+1:iu-1,j,k)) * mesh%le_lat(j) / dt
+                end if
+              end do
+            end do
+          end do
+        else
+          do k = ks, ke
+            do j = mesh%half_jds, mesh%half_jde
+              do i = mesh%full_ids, mesh%full_ide
+                qmfx%d(i,j,k) = upwind3(sign(1.0_r8, mfx%d(i,j,k)), upwind_wgt_pv, q%d(i-1:i+2,j,k)) * mfx%d(i,j,k)
+              end do
+            end do
+          end do
+        end if
+        do k = ks, ke
+          do j = mesh%full_jds_no_pole, mesh%full_jde_no_pole
+            do i = mesh%half_ids, mesh%half_ide
+              qmfy%d(i,j,k) = upwind3(sign(1.0_r8, mfy%d(i,j,k)), upwind_wgt_pv, q%d(i,j-1:j+2,k)) * mfy%d(i,j,k)
+            end do
+          end do
+        end do
+      case (5)
+        if (batch%semilag) then
+
+        else
+          do k = ks, ke
+            do j = mesh%half_jds, mesh%half_jde
+              do i = mesh%full_ids, mesh%full_ide
+                qmfx%d(i,j,k) = upwind5(sign(1.0_r8, mfx%d(i,j,k)), upwind_wgt_pv, q%d(i-2:i+3,j,k)) * mfx%d(i,j,k)
+              end do
+            end do
+          end do
+        end if
+        do k = ks, ke
+          do j = mesh%full_jds_no_pole, mesh%full_jde_no_pole
+            do i = mesh%half_ids, mesh%half_ide
+              qmfy%d(i,j,k) = upwind5(sign(1.0_r8, mfy%d(i,j,k)), upwind_wgt_pv, q%d(i,j-2:j+3,k)) * mfy%d(i,j,k)
             end do
           end do
         end do
@@ -171,7 +373,7 @@ contains
     type(adv_batch_type), intent(inout) :: batch
     type(latlon_field3d_type), intent(in) :: q
     type(latlon_field3d_type), intent(inout) :: qmfz
-    real(r8), intent(in) :: dt
+    real(r8), intent(in), optional :: dt
 
     integer i, j, k
 

@@ -151,6 +151,7 @@ def plot_contour_lat(ax, var,
 	left_string=None,
 	right_string=None,
 	invert_yaxis=False,
+	log_yaxis=False,
 	with_grid=True,
 	font_size=8,
 	use_scientific=False,
@@ -192,6 +193,7 @@ def plot_contour_lat(ax, var,
 		im = ax.contourf(lat, lev, var, cmap=cmap, extend='both')
 		if with_contour: ax.contour(lat, lev, var, levels=levels, linewidths=linewidth, colors='k')
 	if invert_yaxis: ax.invert_yaxis()
+	if log_yaxis: ax.set_yscale('log')
 	if with_grid:
 		ax.grid(True)
 	if cbar_orient == 'vertical':
@@ -319,7 +321,9 @@ def plot_time_series(ax, time, var, ylim=None, label=None, color=None, font_size
 		ax.set_xlabel('Time')
 	else:
 		ax.set_xlabel('Hours')
-	if xlabel is not None: ax.set_xlabel(xlabel)
+	if xlabel is not None:
+		ax.set_xlabel(xlabel)
+		ax.xaxis.set_major_locator(plt.MaxNLocator(nbins=10))
 
 def window_closed(event):
 	plt.close()

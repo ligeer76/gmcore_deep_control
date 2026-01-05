@@ -34,7 +34,7 @@ contains
     integer, intent(inout) :: nproc_y(:)
     integer, intent(out) :: ierr
 
-    integer np, tmp_comm, tmp_id(1), i, j, n, ip, global_ig, local_ig
+    integer np, tmp_comm, tmp_id(1), i, j, n, ip, id
     integer, allocatable :: all_ids(:), all_ide(:), all_jds(:), all_jde(:)
     logical periods(2), correct, all_correct
 
@@ -188,20 +188,24 @@ contains
     allocate(proc%local_grid_id  (nlon,nlat))
     allocate(all_ids(proc%np_model), all_ide(proc%np_model))
     allocate(all_jds(proc%np_model), all_jde(proc%np_model))
-    call MPI_ALLGATHER(proc%ids, 1, MPI_INTEGER, all_ids, 1, MPI_INTEGER, proc%cart_comm, ierr)
-    call MPI_ALLGATHER(proc%ide, 1, MPI_INTEGER, all_ide, 1, MPI_INTEGER, proc%cart_comm, ierr)
-    call MPI_ALLGATHER(proc%jds, 1, MPI_INTEGER, all_jds, 1, MPI_INTEGER, proc%cart_comm, ierr)
-    call MPI_ALLGATHER(proc%jde, 1, MPI_INTEGER, all_jde, 1, MPI_INTEGER, proc%cart_comm, ierr)
-    global_ig = 1
+    call MPI_ALLGATHER(proc%ids, 1, MPI_INTEGER, all_ids, 1, MPI_INTEGER, proc%comm_model, ierr)
+    call MPI_ALLGATHER(proc%ide, 1, MPI_INTEGER, all_ide, 1, MPI_INTEGER, proc%comm_model, ierr)
+    call MPI_ALLGATHER(proc%jds, 1, MPI_INTEGER, all_jds, 1, MPI_INTEGER, proc%comm_model, ierr)
+    call MPI_ALLGATHER(proc%jde, 1, MPI_INTEGER, all_jde, 1, MPI_INTEGER, proc%comm_model, ierr)
+    id = 1
+    do j = 1, nlat
+      do i = 1, nlon
+        proc%global_grid_id(i,j) = id
+        id = id + 1
+      end do
+    end do
     do ip = 1, proc%np_model
       proc%grid_proc_idmap(all_ids(ip):all_ide(ip), all_jds(ip):all_jde(ip)) = ip
-      local_ig = 1
+      id = 1
       do j = all_jds(ip), all_jde(ip)
         do i = all_ids(ip), all_ide(ip)
-          proc%global_grid_id(i,j) = global_ig
-          global_ig = global_ig + 1
-          proc%local_grid_id(i,j) = local_ig
-          local_ig = local_ig + 1
+          proc%local_grid_id(i,j) = id
+          id = id + 1
         end do
       end do
     end do

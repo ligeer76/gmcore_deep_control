@@ -257,8 +257,8 @@ contains
     integer , intent(in ) :: size                       ! Array sizes
     real(r8), intent(out), optional :: clat_d_out(size) ! Column latitudes (rad)
     real(r8), intent(out), optional :: clon_d_out(size) ! Column longitudes (rad)
-    real(r8), intent(out), optional :: area_d_out(size) ! Column surface
-    real(r8), intent(out), optional :: wght_d_out(size) ! Column integration
+    real(r8), intent(out), optional :: area_d_out(size) ! Column surface area
+    real(r8), intent(out), optional :: wght_d_out(size) ! Column integration weight
     real(r8), intent(out), optional ::  lat_d_out(size) ! Column latitudes (deg)
     real(r8), intent(out), optional ::  lon_d_out(size) ! Column longitudes (deg)
 

@@ -31,33 +31,50 @@ contains
     character(*), intent(in) :: tag
     character(*), intent(in) :: dtype
 
+    character(4) :: dims_0d  (1) = ['time']
     character(4) :: dims_2d  (3) = ['lon ', 'lat ', 'time']
     character(4) :: dims_3d  (4) = ['lon ', 'lat ', 'lev ', 'time']
     character(4) :: soil_dims(4) = ['lon ', 'lat ', 'soil', 'time']
 
     call fiona_add_dim(tag, 'soil', size=nsoil)
 
-    call fiona_add_var(tag, 'alsp'        , long_name='Surface albedo'                               , units=''          , dim_names=dims_2d  (1:2), dtype=dtype)
+    call fiona_add_var(tag, 'local_time'  , long_name='Local time (hour)'                            , units=''          , dim_names=dims_2d  (1:3), dtype=dtype)
+    call fiona_add_var(tag, 'tm_co2'      , long_name='Total mass of CO2'                            , units='kg'        , dim_names=dims_0d       , dtype=dtype)
+    call fiona_add_var(tag, 'tm_dst'      , long_name='Total mass of dust'                           , units='kg'        , dim_names=dims_0d       , dtype=dtype)
+    call fiona_add_var(tag, 'tm_h2o'      , long_name='Total mass of water'                          , units='kg'        , dim_names=dims_0d       , dtype=dtype)
+    call fiona_add_var(tag, 't15'         , long_name='T15 diagnostics'                              , units='K'         , dim_names=dims_0d       , dtype=dtype)
+
+    if (tag == 'h1') call fiona_add_var(tag, 'alsp'        , long_name='Surface albedo'                               , units=''          , dim_names=dims_2d  (1:2), dtype=dtype)
     call fiona_add_var(tag, 'als'         , long_name='Surface albedo'                               , units=''          , dim_names=dims_2d  (1:3), dtype=dtype)
     call fiona_add_var(tag, 'zin'         , long_name='Surface thermal inertia'                      , units=''          , dim_names=dims_2d  (1:2), dtype=dtype)
-    call fiona_add_var(tag, 'npcflag'     , long_name='Flag of northern polar cap of water ice'      , units=''          , dim_names=dims_2d  (1:2), dtype=dtype)
-    call fiona_add_var(tag, 'gnd_ice'     , long_name='Flag of GRS ground ice'                       , units=''          , dim_names=dims_2d  (1:2), dtype=dtype)
+    if (tag == 'h1') call fiona_add_var(tag, 'npcflag'     , long_name='Flag of northern polar cap of water ice'      , units=''          , dim_names=dims_2d  (1:2), dtype=dtype)
+    if (tag == 'h1') call fiona_add_var(tag, 'gnd_ice'     , long_name='Flag of GRS ground ice'                       , units=''          , dim_names=dims_2d  (1:2), dtype=dtype)
     call fiona_add_var(tag, 'tg'          , long_name='Ground temperature'                           , units='K'         , dim_names=dims_2d  (1:3), dtype=dtype)
     call fiona_add_var(tag, 'tstrat'      , long_name='Stratospheric temperature'                    , units='K'         , dim_names=dims_2d  (1:3), dtype=dtype)
     call fiona_add_var(tag, 'solar_sfc_dn', long_name='Downward solar flux at the surface'           , units='W m-2'     , dim_names=dims_2d  (1:3), dtype=dtype)
     call fiona_add_var(tag, 'vsflx_sfc_dn', long_name='Downward visible flux at the surface'         , units='W m-2'     , dim_names=dims_2d  (1:3), dtype=dtype)
     call fiona_add_var(tag, 'vsdif_sfc_dn', long_name='Downward diffused visible flux at the surface', units='W m-2'     , dim_names=dims_2d  (1:3), dtype=dtype)
     call fiona_add_var(tag, 'irflx_sfc_dn', long_name='Downward infrared flux at the surface'        , units='W m-2'     , dim_names=dims_2d  (1:3), dtype=dtype)
-    call fiona_add_var(tag, 'cosz'        , long_name='Cosine of solar zenith angle'                 , units=''          , dim_names=dims_2d  (1:3), dtype=dtype)
+    if (tag == 'h1') call fiona_add_var(tag, 'fuptopv'     , long_name='fuptopv'                                      , units='W m-2'     , dim_names=dims_2d  (1:3), dtype=dtype)
+    if (tag == 'h1') call fiona_add_var(tag, 'fdntopv'     , long_name='fdntopv'                                      , units='W m-2'     , dim_names=dims_2d  (1:3), dtype=dtype)
+    if (tag == 'h1') call fiona_add_var(tag, 'fupsfcv'     , long_name='fupsfcv'                                      , units='W m-2'     , dim_names=dims_2d  (1:3), dtype=dtype)
+    if (tag == 'h1') call fiona_add_var(tag, 'fdnsfcv'     , long_name='fdnsfcv'                                      , units='W m-2'     , dim_names=dims_2d  (1:3), dtype=dtype)
+    if (tag == 'h1') call fiona_add_var(tag, 'fuptopi'     , long_name='fuptopi'                                      , units='W m-2'     , dim_names=dims_2d  (1:3), dtype=dtype)
+    if (tag == 'h1') call fiona_add_var(tag, 'fupsfci'     , long_name='fupsfci'                                      , units='W m-2'     , dim_names=dims_2d  (1:3), dtype=dtype)
+    if (tag == 'h1') call fiona_add_var(tag, 'fdnsfci'     , long_name='fdnsfci'                                      , units='W m-2'     , dim_names=dims_2d  (1:3), dtype=dtype)
+    if (tag == 'h1') call fiona_add_var(tag, 'cosz'        , long_name='Cosine of solar zenith angle'                 , units=''          , dim_names=dims_2d  (1:3), dtype=dtype)
     call fiona_add_var(tag, 'qrad'        , long_name='Heat rate due to radiation'                   , units='K s-1'     , dim_names=dims_3d  (1:4), dtype=dtype)
-    call fiona_add_var(tag, 'shr2'        , long_name='Square of wind shear'                         , units='s-2'       , dim_names=dims_3d  (1:4), dtype=dtype)
-    call fiona_add_var(tag, 'ustar'       , long_name='u* in similarity theory'                      , units='m s-1'     , dim_names=dims_2d  (1:3), dtype=dtype)
-    call fiona_add_var(tag, 'tstar'       , long_name='Temperature scale'                            , units='K'         , dim_names=dims_2d  (1:3), dtype=dtype)
+    if (tag == 'h1') call fiona_add_var(tag, 'shr2'        , long_name='Square of wind shear'                         , units='s-2'       , dim_names=dims_3d  (1:4), dtype=dtype)
+    if (tag == 'h1') call fiona_add_var(tag, 'ustar'       , long_name='u* in similarity theory'                      , units='m s-1'     , dim_names=dims_2d  (1:3), dtype=dtype)
+    if (tag == 'h1') call fiona_add_var(tag, 'tstar'       , long_name='Temperature scale'                            , units='K'         , dim_names=dims_2d  (1:3), dtype=dtype)
+    call fiona_add_var(tag, 'tausurf'     , long_name='tausurf'                                      , units=''          , dim_names=dims_2d(1:3), dtype=dtype)
     call fiona_add_var(tag, 'co2ice_sfc'  , long_name='Ground CO2 ice'                               , units='kg m-2'    , dim_names=dims_2d  (1:3), dtype=dtype)
-    call fiona_add_var(tag, 'pcon'        , long_name='Pressure of PBL'                              , units='Pa'        , dim_names=dims_2d  (1:3), dtype=dtype)
-    call fiona_add_var(tag, 'ptcon'       , long_name='Potential temperature of PBL'                 , units='K'         , dim_names=dims_2d  (1:3), dtype=dtype)
+    if (tag == 'h1') call fiona_add_var(tag, 'pcon'        , long_name='Pressure of PBL'                              , units='Pa'        , dim_names=dims_2d  (1:3), dtype=dtype)
+    if (tag == 'h1') call fiona_add_var(tag, 'ptcon'       , long_name='Potential temperature of PBL'                 , units='K'         , dim_names=dims_2d  (1:3), dtype=dtype)
     call fiona_add_var(tag, 'ht_pbl'      , long_name='Sensible heat flux at the surface'            , units='W m-2'     , dim_names=dims_2d  (1:3), dtype=dtype)
     call fiona_add_var(tag, 'ht_sfc'      , long_name='Heat flux at the surface'                     , units='W m-2'     , dim_names=dims_2d  (1:3), dtype=dtype)
+    call fiona_add_var(tag, 'taux'        , long_name='Wind stress in x direction'                   , units='N m-2'     , dim_names=dims_2d  (1:3), dtype=dtype)
+    call fiona_add_var(tag, 'tauy'        , long_name='Wind stress in y direction'                   , units='N m-2'     , dim_names=dims_2d  (1:3), dtype=dtype)
     call fiona_add_var(tag, 'dstflx_ddl'  , long_name='Devil dust lifting flux'                      , units='kg m-2 s-1', dim_names=dims_2d  (1:3), dtype=dtype)
     call fiona_add_var(tag, 'dstflx_wsl'  , long_name='Wind stress dust lifting flux'                , units='kg m-2 s-1', dim_names=dims_2d  (1:3), dtype=dtype)
 
@@ -73,16 +90,18 @@ contains
     call fiona_add_var(tag, 'qsfc_nb_cld'       , long_name='Surface ice cloud number mixing ratio'        , units='kg-1'      , dim_names=dims_2d(1:3), dtype=dtype)
     call fiona_add_var(tag, 'qsfc_ma_cor'       , long_name='Surface dust core mass mixing ratio'          , units='kg kg-1'   , dim_names=dims_2d(1:3), dtype=dtype)
     call fiona_add_var(tag, 'qsfc_ma_vap'       , long_name='Surface water vapor mass mixing ratio'        , units='kg kg-1'   , dim_names=dims_2d(1:3), dtype=dtype)
+    call fiona_add_var(tag, 'h2osub_sfc'        , long_name='Surface sublime water vapor mass'             , units='kg m-2'    , dim_names=dims_2d(1:3), dtype=dtype)
+    call fiona_add_var(tag, 'h2oice_sfc'        , long_name='Surface water ice mass'                       , units='kg m-2'    , dim_names=dims_2d(1:3), dtype=dtype)
 
     ! Soil variables
-    call fiona_add_var(tag, 'scond'       , long_name='Soil thermal conductivity'                    , units=''          , dim_names=soil_dims(1:3), dtype=dtype)
+    if (tag == 'h1') call fiona_add_var(tag, 'scond'       , long_name='Soil thermal conductivity'                    , units=''          , dim_names=soil_dims(1:3), dtype=dtype)
     call fiona_add_var(tag, 'stemp'       , long_name='Soil temperature'                             , units='K'         , dim_names=soil_dims     , dtype=dtype)
 
     ! Tendencies
-    call fiona_add_var(tag, 'dudt_phys'   , long_name='Physics tendency of zonal wind'               , units='m s-2'     , dim_names=dims_3d  (1:4), dtype=dtype)
-    call fiona_add_var(tag, 'dvdt_phys'   , long_name='Physics tendency of meridional wind'          , units='m s-2'     , dim_names=dims_3d  (1:4), dtype=dtype)
-    call fiona_add_var(tag, 'dtdt_phys'   , long_name='Physics tendency of temperature'              , units='K s-1'     , dim_names=dims_3d  (1:4), dtype=dtype)
-    call fiona_add_var(tag, 'dpsdt_phys'  , long_name='Physics tendency of surface pressure'         , units='Pa s-1'    , dim_names=dims_2d  (1:3), dtype=dtype)
+    if (tag == 'h1') call fiona_add_var(tag, 'dudt_phys'   , long_name='Physics tendency of zonal wind'               , units='m s-2'     , dim_names=dims_3d  (1:4), dtype=dtype)
+    if (tag == 'h1') call fiona_add_var(tag, 'dvdt_phys'   , long_name='Physics tendency of meridional wind'          , units='m s-2'     , dim_names=dims_3d  (1:4), dtype=dtype)
+    if (tag == 'h1') call fiona_add_var(tag, 'dtdt_phys'   , long_name='Physics tendency of temperature'              , units='K s-1'     , dim_names=dims_3d  (1:4), dtype=dtype)
+    if (tag == 'h1') call fiona_add_var(tag, 'dpsdt_phys'  , long_name='Physics tendency of surface pressure'         , units='Pa s-1'    , dim_names=dims_2d  (1:3), dtype=dtype)
 
   end subroutine gomars_v1_add_output
 
@@ -96,22 +115,29 @@ contains
     associate (mesh => objects(iblk)%mesh, state => objects(iblk)%state, tend => objects(iblk)%tend)
     soil_start = [mesh%cell_start_2d(1), mesh%cell_start_2d(2), 1    ]
     soil_count = [mesh%cell_count_2d(1), mesh%cell_count_2d(2), nsoil]
-    call fiona_output(tag, 'alsp'        , reshape(state%alsp        , mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
+    if (tag == 'h1') call fiona_output(tag, 'alsp'        , reshape(state%alsp        , mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
     call fiona_output(tag, 'als'         , reshape(state%als         , mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
     call fiona_output(tag, 'zin'         , reshape(state%zin         , mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
+
+    call fiona_output(tag, 'local_time'  , reshape(state%local_time  , mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
+    call fiona_output(tag, 'tm_co2'      , state%tm_co2)
+    call fiona_output(tag, 'tm_dst'      , state%tm_dst)
+    call fiona_output(tag, 'tm_h2o'      , state%tm_h2o)
+    call fiona_output(tag, 't15'         , state%t15   )
+
     allocate(tmp(mesh%ncol))
     where (state%npcflag)
       tmp = 1
     else where
       tmp = 0
     end where
-    call fiona_output(tag, 'npcflag'     , reshape(tmp               , mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
+    if (tag == 'h1') call fiona_output(tag, 'npcflag'     , reshape(tmp               , mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
     where (state%grss .or. state%grsn)
       tmp = 1
     else where
       tmp = 0
     end where
-    call fiona_output(tag, 'gnd_ice'     , reshape(tmp               , mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
+    if (tag == 'h1') call fiona_output(tag, 'gnd_ice'     , reshape(tmp               , mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
     deallocate(tmp)
     call fiona_output(tag, 'tg'          , reshape(state%tg          , mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
     call fiona_output(tag, 'tstrat'      , reshape(state%tstrat      , mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
@@ -119,18 +145,30 @@ contains
     call fiona_output(tag, 'vsflx_sfc_dn', reshape(state%vsflx_sfc_dn, mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
     call fiona_output(tag, 'vsdif_sfc_dn', reshape(state%vsdif_sfc_dn, mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
     call fiona_output(tag, 'irflx_sfc_dn', reshape(state%irflx_sfc_dn, mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
-    call fiona_output(tag, 'cosz'        , reshape(state%cosz        , mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
+    if (tag == 'h1') call fiona_output(tag, 'fuptopv'     , reshape(state%fuptopv     , mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
+    if (tag == 'h1') call fiona_output(tag, 'fdntopv'     , reshape(state%fdntopv     , mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
+    if (tag == 'h1') call fiona_output(tag, 'fupsfcv'     , reshape(state%fupsfcv     , mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
+    if (tag == 'h1') call fiona_output(tag, 'fdnsfcv'     , reshape(state%fdnsfcv     , mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
+    if (tag == 'h1') call fiona_output(tag, 'fuptopi'     , reshape(state%fuptopi     , mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
+    if (tag == 'h1') call fiona_output(tag, 'fupsfci'     , reshape(state%fupsfci     , mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
+    if (tag == 'h1') call fiona_output(tag, 'fdnsfci'     , reshape(state%fdnsfci     , mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
+    if (tag == 'h1') call fiona_output(tag, 'cosz'        , reshape(state%cosz        , mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
     call fiona_output(tag, 'qrad'        , reshape(state%qrad        , mesh%cell_count_3d), start=mesh%cell_start_3d, count=mesh%cell_count_3d)
-    call fiona_output(tag, 'shr2'        , reshape(state%shr2        , mesh%cell_count_3d), start=mesh%cell_start_3d, count=mesh%cell_count_3d)
-    call fiona_output(tag, 'ustar'       , reshape(state%ustar       , mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
-    call fiona_output(tag, 'tstar'       , reshape(state%tstar       , mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
+    if (tag == 'h1') call fiona_output(tag, 'shr2'        , reshape(state%shr2        , mesh%cell_count_3d), start=mesh%cell_start_3d, count=mesh%cell_count_3d)
+    if (tag == 'h1') call fiona_output(tag, 'ustar'       , reshape(state%ustar       , mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
+    if (tag == 'h1') call fiona_output(tag, 'tstar'       , reshape(state%tstar       , mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
+    call fiona_output(tag, 'tausurf'     , reshape(state%tausurf     , mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
     call fiona_output(tag, 'co2ice_sfc'  , reshape(state%co2ice_sfc  , mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
-    call fiona_output(tag, 'pcon'        , reshape(state%pcon        , mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
-    call fiona_output(tag, 'ptcon'       , reshape(state%ptcon       , mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
+    if (tag == 'h1') call fiona_output(tag, 'pcon'        , reshape(state%pcon        , mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
+    if (tag == 'h1') call fiona_output(tag, 'ptcon'       , reshape(state%ptcon       , mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
     call fiona_output(tag, 'ht_pbl'      , reshape(state%ht_pbl      , mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
     call fiona_output(tag, 'ht_sfc'      , reshape(state%ht_sfc      , mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
+    call fiona_output(tag, 'taux'        , reshape(state%taux        , mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
+    call fiona_output(tag, 'tauy'        , reshape(state%tauy        , mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
     call fiona_output(tag, 'dstflx_ddl'  , reshape(state%dstflx_ddl  , mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
     call fiona_output(tag, 'dstflx_wsl'  , reshape(state%dstflx_wsl  , mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
+    call fiona_output(tag, 'h2osub_sfc'  , reshape(state%h2osub_sfc  , mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
+    call fiona_output(tag, 'h2oice_sfc'  , reshape(state%h2oice_sfc  , mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
 
     call fiona_output(tag, 'qflx_sfc_dn_ma_dst', reshape(state%qflx_sfc_dn(:,iMa_dst), mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
     call fiona_output(tag, 'qflx_sfc_dn_nb_dst', reshape(state%qflx_sfc_dn(:,iNb_dst), mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
@@ -146,14 +184,14 @@ contains
     call fiona_output(tag, 'qsfc_ma_vap'       , reshape(state%qsfc(:,iMa_vap)       , mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
 
     ! Soil variables
-    call fiona_output(tag, 'scond'       , reshape(state%scond       , soil_count        ), start=soil_start        , count=soil_count        )
+    if (tag == 'h1') call fiona_output(tag, 'scond'       , reshape(state%scond       , soil_count        ), start=soil_start        , count=soil_count        )
     call fiona_output(tag, 'stemp'       , reshape(state%stemp       , soil_count        ), start=soil_start        , count=soil_count        )
 
     ! Tendencies
-    call fiona_output(tag, 'dudt_phys'   , reshape(tend%dudt         , mesh%cell_count_3d), start=mesh%cell_start_3d, count=mesh%cell_count_3d)
-    call fiona_output(tag, 'dvdt_phys'   , reshape(tend%dvdt         , mesh%cell_count_3d), start=mesh%cell_start_3d, count=mesh%cell_count_3d)
-    call fiona_output(tag, 'dtdt_phys'   , reshape(tend%dtdt         , mesh%cell_count_3d), start=mesh%cell_start_3d, count=mesh%cell_count_3d)
-    call fiona_output(tag, 'dpsdt_phys'  , reshape(tend%dpsdt        , mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
+    if (tag == 'h1') call fiona_output(tag, 'dudt_phys'   , reshape(tend%dudt         , mesh%cell_count_3d), start=mesh%cell_start_3d, count=mesh%cell_count_3d)
+    if (tag == 'h1') call fiona_output(tag, 'dvdt_phys'   , reshape(tend%dvdt         , mesh%cell_count_3d), start=mesh%cell_start_3d, count=mesh%cell_count_3d)
+    if (tag == 'h1') call fiona_output(tag, 'dtdt_phys'   , reshape(tend%dtdt         , mesh%cell_count_3d), start=mesh%cell_start_3d, count=mesh%cell_count_3d)
+    if (tag == 'h1') call fiona_output(tag, 'dpsdt_phys'  , reshape(tend%dpsdt        , mesh%cell_count_2d), start=mesh%cell_start_2d, count=mesh%cell_count_2d)
     end associate
 
   end subroutine gomars_v1_output

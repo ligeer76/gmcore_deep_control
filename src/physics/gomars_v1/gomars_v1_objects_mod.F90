@@ -20,6 +20,8 @@ module gomars_v1_objects_mod
   private
 
   public physics_mesh_type
+  public gomars_v1_state_type
+  public gomars_v1_tend_type
   public gomars_v1_objects_type
   public objects
   public gomars_v1_objects_init

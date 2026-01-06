@@ -163,8 +163,9 @@ contains
       ! ------------------------------------------------------------------------
       ! Reduce the sublimation flux by a coefficient. It is a tunable parameter to
       ! avoid the formation of low-lying clouds in summer above the north permanent cap.
+      ! FIXME: 难道不考虑地表可用水量？
       qsat = water_vapor_saturation_mixing_ratio_mars(tg(i), ps(i))
-      coef = merge(1.0_r8, 1.0_r8, qsat > q(i,nlev,iMa_vap))
+      coef = merge(0.0_r8, 1.0_r8, qsat > q(i,nlev,iMa_vap))
       ! ------------------------------------------------------------------------
       ! Solve the implicit diffusion equations.
       ! - Zonal wind
@@ -194,15 +195,15 @@ contains
       bnd    = dt / dz(i,nlev) * ustar(i) * cdh(i) * coef
       rhs    = 0
       var    = rho(i,:) * q(i,:,iMa_vap)
-      rhs(nlev) = h2osub_sfc(i) + dt / dz(i,nlev) * rho(i,nlev) * ustar(i) * cdh(i) * coef
+      rhs(nlev) = rhs(nlev) + dt / dz(i,nlev) * rho(i,nlev) * ustar(i) * cdh(i) * coef * qsat
       call pbl_solve(dz(i,:), dz_lev(i,:), kdf, bnd, rhs, var)
       q(i,:,iMa_vap) = var / rho(i,:)
       ! ------------------------------------------------------------------------
       ! Update water ice budget on the surface.
-      qsfc(i,iMa_vap) = qsfc(i,iMa_vap) - h2osub_sfc(i)
-      if (.not. npcflag(i) .and. qsfc(i,iMa_vap) < 0) then
-        qsfc(i,iMa_vap) = 0
-      end if
+      ! qsfc(i,iMa_vap) = qsfc(i,iMa_vap) - h2osub_sfc(i)
+      ! if (.not. npcflag(i) .and. qsfc(i,iMa_vap) < 0) then
+      !   qsfc(i,iMa_vap) = 0
+      ! end if
       ! ------------------------------------------------------------------------
       do k = 1, mesh%nlev
         t(i,k) = pt(i,k) * pk(i,k)

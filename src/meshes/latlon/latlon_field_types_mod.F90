@@ -396,18 +396,100 @@ contains
 
   end subroutine latlon_field2d_link_3d
 
-  real(r8) function latlon_field2d_sum(this) result(res)
+  real(r8) function latlon_field2d_sum(this, area_wgt) result(res)
 
     class(latlon_field2d_type), intent(in) :: this
+    logical, intent(in), optional :: area_wgt
 
-    integer is, ie, js, je
+    logical area_wgt_opt
+    real(8), pointer :: area(:)
+    real(8), allocatable :: local_buffer(:,:)
+    integer is, ie, js, je, i, j, ierr
+#ifdef CHECK_PARALLEL
+    integer nlon, nlat
+    integer array_size    (2)
+    integer subarray_size (2)
+    integer subarray_start(2)
+    integer subarray_type
+    integer, allocatable :: root_is(:)
+    integer, allocatable :: root_ie(:)
+    integer, allocatable :: root_js(:)
+    integer, allocatable :: root_je(:)
+    real(8), allocatable :: root_buffer(:,:)
+#endif
+
+    area_wgt_opt = .false.; if (present(area_wgt)) area_wgt_opt = area_wgt
 
     is = merge(this%mesh%full_ids, this%mesh%half_ids, this%full_lon)
     ie = merge(this%mesh%full_ide, this%mesh%half_ide, this%full_lon)
     js = merge(this%mesh%full_jds, this%mesh%half_jds, this%full_lat)
     je = merge(this%mesh%full_jde, this%mesh%half_jde, this%full_lat)
+    select case (this%loc)
+    case ('cell', 'lev', 'lon')
+      area => global_mesh%area_cell(1:global_mesh%full_nlat)
+    case ('vtx', 'lat')
+      area => global_mesh%area_lat (1:global_mesh%half_nlat)
+    end select
 
-    res = global_sum(proc%comm_model, sum(this%d(is:ie,js:je)))
+    allocate(local_buffer(is:ie,js:je))
+    if (area_wgt_opt) then
+      ! Area weighting
+      do j = js, je
+        do i = is, ie
+          local_buffer(i,j) = this%d(i,j) * area(j)
+        end do
+      end do
+    else
+      local_buffer = this%d(is:ie,js:je)
+    end if
+#ifdef CHECK_PARALLEL
+    if (proc%is_root()) then
+      allocate(root_is(0:proc%np_model-1))
+      allocate(root_ie(0:proc%np_model-1))
+      allocate(root_js(0:proc%np_model-1))
+      allocate(root_je(0:proc%np_model-1))
+      nlon = merge(global_mesh%full_nlon, global_mesh%half_nlon, this%full_lon)
+      nlat = merge(global_mesh%full_nlat, global_mesh%half_nlat, this%full_lat)
+      allocate(root_buffer(nlon,nlat))
+    end if
+    call MPI_GATHER(is, 1, MPI_INT, root_is, 1, MPI_INT, 0, proc%comm_model, ierr)
+    call MPI_GATHER(ie, 1, MPI_INT, root_ie, 1, MPI_INT, 0, proc%comm_model, ierr)
+    call MPI_GATHER(js, 1, MPI_INT, root_js, 1, MPI_INT, 0, proc%comm_model, ierr)
+    call MPI_GATHER(je, 1, MPI_INT, root_je, 1, MPI_INT, 0, proc%comm_model, ierr)
+    if (.not. proc%is_root()) then
+      ! Send data from non-root processes to root.
+      call MPI_SEND(local_buffer, size(local_buffer), MPI_DOUBLE, 0, 100, proc%comm_model, ierr)
+    else
+      ! Copy local buffer.
+      root_buffer(is:ie,js:je) = local_buffer
+      ! Receive remote buffer.
+      array_size = [nlon,nlat]
+      do i = 1, proc%np_model - 1
+        subarray_size  = [root_ie(i)-root_is(i)+1,root_je(i)-root_js(i)+1]
+        subarray_start = [root_is(i)-1,root_js(i)-1]
+        call MPI_TYPE_CREATE_SUBARRAY(2, array_size, subarray_size, subarray_start, &
+                                      MPI_ORDER_FORTRAN, MPI_DOUBLE, subarray_type, ierr)
+        call MPI_TYPE_COMMIT(subarray_type, ierr)
+        call MPI_RECV(root_buffer, 1, subarray_type, i, 100, proc%comm_model, MPI_STATUS_IGNORE, ierr)
+        call MPI_TYPE_FREE(subarray_type, ierr)
+      end do
+    end if
+    if (proc%is_root()) then
+      res = sum(root_buffer)
+      deallocate(root_is)
+      deallocate(root_ie)
+      deallocate(root_js)
+      deallocate(root_je)
+      deallocate(root_buffer)
+    end if
+    call MPI_BCAST(res, 1, MPI_DOUBLE, 0, proc%comm_model, ierr)
+#else
+    call MPI_ALLREDUCE(sum(local_buffer), res, 1, MPI_DOUBLE, MPI_SUM, proc%comm_model, ierr)
+#endif
+    deallocate(local_buffer)
+    if (area_wgt_opt) then
+      res = res / sum(area) / global_mesh%full_nlon
+    end if
 
   end function latlon_field2d_sum
 
@@ -631,11 +713,31 @@ contains
 
   end subroutine latlon_field3d_copy_4d
 
-  real(r8) function latlon_field3d_sum(this) result(res)
+  real(r8) function latlon_field3d_sum(this, area_wgt) result(res)
 
     class(latlon_field3d_type), intent(in) :: this
+    logical, intent(in), optional :: area_wgt
 
-    integer is, ie, js, je, ks, ke
+    logical area_wgt_opt
+    real(8), pointer :: area(:)
+    real(8), allocatable :: local_buffer(:,:,:)
+    integer is, ie, js, je, ks, ke, i, j, k, ierr
+#ifdef CHECK_PARALLEL
+    integer nlon, nlat, nlev
+    integer array_size    (3)
+    integer subarray_size (3)
+    integer subarray_start(3)
+    integer subarray_type
+    integer, allocatable :: root_is(:)
+    integer, allocatable :: root_ie(:)
+    integer, allocatable :: root_js(:)
+    integer, allocatable :: root_je(:)
+    integer, allocatable :: root_ks(:)
+    integer, allocatable :: root_ke(:)
+    real(8), allocatable :: root_buffer(:,:,:)
+#endif
+
+    area_wgt_opt = .false.; if (present(area_wgt)) area_wgt_opt = area_wgt
 
     is = merge(this%mesh%full_ids, this%mesh%half_ids, this%full_lon)
     ie = merge(this%mesh%full_ide, this%mesh%half_ide, this%full_lon)
@@ -643,8 +745,75 @@ contains
     je = merge(this%mesh%full_jde, this%mesh%half_jde, this%full_lat)
     ks = merge(this%mesh%full_kds, this%mesh%half_kds, this%full_lev)
     ke = merge(this%mesh%full_kde, this%mesh%half_kde, this%full_lev)
+    select case (this%loc)
+    case ('cell', 'lev', 'lon')
+      area => global_mesh%area_cell(1:global_mesh%full_nlat)
+    case ('vtx', 'lat')
+      area => global_mesh%area_lat (1:global_mesh%half_nlat)
+    end select
 
-    res = global_sum(proc%comm_model, sum(this%d(is:ie,js:je,ks:ke)))
+    allocate(local_buffer(is:ie,js:je,ks:ke))
+    if (area_wgt_opt) then
+      ! Area weighting
+      do k = ks, ke
+        do j = js, je
+          do i = is, ie
+            local_buffer(i,j,k) = this%d(i,j,k) * area(j)
+          end do
+        end do
+      end do
+    else
+      local_buffer = this%d(is:ie,js:je,ks:ke)
+    end if
+#ifdef CHECK_PARALLEL
+    if (proc%is_root()) then
+      allocate(root_is(0:proc%np_model-1))
+      allocate(root_ie(0:proc%np_model-1))
+      allocate(root_js(0:proc%np_model-1))
+      allocate(root_je(0:proc%np_model-1))
+      nlon = merge(global_mesh%full_nlon, global_mesh%half_nlon, this%full_lon)
+      nlat = merge(global_mesh%full_nlat, global_mesh%half_nlat, this%full_lat)
+      nlev = merge(global_mesh%full_nlev, global_mesh%half_nlev, this%full_lev)
+      allocate(root_buffer(nlon,nlat,nlev))
+    end if
+    call MPI_GATHER(is, 1, MPI_INT, root_is, 1, MPI_INT, 0, proc%comm_model, ierr)
+    call MPI_GATHER(ie, 1, MPI_INT, root_ie, 1, MPI_INT, 0, proc%comm_model, ierr)
+    call MPI_GATHER(js, 1, MPI_INT, root_js, 1, MPI_INT, 0, proc%comm_model, ierr)
+    call MPI_GATHER(je, 1, MPI_INT, root_je, 1, MPI_INT, 0, proc%comm_model, ierr)
+    if (.not. proc%is_root()) then
+      ! Send data from non-root processes to root.
+      call MPI_SEND(local_buffer, size(local_buffer), MPI_DOUBLE, 0, 101, proc%comm_model, ierr)
+    else
+      ! Copy local buffer.
+      root_buffer(is:ie,js:je,ks:ke) = local_buffer
+      ! Receive remote buffer.
+      array_size = [nlon,nlat,nlev]
+      do i = 1, proc%np_model - 1
+        subarray_size  = [root_ie(i)-root_is(i)+1,root_je(i)-root_js(i)+1,root_ke(i)-root_ks(i)+1]
+        subarray_start = [root_is(i)-1,root_js(i)-1,root_ks(i)-1]
+        call MPI_TYPE_CREATE_SUBARRAY(3, array_size, subarray_size, subarray_start, &
+                                      MPI_ORDER_FORTRAN, MPI_DOUBLE, subarray_type, ierr)
+        call MPI_TYPE_COMMIT(subarray_type, ierr)
+        call MPI_RECV(root_buffer, 1, subarray_type, i, 101, proc%comm_model, MPI_STATUS_IGNORE, ierr)
+        call MPI_TYPE_FREE(subarray_type, ierr)
+      end do
+    end if
+    if (proc%is_root()) then
+      res = sum(root_buffer)
+      deallocate(root_is)
+      deallocate(root_ie)
+      deallocate(root_js)
+      deallocate(root_je)
+      deallocate(root_buffer)
+    end if
+    call MPI_BCAST(res, 1, MPI_DOUBLE, 0, proc%comm_model, ierr)
+#else
+    call MPI_ALLREDUCE(sum(local_buffer), res, 1, MPI_DOUBLE, MPI_SUM, proc%comm_model, ierr)
+#endif
+    deallocate(local_buffer)
+    if (area_wgt_opt) then
+      res = res / sum(area) / global_mesh%full_nlon
+    end if
 
   end function latlon_field3d_sum
 

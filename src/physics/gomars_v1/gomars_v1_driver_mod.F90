@@ -106,7 +106,9 @@ contains
     ! Check model top pressure. It must be lower than ptop in nasa_rad_mod.
 
     do iblk = 1, size(objects)
-      associate (mesh => objects(iblk)%mesh, state => objects(iblk)%state)
+      associate (mesh  => objects(iblk)%mesh , &
+                 state => objects(iblk)%state, &
+                 tend  => objects(iblk)%tend )
       ! Set some initial variables (from init1).
       if (.not. restart) then
         ! FIXME: Here is for cold run.
@@ -127,6 +129,11 @@ contains
           end do
         end do
       end if
+      call gomars_v1_diags(state, tend)
+      ! Initialize local time.
+      do icol = 1, mesh%ncol
+        state%local_time(icol) = mesh%lon(icol) / pi2 * 24
+      end do
       end associate
     end do
 
@@ -148,19 +155,22 @@ contains
       associate (mesh => objects(1)%mesh, state => objects(1)%state)
       ! Surface albedo
       call fiona_open_dataset('alb', file_path=trim(data_root)//'/mgs_albedo.nc', mpi_comm=proc%comm_model)
+      ! call fiona_open_dataset('alb', file_path=trim(data_root)//'/osu_alb_6x5_2011.nc', mpi_comm=proc%comm_model)
       call fiona_set_dim('alb', 'lon', span=[0, 360], cyclic=.true.)
       call fiona_set_dim('alb', 'lat', span=[-90, 90])
       call fiona_start_input('alb')
       call fiona_input_range('alb', 'lon', lon, coord_range=[mesh%min_lon, mesh%max_lon]); lon = lon * rad
       call fiona_input_range('alb', 'lat', lat, coord_range=[mesh%min_lat, mesh%max_lat]); lat = lat * rad
       call fiona_input_range('alb', 'albedo', dat, coord_range_1=[mesh%min_lon, mesh%max_lon], coord_range_2=[mesh%min_lat, mesh%max_lat])
+      ! call fiona_input_range('alb', 'alb', dat, coord_range_1=[mesh%min_lon, mesh%max_lon], coord_range_2=[mesh%min_lat, mesh%max_lat])
       call fiona_end_input('alb')
       call latlon_interp_bilinear_column(lon, lat, dat, mesh%lon, mesh%lat, state%alsp)
       call physics_pole_sum(mesh%lat, state%alsp)
       deallocate(lon, lat, dat)
 
       ! Surface thermal inertia
-      call fiona_open_dataset('zin', file_path=trim(data_root)//'/nasa_zin_2011.nc', mpi_comm=proc%comm_model)
+      call fiona_open_dataset('zin', file_path=trim(data_root)//'/osu_zin_6x5_2011.nc', mpi_comm=proc%comm_model)
+      ! call fiona_open_dataset('zin', file_path=trim(data_root)//'/nasa_zin_2011.nc', mpi_comm=proc%comm_model)
       call fiona_set_dim('zin', 'lon', span=[0, 360], cyclic=.true.)
       call fiona_set_dim('zin', 'lat', span=[-90, 90])
       call fiona_start_input('zin')
@@ -168,24 +178,12 @@ contains
       call fiona_input_range('zin', 'lat', lat, coord_range=[mesh%min_lat, mesh%max_lat]); lat = lat * rad
       call fiona_input_range('zin', 'zin', dat, coord_range_1=[mesh%min_lon, mesh%max_lon], coord_range_2=[mesh%min_lat, mesh%max_lat])
       call fiona_end_input('zin')
-      allocate(ilon(size(lon)+1))
-      allocate(ilat(size(lat)+1))
-      dlon = lon(2) - lon(1) ! Assuming equidistant.
-      do i = 1, size(lon)
-        ilon(i  ) = lon(i) - 0.5_r8 * dlon
-        ilon(i+1) = lon(i) + 0.5_r8 * dlon
-      end do
-      dlat = lat(2) - lat(1) ! Assuming equidistant.
-      do j = 1, size(lat)
-        ilat(j  ) = lat(j) - 0.5_r8 * dlat
-        ilat(j+1) = lat(j) + 0.5_r8 * dlat
-      end do
-      call latlon_interp_fill_column(ilon, ilat, dat, mesh%lon, mesh%lat, state%zin(:,1))
+      call latlon_interp_bilinear_column(lon, lat, dat, mesh%lon, mesh%lat, state%zin(:,1))
       do k = 2, nsoil
         state%zin(:,k) = state%zin(:,1)
       end do
       call physics_pole_sum(mesh%lat, state%zin)
-      deallocate(lon, lat, ilon, ilat, dat)
+      deallocate(lon, lat, dat)
 
       ! Flag of northern polar cap of water ice
       call fiona_open_dataset('npcflag', file_path=trim(data_root)//'/npcflag_osu_550.nc', mpi_comm=proc%comm_model)
@@ -244,7 +242,7 @@ contains
 
     type(datetime_type), intent(in) :: time
 
-    integer iblk
+    integer iblk, icyc
     real(r8) ls
 
     ls = time%solar_longitude()
@@ -256,6 +254,8 @@ contains
       associate (mesh  => objects(iblk)%mesh , &
                  state => objects(iblk)%state, &
                  tend  => objects(iblk)%tend )
+      call tend%reset()
+      state%local_time = mod(state%local_time + (dt / mars_time_scale / 3600.0_r8), 24.0_r8)
       call gomars_v1_orbit_cosz     (state)
       call update_sfc_solar_flux    (state)
       call gomars_v1_lsm_run        (state, tend)
@@ -265,11 +265,13 @@ contains
       call gomars_v1_rad_run        (state)
       call gomars_v1_pbl_run        (state)
       call interp_temperature       (state)
+      do icyc = 1, nsplit
+        call gomars_v1_dustcyc_run  (state, dt / nsplit)
+        call gomars_v1_mp_run       (state, dt / nsplit)
+      end do
       call gomars_v1_cnvadj_run     (state)
-      call interp_temperature       (state)
-      call gomars_v1_dustcyc_run    (state)
-      call gomars_v1_mp_run         (state)
       call gomars_v1_damp_run       (state)
+      call gomars_v1_diags          (state, tend)
       end associate
     end do
 
@@ -305,10 +307,6 @@ contains
           state%pk_lev(i,k) = (state%p_lev(i,k) / state%ps(i))**rd_o_cpd
         end do
       end do
-      ! FIXME: Do we need ps_old?
-      do i = 1, mesh%ncol
-        state%ps_old(i) = state%ps(i)
-      end do
       end associate
     end do
 
@@ -343,5 +341,108 @@ contains
     end do
 
   end subroutine gomars_v1_p2d
+
+  subroutine gomars_v1_diags(state, tend)
+
+    type(gomars_v1_state_type), intent(inout) :: state
+    type(gomars_v1_tend_type), intent(in) :: tend
+
+    integer i, k
+
+    associate (mesh       => state%mesh      , &
+               ps         => state%ps        , & ! in
+               dp         => state%dp        , & ! in
+               dpsdt      => tend %dpsdt     , & ! in
+               co2ice_sfc => state%co2ice_sfc, & ! in
+               q          => state%q         , & ! in
+               qsfc       => state%qsfc      , & ! in
+               tm_co2     => state%tm_co2    , & ! out
+               tm_dst     => state%tm_dst    , & ! out
+               tm_h2o     => state%tm_h2o    )   ! out
+    tm_co2 = 0
+    do i = 1, mesh%ncol
+      tm_co2 = tm_co2 + mesh%area(i) * (ps(i) / g + dpsdt(i) / g * dt + co2ice_sfc(i))
+    end do
+    tm_co2 = physics_sum(tm_co2)
+    tm_dst = 0
+    do k = 1, mesh%nlev
+      do i = 1, mesh%ncol
+        tm_dst = tm_dst + mesh%area(i) * q(i,k,iMa_dst) * dp(i,k) / g
+      end do
+    end do
+    do i = 1, mesh%ncol
+      tm_dst = tm_dst + mesh%area(i) * qsfc(i,iMa_dst)
+    end do
+    tm_dst = physics_sum(tm_dst)
+    tm_h2o = 0
+    do k = 1, mesh%nlev
+      do i = 1, mesh%ncol
+        tm_h2o = tm_h2o + mesh%area(i) * q(i,k,iMa_vap) * dp(i,k) / g
+      end do
+    end do
+    do i = 1, mesh%ncol
+      tm_h2o = tm_h2o + mesh%area(i) * qsfc(i,iMa_vap)
+    end do
+    tm_h2o = physics_sum(tm_h2o)
+    ! --------------------------------------------------------------------------
+    ! T15
+    call diag_t15(state)
+    end associate
+
+  end subroutine gomars_v1_diags
+
+  subroutine diag_t15(state)
+
+    type(gomars_v1_state_type), intent(inout) :: state
+
+    integer i, k, w
+    real(r8) pw, tw, tavg, sum_wgt, sum_area
+    real(r8), parameter :: wgt(62) = [                                        &
+      0.03500_r8, 0.03500_r8, 0.03600_r8, 0.03600_r8, 0.03700_r8, 0.03700_r8, &
+      0.03800_r8, 0.03900_r8, 0.04100_r8, 0.04300_r8, 0.04600_r8, 0.04900_r8, &
+      0.05200_r8, 0.05600_r8, 0.06000_r8, 0.06500_r8, 0.07000_r8, 0.07600_r8, &
+      0.08200_r8, 0.09000_r8, 0.09700_r8, 0.10500_r8, 0.11500_r8, 0.12500_r8, &
+      0.13600_r8, 0.14700_r8, 0.15900_r8, 0.17200_r8, 0.18600_r8, 0.20100_r8, &
+      0.21700_r8, 0.23400_r8, 0.25200_r8, 0.27000_r8, 0.28800_r8, 0.30800_r8, &
+      0.32600_r8, 0.34300_r8, 0.36000_r8, 0.37200_r8, 0.38200_r8, 0.38800_r8, &
+      0.39100_r8, 0.38800_r8, 0.37900_r8, 0.36400_r8, 0.34200_r8, 0.31000_r8, &
+      0.27800_r8, 0.24600_r8, 0.21300_r8, 0.17800_r8, 0.14300_r8, 0.10900_r8, &
+      0.08100_r8, 0.06100_r8, 0.04500_r8, 0.03200_r8, 0.02200_r8, 0.01500_r8, &
+      0.01000_r8, 0.00700_r8]
+
+    associate (mesh => state%mesh, &
+               t    => state%t   , & ! in
+               p    => state%p   , & ! in
+               q    => state%q   , & ! in
+               t15  => state%t15 )   ! out
+    t15 = 0
+    sum_wgt = sum(wgt)
+    sum_area = 0
+    do i = 1, mesh%ncol
+      if (abs(mesh%lat(i)) <= 40 * rad) then
+        tavg = 0
+        do w = 1, size(wgt)
+          pw = exp(w / 10.0_r8 - 4.6_r8) * 100
+          if (p(i,1) >= pw) then
+            tw = t(i,1)
+          else if (pw >= p(i,mesh%nlev)) then
+            tw = t(i,mesh%nlev)
+          else
+            do k = 1, mesh%nlev - 1
+              if (p(i,k) <= pw .and. pw <= p(i,k+1)) exit
+            end do
+            tw = ((p(i,k+1) - pw) * t(i,k) + (pw - p(i,k)) * t(i,k+1)) / (p(i,k+1) - p(i,k))
+          end if
+          tavg = tavg + wgt(w) * (-0.0181075_r8 - 39.4312_r8 / (tw - 2353.76_r8 - 62644.0_r8 / (tw + 64.445_r8 + 84263.9_r8 / (tw - 185.333_r8))))
+        end do
+        tavg = tavg / sum_wgt
+        t15 = t15 + mesh%area(i) * (881.042_r8 - 2.40183_r8 / (tavg + 0.00364298_r8 - 0.61044e-7_r8 / (tavg + 0.162965e-3_r8 - 0.113959e-8_r8 / (tavg + 0.228812e-4_r8))))
+        sum_area = sum_area + mesh%area(i)
+      end if
+    end do
+    t15 = physics_sum(t15) / physics_sum(sum_area)
+    end associate
+
+  end subroutine diag_t15
 
 end module gomars_v1_driver_mod

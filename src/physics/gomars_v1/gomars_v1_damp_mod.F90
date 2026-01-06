@@ -15,6 +15,7 @@ module gomars_v1_damp_mod
   use vert_coord_mod
   use gomars_v1_const_mod
   use gomars_v1_types_mod
+  use gomars_v1_namelist_mod
 
   implicit none
 
@@ -27,8 +28,6 @@ module gomars_v1_damp_mod
   ! Number of top levels for Rayleigh friction
   integer , parameter :: lray       = 3
   real(r8), parameter :: alfray     = 2
-  ! Relaxation time in days
-  real(r8), parameter :: trefr      = 0.5_r8
 
   real(r8), allocatable :: rayk(:)
 

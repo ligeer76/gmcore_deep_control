@@ -139,7 +139,7 @@ contains
     logical done
     real(r8) tsat, emg15, emgout, downir, astar
     real(r8) tl, th, fl, fh, f, df, dx_old, dx, tmp
-    real(r8) fcdn, tgp, wflux, qflx, qsat
+    real(r8) fcdn, tgp, qflx, qsat
     real(r8) flux(nsoil+1), a(nsoil), b(nsoil), c(nsoil), d(nsoil)
 
     associate (mesh         => state%mesh        , &
@@ -162,12 +162,11 @@ contains
                ht_sfc       => state%ht_sfc      , & ! out
                irflx_sfc_dn => state%irflx_sfc_dn, & ! in
                vsflx_sfc_dn => state%vsflx_sfc_dn, & ! in
-               co2ice_sfc   => state%co2ice_sfc  , & ! in
+               co2ice_sfc   => state%co2ice_sfc  , & ! inout
                h2osub_sfc   => state%h2osub_sfc  , & ! in
                h2oice_sfc   => state%h2oice_sfc  , & ! in
                dpsdt        => tend %dpsdt       )   ! out
     do i = 1, mesh%ncol
-      dpsdt(i) = 0
       ! ------------------------------------------------------------------------
       ! Set exchange of heat between surface and air.
       ht_sfc(i) = eg15gnd * irflx_sfc_dn(i) - ht_pbl(i)
@@ -180,12 +179,14 @@ contains
       end if
       tsat = dewpoint_temperature_mars(ps(i))
       ! ------------------------------------------------------------------------
+      if (co2ice_sfc(i) < 0) then
+        call log_error('Negative CO2 ice mass on the ground!', __FILE__, __LINE__)
       ! No CO2 ice on the ground
-      if (co2ice_sfc(i) <= 0) then
-        co2ice_sfc(i) = 0
+      else if (co2ice_sfc(i) == 0) then
         ! Emissivities for bare ground
         emg15   = eg15gnd
         emgout  = egognd
+        ! Change surface temperature for heating and cooling effects.
         downir  = emg15 * irflx_sfc_dn(i)
         done = .false.
         astar = (1 - als(i)) * vsflx_sfc_dn(i)
@@ -276,17 +277,16 @@ contains
 
           ! Check if there is any CO2 ice accumulation.
           if (tgp < 0) then
-            dpsdt     (i) = -tgp / dt * g
+            dpsdt     (i) =  tgp / dt * g
             co2ice_sfc(i) = -tgp
           else
             ! This term represents the last amounts of ice evaporating resulting in an
             ! increase in tg.
             tg        (i) = tsat + tgp * xlhtc * sqrdy / zin(i,1)
-            co2ice_sfc(i) = 0
           end if
         end if
       ! ------------------------------------------------------------------------
-      ! No CO2 ice on the ground
+      ! CO2 ice on the ground
       else
         tg(i) = tsat
 
@@ -294,13 +294,15 @@ contains
         qsat = water_vapor_saturation_mixing_ratio_mars(tg(i), ps(i))
         ! See Eq. (1) in Haberle et al. (2019), which used a bulk transfer approach,
         ! but note rhouch contains cpd, so here divides cpd.
-        wflux = -rhouch(i) * (q(i,nlev,iMa_vap) - qsat) / cpd
-        if (wflux < 0) then
-          h2oice_sfc(i) = h2oice_sfc(i) - wflux * dt
-          h2osub_sfc(i) = h2osub_sfc(i) + wflux * dt
+        qflx = -rhouch(i) * (q(i,nlev,iMa_vap) - qsat) / cpd
+        if (qflx < 0) then
+          h2oice_sfc(i) = h2oice_sfc(i) - qflx * dt
+          h2osub_sfc(i) = h2osub_sfc(i) + qflx * dt
         end if
 
+        ! FIXME: 这个检查有必要吗？
         if (.not. npcflag(i) .and. h2osub_sfc(i) > qsfc(i,iMa_vap)) then
+          call log_error('Excessive water sublimation on the ground!', __FILE__, __LINE__)
           h2osub_sfc(i) = qsfc(i,iMa_vap)
         end if
 
@@ -313,15 +315,15 @@ contains
         end if
 
         ! New soil scheme: surface boundary condition with ice on the ground.
-        fcdn = -2 * scond(i,1) * (stemp(i,1) - tsat) / sthick(1)
+        fcdn = -scond(i,1) * (stemp(i,1) - tsat) / sthick_lev(1)
         tgp  = -co2ice_sfc(i) + dt * ((1 - als(i)) * vsflx_sfc_dn(i) + ht_sfc(i) - emg15 * (stbo * tsat**4) - fcdn) / xlhtc
 
         ! Check if there is still CO2 ice left.
         if (tgp < 0) then
-          dpsdt     (i) = -(co2ice_sfc(i) + tgp) / dt * g
+          dpsdt     (i) = (co2ice_sfc(i) + tgp) / dt * g
           co2ice_sfc(i) = -tgp
         else
-          dpsdt     (i) = -co2ice_sfc(i) / dt * g
+          dpsdt     (i) = co2ice_sfc(i) / dt * g
           tg        (i) = tsat + tgp * xlhtc * sqrdy / zin(i,1)
           co2ice_sfc(i) = 0
         end if
@@ -345,8 +347,11 @@ contains
       ! Call tridiagonal solver to update soil temperature.
       call tridiag_thomas(a, b, c, d, stemp(i,:))
       ! Calculate the CO2 condensation temperature at the surface.
-      tsat = dewpoint_temperature_mars(ps(i))
-      if (tg(i) < tsat .or. co2ice_sfc(i) > 0) then
+      ! FIXME: 这个检查有必要吗？
+      ! tsat = dewpoint_temperature_mars(ps(i))
+      if (tg(i) < tsat .and. co2ice_sfc(i) > 0) then
+        print *, tg(i), tsat, co2ice_sfc(i)
+        call log_error('tg < tsat with CO2 ice on the ground!', __FILE__, __LINE__)
         tg(i) = tsat
       end if
     end do
@@ -372,8 +377,8 @@ contains
 
     real(r8) qg
 
-    f = astar + downir + rhouch * tbot - rhouch * tg + 2 * scond * (stemp - tg) / sthick(1) - stbo * tg**4
-    df = -rhouch - 2 * scond / sthick(1) - 4 * stbo * tg**3
+    f = astar + downir + rhouch * (tbot - tg) + scond * (stemp - tg) / sthick_lev(1) - stbo * tg**4
+    df = -rhouch - scond / sthick_lev(1) - 4 * stbo * tg**3
 
     if (latent_heat) then
       if (h2oice_sfc > 0 .or. npcflag) then

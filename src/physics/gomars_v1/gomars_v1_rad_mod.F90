@@ -55,15 +55,13 @@ module gomars_v1_rad_mod
   real(r8), allocatable, dimension(:) :: fzeroi
   real(r8), allocatable, dimension(:) :: fzerov
 
-  ! Put detau into physics state object.
-
   real(r8) qextref, ptop
   real(r8), allocatable, dimension(:) :: wv
   real(r8), allocatable, dimension(:) :: wi
 
   real(r8), allocatable, dimension(:,:) :: planckir
 
-  real(r8), allocatable, dimension(:) :: pfgasref
+  real(r8), allocatable, dimension(:) :: pfgasref ! log(p [hPa])
 
   real(r8), parameter :: solar_1au(nspectv) = [ &
     12.7d0, 24.2d0, 54.6d0, 145.9d0, 354.9d0, 657.5d0, 106.3d0]
@@ -344,9 +342,20 @@ contains
     real(r8) nfluxtopv, diffvt
     real(r8) nfluxtopi, albi, nonlte, ptstrat
 
+    qxvdst = 0; qxidst = 0
+    qsvdst = 0; qsidst = 0
+    gvdst  = 0; gidst  = 0
+    qxvcld = 0; qxicld = 0
+    qsvcld = 0; qsicld = 0
+    gvcld  = 0; gicld  = 0
+    qextrefcld = 1
+    taurefcld  = 0
+
     associate (mesh         => state%mesh        , &
+               lat          => state%mesh%lat    , & ! in
                cosz         => state%cosz        , & ! in
-               als          => state%als         , & ! in
+               alsp         => state%alsp        , & ! in
+               als          => state%als         , & ! inout
                ps           => state%ps          , & ! in
                dp           => state%dp_dry      , & ! in
                pk           => state%pk          , & ! in
@@ -357,7 +366,9 @@ contains
                tg           => state%tg          , & ! in
                tstrat       => state%tstrat      , & ! inout
                q            => state%q           , & ! in
+               qsfc         => state%qsfc        , & ! in
                co2ice_sfc   => state%co2ice_sfc  , & ! in
+               npcflag      => state%npcflag     , & ! in
                tausurf      => state%tausurf     , & ! out
                detau        => state%detau       , & ! out
                vsflx_sfc_dn => state%vsflx_sfc_dn, & ! out
@@ -373,6 +384,14 @@ contains
                fdnsfci      => state%fdnsfci     , & ! out
                qrad         => state%qrad        )   ! out
     do i = 1, mesh%ncol
+      ! ------------------------------------------------------------------------
+      ! Update surface albedo.
+      als(i) = alsp(i)
+      if (co2ice_sfc(i) > 0) then
+        als(i) = merge(alices, alicen, lat(i) < 0)
+      else if (albfeed .and. qsfc(i,iMa_vap) > icethresh_kgm2 .and. .not. npcflag(i)) then
+        als(i) = icealb
+      end if
       ! ------------------------------------------------------------------------
       ! Fill the radiation variables.
       call fillpt(p(i,:), p_lev(i,:), t(i,:), t_lev(i,:), tg(i), tstrat(i), plev, tlev, pmid, tmid)
@@ -415,17 +434,22 @@ contains
         call optcv(plev, pmid, tmid, qh2o, qxvdst, qsvdst, gvdst, qxvcld, qsvcld, gvcld, qextrefcld, &
                    wbarv, cosbv, dtauv, tauv, taucumv, taugsurf, taurefdst, taurefcld)
         call sfluxv(dtauv, tauv, taucumv, taugsurf, cosz(i), als(i), wbarv, cosbv, &
-                    fluxdnv, fluxupv, fmnetv, nfluxtopv, diffvt, detau(i,:,:))
+                    fluxupv, fluxdnv, fmnetv, nfluxtopv, diffvt, detau(i,:,:))
         suntot(3) = fmnetv(1) - nfluxtopv
         do k = 2, nlayrad
           suntot(2*k+1) = fmnetv(k) - fmnetv(k-1)
         end do
       else
-        ! Sun is up.
-        suntot  = 0
-        diffvt  = 0
-        fluxdnv = 0
-        fluxupv = 0
+        ! Sun is down.
+        do k = 1, nlayrad
+          suntot(2*k+1) = 0
+          fluxdnv(k)    = 0
+        end do
+        diffvt           = 0
+        fluxupv(1)       = 0
+        fluxdnv(1)       = 0
+        fluxupv(nlayrad) = 0
+        fluxdnv(nlayrad) = 0
       end if
       vsflx_sfc_dn(i) = fluxdnv(nlayrad)
       vsdif_sfc_dn(i) = diffvt
@@ -463,7 +487,7 @@ contains
       end do
       ! Update stratospheric temperature.
       nonlte = 2.2e2_r8 * pstrat / (1 + 2.2e2_r8 * pstrat)
-      tstrat(i) = tstrat(i) + dt * (suntot(3) * nonlte + irtot(3)) / cpd
+      tstrat(i) = tstrat(i) + dt * (suntot(3) * nonlte + irtot(3)) / (cpd * ptrop / g)
     end do
     end associate
 
@@ -1050,13 +1074,13 @@ contains
         fluxup          , &
         fluxdn          , &
         detau    (is,ig))
-      nfluxtopv = nfluxtopv + (fluxup - fluxdn) * gweight(ig) * fzero
+      nfluxtopv = nfluxtopv + (fluxup - fluxdn) * fzero
       do l = 1, nlayrad
-        fmnetv (l) = fmnetv (l) + (fmupv(l) - fmdnv(l)) * gweight(ig) * fzero
-        fluxupv(l) = fluxupv(l) + fmupv(l) * gweight(ig) * fzero
-        fluxdnv(l) = fluxdnv(l) + fmdnv(l) * gweight(ig) * fzero
+        fmnetv (l) = fmnetv (l) + (fmupv(l) - fmdnv(l)) * fzero
+        fluxupv(l) = fluxupv(l) + fmupv(l) * fzero
+        fluxdnv(l) = fluxdnv(l) + fmdnv(l) * fzero
       end do
-      diffvt = diffvt + diffv * gweight(ig) * fzero
+      diffvt = diffvt + diffv * fzero
     end do
 
   end subroutine sfluxv
@@ -1351,19 +1375,19 @@ contains
         do ig = 1, ngauss - 1
           kcoef(1) = co2i(idx_t(k)  ,idx_p(k)  ,idx_h2o(k)  ,is,ig) + wratio(k) * &
                     (co2i(idx_t(k)  ,idx_p(k)  ,idx_h2o(k)+1,is,ig) - &
-                    co2i(idx_t(k)  ,idx_p(k)  ,idx_h2o(k)  ,is,ig))
+                     co2i(idx_t(k)  ,idx_p(k)  ,idx_h2o(k)  ,is,ig))
           kcoef(2) = co2i(idx_t(k)  ,idx_p(k)+1,idx_h2o(k)  ,is,ig) + wratio(k) * &
                     (co2i(idx_t(k)  ,idx_p(k)+1,idx_h2o(k)+1,is,ig) - &
-                    co2i(idx_t(k)  ,idx_p(k)+1,idx_h2o(k)  ,is,ig))
+                     co2i(idx_t(k)  ,idx_p(k)+1,idx_h2o(k)  ,is,ig))
           kcoef(3) = co2i(idx_t(k)+1,idx_p(k)+1,idx_h2o(k)  ,is,ig) + wratio(k) * &
                     (co2i(idx_t(k)+1,idx_p(k)+1,idx_h2o(k)+1,is,ig) - &
-                    co2i(idx_t(k)+1,idx_p(k)+1,idx_h2o(k)  ,is,ig))
+                     co2i(idx_t(k)+1,idx_p(k)+1,idx_h2o(k)  ,is,ig))
           kcoef(4) = co2i(idx_t(k)+1,idx_p(k)  ,idx_h2o(k)  ,is,ig) + wratio(k) * &
                     (co2i(idx_t(k)+1,idx_p(k)  ,idx_h2o(k)+1,is,ig) - &
-                    co2i(idx_t(k)+1,idx_p(k)  ,idx_h2o(k)  ,is,ig))
+                     co2i(idx_t(k)+1,idx_p(k)  ,idx_h2o(k)  ,is,ig))
           ! Interpolate the CO2 k-coefficients to the requested temperature and pressure.
           ans = (lcoef(1,k) * kcoef(1) + lcoef(2,k) * kcoef(2) + &
-                lcoef(3,k) * kcoef(3) + lcoef(4,k) * kcoef(4)) * cmk * (plev(k) - plev(k-1))
+                 lcoef(3,k) * kcoef(3) + lcoef(4,k) * kcoef(4)) * cmk * (plev(k) - plev(k-1))
           taugsurf(is,ig) = taugsurf(is,ig) + ans
           dtauki(k,is,ig) = taudst(k,is) + taucld(k,is) + ans
         end do
@@ -1395,7 +1419,7 @@ contains
         if (tauac > 0) then
           cosbi(l,is,ig) = (gidst(k,is) * taudstk(k,is) + gidst(k+1,is) * taudstk(k+1,is)  + &
                             gicld(k,is) * taucldk(k,is) + gicld(k+1,is) * taucldk(k+1,is)) / &
-                          (taudstk(k,is) + taudstk(k+1,is) + taucldk(k,is) + taucldk(k+1,is))
+                           (taudstk(k,is) + taudstk(k+1,is) + taucldk(k,is) + taucldk(k+1,is))
         else
           cosbi(l,is,ig) = 0
         end if
@@ -1415,6 +1439,7 @@ contains
       end do
     end do
 
+    ! Total extinction optical depths
     do is = 1, nspecti
       ig = ngauss
       taui(1,is,ig) = 0
@@ -1890,7 +1915,7 @@ contains
               xi(2) = pref(n+1)
               xi(3) = pref(n+2)
               xi(4) = pref(n+3)
-              yi(1) = co2i8(nt,n,nh,nw,ng)
+              yi(1) = co2i8(nt,n  ,nh,nw,ng)
               yi(2) = co2i8(nt,n+1,nh,nw,ng)
               yi(3) = co2i8(nt,n+2,nh,nw,ng)
               yi(4) = co2i8(nt,n+3,nh,nw,ng)
@@ -1902,11 +1927,11 @@ contains
                 i     = (n - 1) * 5 + m
                 x     = pint(i)
                 xi(1) = pref(n-1)
-                xi(2) = pref(n)
+                xi(2) = pref(n  )
                 xi(3) = pref(n+1)
                 xi(4) = pref(n+2)
                 yi(1) = co2i8(nt,n-1,nh,nw,ng)
-                yi(2) = co2i8(nt,n,nh,nw,ng)
+                yi(2) = co2i8(nt,n  ,nh,nw,ng)
                 yi(3) = co2i8(nt,n+1,nh,nw,ng)
                 yi(4) = co2i8(nt,n+2,nh,nw,ng)
                 call lagrange(x, xi, yi, ans)
@@ -1943,12 +1968,12 @@ contains
             ! First, the initial interval (P=1e-6 to 1e-5)
             n = 1 
             do m = 1, 5
-              x     = pint(m)
-              xi(1) = pref(n)
+              x     = pint(m  )
+              xi(1) = pref(n  )
               xi(2) = pref(n+1)
               xi(3) = pref(n+2)
               xi(4) = pref(n+3)
-              yi(1) = co2v8(nt,n,nh,nw,ng)
+              yi(1) = co2v8(nt,n  ,nh,nw,ng)
               yi(2) = co2v8(nt,n+1,nh,nw,ng)
               yi(3) = co2v8(nt,n+2,nh,nw,ng)
               yi(4) = co2v8(nt,n+3,nh,nw,ng)
@@ -1958,13 +1983,13 @@ contains
             do n = 2, npref - 2
               do m = 1, 5
                 i     = (n - 1) * 5 + m
-                x     = pint(i)
+                x     = pint(i  )
                 xi(1) = pref(n-1)
-                xi(2) = pref(n)
+                xi(2) = pref(n  )
                 xi(3) = pref(n+1)
                 xi(4) = pref(n+2)
                 yi(1) = co2v8(nt,n-1,nh,nw,ng)
-                yi(2) = co2v8(nt,n,nh,nw,ng)
+                yi(2) = co2v8(nt,n  ,nh,nw,ng)
                 yi(3) = co2v8(nt,n+1,nh,nw,ng)
                 yi(4) = co2v8(nt,n+2,nh,nw,ng)
                 call lagrange(x, xi, yi, ans)
@@ -1978,11 +2003,11 @@ contains
               x     = pint(i)
               xi(1) = pref(n-2)
               xi(2) = pref(n-1)
-              xi(3) = pref(n)
+              xi(3) = pref(n  )
               xi(4) = pref(n+1)
               yi(1) = co2v8(nt,n-2,nh,nw,ng)
               yi(2) = co2v8(nt,n-1,nh,nw,ng)
-              yi(3) = co2v8(nt,n,nh,nw,ng)
+              yi(3) = co2v8(nt,n  ,nh,nw,ng)
               yi(4) = co2v8(nt,n+1,nh,nw,ng)
               call lagrange(x, xi, yi, ans)
               co2v(nt,i,nh,nw,ng) = 10.0**ans

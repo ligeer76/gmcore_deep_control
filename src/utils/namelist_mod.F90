@@ -70,7 +70,6 @@ module namelist_mod
   character(30)   :: mp_scheme                = 'N/A'
   character(30)   :: pbl_scheme               = 'N/A'
   character(256)  :: cam_namelist_path        = 'N/A'
-  logical         :: filter_ptend             = .false.
 
   character(256)  :: gmcore_data_dir          = 'N/A'
 
@@ -310,7 +309,6 @@ module namelist_mod
     mp_scheme                 , &
     pbl_scheme                , &
     cam_namelist_path         , &
-    filter_ptend              , &
     gmcore_data_dir           , &
     use_zs_grad_filter        , &
     use_zs_zonal_filter       , &
@@ -474,7 +472,6 @@ contains
       write(*, *) 'filter_coef_c          = ', filter_coef_c
       write(*, *) 'filter_gauss_sigma     = ', filter_gauss_sigma
       write(*, *) 'filter_min_width       = ', filter_min_width
-      write(*, *) 'filter_ptend           = ', to_str(filter_ptend)
       write(*, *) 'pgf_scheme             = ', trim(pgf_scheme)
       write(*, *) 'bg_adv_scheme          = ', trim(bg_adv_scheme)
       write(*, *) 'pt_adv_scheme          = ', trim(pt_adv_scheme)

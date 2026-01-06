@@ -189,7 +189,29 @@ contains
         do k = mesh%full_kds, mesh%full_kde
           do j = mesh%full_jds, mesh%full_jde
             do i = mesh%full_ids, mesh%full_ide
-              new_dstate%pt%d(i,j,k) = (old_dstate%pt%d(i,j,k) * old_dstate%dmg%d(i,j,k) + dt * dptdt%d(i,j,k)) / new_dstate%dmg%d(i,j,k)
+              new_dstate%pt%d(i,j,k) = old_dstate%pt%d(i,j,k) * old_dstate%dmg%d(i,j,k) + dt * dptdt%d(i,j,k)
+            end do
+          end do
+        end do
+        ! ------------------------------------------------------------------------
+        if (substep == total_substeps .and. use_pole_damp) then
+          call fill_halo(new_dstate%pt, south_halo=.false., north_halo=.false.)
+          lat0 = abs(global_mesh%full_lat_deg(2))
+          do j = mesh%full_jds_no_pole, mesh%full_jde_no_pole
+            c = exp_two_values(1.0_r8, 0.0_r8, lat0, pole_damp_lat0, abs(mesh%full_lat_deg(j)))
+            do k = mesh%full_kds, mesh%full_kde
+              tmp = new_dstate%pt%d(mesh%full_ids-1:mesh%full_ide+1,j,k)
+              do i = mesh%full_ids, mesh%full_ide
+                new_dstate%pt%d(i,j,k) = (1 - 2 * pole_damp_coef * c) * new_dstate%pt%d(i,j,k) + pole_damp_coef * c * (tmp(i-1) + tmp(i+1))
+              end do
+            end do
+          end do
+        end if
+        ! ------------------------------------------------------------------------
+        do k = mesh%full_kds, mesh%full_kde
+          do j = mesh%full_jds, mesh%full_jde
+            do i = mesh%full_ids, mesh%full_ide
+              new_dstate%pt%d(i,j,k) = new_dstate%pt%d(i,j,k) / new_dstate%dmg%d(i,j,k)
             end do
           end do
         end do

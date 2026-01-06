@@ -74,8 +74,8 @@ contains
           ! in altitude.
           wgtcon   = wgt(  k+1)
           dpcon    = dp (i,k+1)
-          qcon      = q  (i,k+1,:)
-          ptcon(i)  = pt (i,k+1)
+          qcon     = q  (i,k+1,:)
+          ptcon(i) = pt (i,k+1)
           ! Search upwards.
           loop_k2: do k2 = k, 1, -1
             if (pt(i,k2) <= ptcon(i)) then
@@ -114,6 +114,16 @@ contains
       ! ------------------------------------------------------------------------
       ! Update temperature.
       do k = 1, mesh%nlev
+        ! CHECKING
+        if (k /= nlev) then
+          if (pt(i,k) < pt(i,k+1)) then
+            do k2 = 1, nlev
+              print *, k2, pt(i,k2)
+            end do
+            print *, 'check cnvadj at column', mesh%gid(i)
+            stop 999
+          end if
+        end if
         t(i,k) = pt(i,k) * (p(i,k) / ps(i))**rd_o_cpd
       end do
     end do

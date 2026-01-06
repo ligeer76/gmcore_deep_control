@@ -227,9 +227,6 @@ contains
             icol = icol + 1
           end do
         end do
-        if (filter_ptend) then
-          call filter_run(block%big_filter, dpsdt)
-        end if
       end if
       ! ------------------------------------------------------------------------
       ! Wind component tendencies
@@ -246,10 +243,6 @@ contains
             end do
           end do
         end do
-        if (filter_ptend) then
-          call filter_run(block%big_filter, dudt)
-          call filter_run(block%big_filter, dvdt)
-        end if
         call fill_halo(dudt, west_halo=.false., south_halo=.false., north_halo=.false., async=.true.)
         call fill_halo(dvdt, west_halo=.false., east_halo=.false., south_halo=.false. , async=.true.)
       end if
@@ -280,9 +273,6 @@ contains
               end do
             end do
           end if
-          if (filter_ptend) then
-            call filter_run(block%big_filter, dqdt, m)
-          end if
         end if
       end do
       ! ------------------------------------------------------------------------
@@ -299,9 +289,6 @@ contains
             end do
           end do
         end do
-        if (filter_ptend) then
-          call filter_run(block%big_filter, dtdt)
-        end if
       else if (ptend%updated_pt) then
         do k = mesh%full_kds, mesh%full_kde
           icol = 1
@@ -312,9 +299,6 @@ contains
             end do
           end do
         end do
-        if (filter_ptend) then
-          call filter_run(block%big_filter, dptdt)
-        end if
       end if
       end associate
 

@@ -26,7 +26,7 @@ contains
 
     type(block_type), intent(inout), target :: block
 
-    real(r8) min_lon, max_lon, min_lat, max_lat, ps
+    real(r8) min_lon, max_lon, min_lat, max_lat
     integer i, j, k
 
     associate (mesh   => block%mesh            , &
@@ -54,17 +54,14 @@ contains
       v%d = 0
       t%d = t0
 
-      ps = 0
       do j = mesh%full_jds, mesh%full_jde
         do i = mesh%full_ids, mesh%full_ide
           mgs%d(i,j) = ps0 * exp(-gzs%d(i,j) / (rd * t0))
           phs%d(i,j) = mgs%d(i,j)
-          ps = ps + mgs%d(i,j) * mesh%area_cell(j)
         end do
       end do
-      ps = global_sum(proc%comm_model, ps) / global_mesh%total_area
       ! Scale mgs to get area-weighted mean value 701 hPa.
-      mgs%d = mgs%d * ps0 / ps
+      mgs%d = mgs%d * ps0 / mgs%sum(area_wgt=.true.)
       call fill_halo(mgs)
 
       call calc_mg(block, block%dstate(1))

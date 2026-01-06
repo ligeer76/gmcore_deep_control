@@ -23,6 +23,7 @@ module gomars_v1_const_mod
   integer , parameter :: nsoil     = 40
   ! Number of aerosol tracers
   integer , parameter :: naer      = 5
+  integer , parameter :: nbin_aer  = 4
   ! Tracer size bin for radiation
   integer , parameter :: nbin_rt   = 20
   integer , parameter :: nratio    = 15
@@ -59,7 +60,7 @@ module gomars_v1_const_mod
   ! Standard deviation of the water ice distribution
   real(r8), parameter :: dev_ice    = 0.30870_r8
   ! Boltzmann constant divided by CO2 mass (J K-1 kg-1)
-  real(r8), parameter :: scale_co2  = 3.0_r8 * kb / (amu * m_co2)
+  real(r8), parameter :: scale_co2  = 3.0_r8 * kb / amu / (1000 * m_co2)
   ! Volume of a water molecule (m3)
   real(r8), parameter :: vo1        = m_h2o / rho_ice
   ! Activation energy for desorption of water on a dust-like surface (J mol-1)
@@ -119,5 +120,6 @@ module gomars_v1_const_mod
   real(r8) icethresh_kgm2
 
   real(r8), parameter :: sqrdy = sqrt(4 * pi / mars_sol_seconds)
+  real(r8), parameter :: mars_time_scale = mars_sol_seconds / earth_day_seconds
 
 end module gomars_v1_const_mod

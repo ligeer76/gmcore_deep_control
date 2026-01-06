@@ -326,7 +326,6 @@ contains
         mesh            =filter_mesh                                         , &
         halo            =filter_halo                                         , &
         halo_cross_pole =.true.                                              , &
-        output          ='h0'                                                , &
         restart         =.true.                                              , &
         field           =this%pt                                             )
     end if
@@ -1549,25 +1548,14 @@ contains
     type(latlon_mesh_type), intent(in), target :: mesh
     type(latlon_halo_type), intent(in), target :: halo(:)
 
-    type(latlon_mesh_type), pointer :: mesh_ptr
-    type(latlon_halo_type), pointer :: halo_ptr(:)
-
-    if (filter_ptend) then
-      mesh_ptr => filter_mesh
-      halo_ptr => filter_halo
-    else
-      mesh_ptr => mesh
-      halo_ptr => halo
-    end if
-
     if (physics_suite /= 'N/A' .and. physics_suite /= '') then
       call append_field(this%fields                                          , &
         name            ='dudt_phys'                                         , &
         long_name       ='Physics tendency of u'                             , &
         units           ='m s-2'                                             , &
         loc             ='cell'                                              , &
-        mesh            =mesh_ptr                                            , &
-        halo            =halo_ptr                                            , &
+        mesh            =mesh                                                , &
+        halo            =halo                                                , &
         output          ='h1'                                                , &
         restart         =.true.                                              , &
         field           =this%dudt_phys                                      )
@@ -1576,8 +1564,8 @@ contains
         long_name       ='Physics tendency of v'                             , &
         units           ='m s-2'                                             , &
         loc             ='cell'                                              , &
-        mesh            =mesh_ptr                                            , &
-        halo            =halo_ptr                                            , &
+        mesh            =mesh                                                , &
+        halo            =halo                                                , &
         output          ='h1'                                                , &
         restart         =.true.                                              , &
         field           =this%dvdt_phys                                      )
@@ -1586,8 +1574,8 @@ contains
         long_name       ='Physics tendency of t'                             , &
         units           ='K s-1'                                             , &
         loc             ='cell'                                              , &
-        mesh            =mesh_ptr                                            , &
-        halo            =halo_ptr                                            , &
+        mesh            =mesh                                                , &
+        halo            =halo                                                , &
         output          ='h1'                                                , &
         restart         =.true.                                              , &
         field           =this%dtdt_phys                                      )
@@ -1596,8 +1584,8 @@ contains
         long_name       ='Physics tendency of pt'                            , &
         units           ='K s-1'                                             , &
         loc             ='cell'                                              , &
-        mesh            =mesh_ptr                                            , &
-        halo            =halo_ptr                                            , &
+        mesh            =mesh                                                , &
+        halo            =halo                                                , &
         output          ='h1'                                                , &
         restart         =.true.                                              , &
         field           =this%dptdt_phys                                     )
@@ -1606,8 +1594,8 @@ contains
         long_name       ='Physics tendency of ps'                            , &
         units           ='Pa s-1'                                            , &
         loc             ='cell'                                              , &
-        mesh            =mesh_ptr                                            , &
-        halo            =halo_ptr                                            , &
+        mesh            =mesh                                                , &
+        halo            =halo                                                , &
         output          ='h1'                                                , &
         restart         =.true.                                              , &
         field           =this%dpsdt_phys                                     )
@@ -1616,8 +1604,8 @@ contains
         long_name       ='Physics tendency of q'                             , &
         units           ='kg kg-1 s-1'                                       , &
         loc             ='cell'                                              , &
-        mesh            =mesh_ptr                                            , &
-        halo            =halo_ptr                                            , &
+        mesh            =mesh                                                , &
+        halo            =halo                                                , &
         dim4_name       ='tracers'                                           , &
         dim4_size       =ntracers                                            , &
         var4_names      =tracer_names                                        , &

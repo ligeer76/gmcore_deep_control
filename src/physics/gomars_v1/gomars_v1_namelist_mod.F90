@@ -22,13 +22,16 @@ module gomars_v1_namelist_mod
   real(r8) :: icealb           = 0.4_r8    ! Albedo of surface water ice when albfeed is true.
   real(r8) :: icethresh_depth  = 5.0_r8    ! Ice depth threshold required to change albedo (um)
   integer  :: nsplit           = 1         ! Split number for microphysics
-  logical  :: microphysics     = .false.
-  logical  :: cloudon          = .true.
+  logical  :: microphysics     = .true.
+  logical  :: cloudon          = .false.
   logical  :: active_dust      = .true.
   logical  :: co2scav          = .false.
   logical  :: active_water     = .false.
   logical  :: albfeed          = .false.
-  logical  :: latent_heat      = .true.
+  logical  :: latent_heat      = .false.
+
+  ! Rayleigh damping relaxation time in days
+  real(r8) :: trefr            = 0.5_r8
 
   logical  :: use_ddl          = .true.
   ! Dust devil lifting efficiency
@@ -53,6 +56,7 @@ module gomars_v1_namelist_mod
     active_water             , &
     albfeed                  , &
     latent_heat              , &
+    trefr                    , &
     use_ddl                  , &
     alpha_d                  , &
     use_wsl                  , &
@@ -81,6 +85,11 @@ contains
     psl = psf
 
     icethresh_kgm2 = icethresh_depth * rho_ice * 1.0e-6_r8
+
+    if (.not. active_dust) then
+      use_ddl = .false.
+      use_wsl = .false.
+    end if
 
     if (use_wsl) then
       use_wsl_newman = wsl_scheme == 'newman'

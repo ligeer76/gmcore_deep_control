@@ -29,18 +29,20 @@ module gomars_v1_dustcyc_mod
 
 contains
 
-  subroutine gomars_v1_dustcyc_run(state)
+  subroutine gomars_v1_dustcyc_run(state, dt)
 
     type(gomars_v1_state_type), intent(inout) :: state
+    real(r8), intent(in) :: dt
 
-    if (use_ddl) call ddl_lift(state)
-    if (use_wsl) call wsl_lift(state)
+    if (use_ddl) call ddl_lift(state, dt)
+    if (use_wsl) call wsl_lift(state, dt)
 
   end subroutine gomars_v1_dustcyc_run
 
-  subroutine ddl_lift(state)
+  subroutine ddl_lift(state, dt)
 
     type(gomars_v1_state_type), intent(inout) :: state
+    real(r8), intent(in) :: dt
 
     integer i, k
     real(r8) x, b, psx, pconx, rm, mp, madd, nadd
@@ -85,9 +87,10 @@ contains
 
   end subroutine ddl_lift
 
-  subroutine wsl_lift(state)
+  subroutine wsl_lift(state, dt)
 
     type(gomars_v1_state_type), intent(inout) :: state
+    real(r8), intent(in) :: dt
 
     integer i
     real(r8) rhos, tau, hflx, rm, mp, madd, nadd

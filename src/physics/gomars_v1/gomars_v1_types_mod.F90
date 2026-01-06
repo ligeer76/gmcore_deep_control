@@ -25,8 +25,7 @@ module gomars_v1_types_mod
   public physics_use_wet_tracers
 
   type, extends(physics_state_type) :: gomars_v1_state_type
-    ! Surface pressure at time level n (Pa)
-    real(r8), allocatable, dimension(:      ) :: ps_old
+    real(r8), allocatable, dimension(:      ) :: local_time
     ! [restart] Pressure of planetary boundary layer top (Pa)
     real(r8), allocatable, dimension(:      ) :: pcon
     ! Potential temperature of planetary boundary layer top (K)
@@ -117,9 +116,9 @@ module gomars_v1_types_mod
     real(r8), allocatable, dimension(:,:    ) :: stemp
     !
     real(r8), allocatable, dimension(:      ) :: zavgtg
-    ! Water ice upward sublimation amount per unit area at the surface (kg m-2)
+    ! Water ice upward sublimation amount per unit area on the surface (kg m-2)
     real(r8), allocatable, dimension(:      ) :: h2osub_sfc     ! subflux
-    ! [restart] Water ice at the surface (???)
+    ! [restart] Water ice on the surface (???)
     real(r8), allocatable, dimension(:      ) :: h2oice_sfc     ! gndice
     ! Wind stress dust lifting flux (kg m-2 s-1)
     real(r8), allocatable, dimension(:      ) :: dstflx_wsl
@@ -129,8 +128,16 @@ module gomars_v1_types_mod
     real(r8) :: rsdist
     ! Volume mixing ratio of H2O on full and half levels (1)
     real(r8), allocatable, dimension(    :  ) :: qh2o_rad
-    !
+    ! Deposition mass on the surface (kg m-2)
     real(r8), allocatable, dimension(:,    :) :: deposit
+    ! Total CO2 mass
+    real(r8) :: tm_co2 = 0
+    ! Total dust mass
+    real(r8) :: tm_dst = 0
+    ! Total water ice mass
+    real(r8) :: tm_h2o = 0
+    ! T15
+    real(r8) :: t15    = 0
   contains
     procedure :: init  => gomars_v1_state_init
     procedure :: clear => gomars_v1_state_clear
@@ -154,7 +161,7 @@ contains
 
     call this%clear()
 
-    allocate(this%ps_old        (mesh%ncol                   )); this%ps_old        = 0
+    allocate(this%local_time    (mesh%ncol                   )); this%local_time    = 0
     allocate(this%pcon          (mesh%ncol                   )); this%pcon          = 0
     allocate(this%ptcon         (mesh%ncol                   )); this%ptcon         = 0
     allocate(this%tstrat        (mesh%ncol                   )); this%tstrat        = 0
@@ -216,7 +223,7 @@ contains
 
     class(gomars_v1_state_type), intent(inout) :: this
 
-    if (allocated(this%ps_old       )) deallocate(this%ps_old       )
+    if (allocated(this%local_time   )) deallocate(this%local_time   )
     if (allocated(this%pcon         )) deallocate(this%pcon         )
     if (allocated(this%ptcon        )) deallocate(this%ptcon        )
     if (allocated(this%tstrat       )) deallocate(this%tstrat       )

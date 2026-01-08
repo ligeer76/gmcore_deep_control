@@ -1368,7 +1368,7 @@ contains
     else
        deallocate(wrk2d_in)
     end if
-    if(dycore_is('LR')) call polar_average(loc_arr)
+    if(dycore_is('LR') .or. dycore_is('GMCORE')) call polar_average(loc_arr)
   end subroutine read_2d_trc
 
 !------------------------------------------------------------------------
@@ -1597,7 +1597,7 @@ contains
        write(iulog,*) 'read_3d_trc: failed to deallocate wrk3d array; error = ',astat
        call endrun
     endif
-    if(dycore_is('LR')) call polar_average(file%nlev, loc_arr)
+    if(dycore_is('LR') .or. dycore_is('GMCORE')) call polar_average(file%nlev, loc_arr)
   end subroutine read_3d_trc
 
 !------------------------------------------------------------------------------

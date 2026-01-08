@@ -446,7 +446,7 @@ contains
         call infld('Q',fh_ini,dim1name, 'lev', dim2name, 1, pcols, 1, pver, begchunk, endchunk, tptr3d, found, gridname='physgrid')
         if (found) then
           if (masterproc) write(iulog,*) trim(fieldname), ' initialized with Q'
-          if(dycore_is('LR')) call polar_average(pver, tptr3d)
+          if(dycore_is('LR') .or. dycore_is('GMCORE')) call polar_average(pver, tptr3d)
         else
           if (masterproc) write(iulog,*) trim(fieldname), ' initialized to huge()'
           tptr3d = huge(1.0_r8)
@@ -516,7 +516,7 @@ contains
           do n = 1, dyn_time_lvls
             call pbuf_set_field(pbuf2d, m, tptr3d, [1,1,n],[pcols,pver,1])
           end do
-          if(dycore_is('LR')) call polar_average(pver, tptr3d)
+          if(dycore_is('LR') .or. dycore_is('GMCORE')) call polar_average(pver, tptr3d)
         else
           call pbuf_set_field(pbuf2d, m, 0.0_r8)
           if (masterproc)  write(iulog, *) trim(fieldname), ' initialized to 0.0'
@@ -535,7 +535,7 @@ contains
       if (.not. found) then
         call infld('T', fh_ini, dim1name, 'lev', dim2name, 1, pcols, 1, pver, begchunk, endchunk, tptr3d, found, gridname='physgrid')
         if (found) then
-          if (dycore_is('LR')) call polar_average(pver, tptr3d)
+          if (dycore_is('LR') .or. dycore_is('GMCORE')) call polar_average(pver, tptr3d)
           if (masterproc) write(iulog, *) trim(fieldname), ' initialized with T'
         else
           if (masterproc) write(iulog, *) trim(fieldname), ' initialized to huge()'

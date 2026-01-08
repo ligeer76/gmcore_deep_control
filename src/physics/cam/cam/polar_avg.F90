@@ -58,7 +58,7 @@ contains
     real(r8) sum(2)
     real(r8), allocatable :: n_pole(:), s_pole(:)
 
-    if (.not. dycore_is('LR')) return
+    if (.not. dycore_is('LR') .and. .not. dycore_is('GMCORE')) return
 
     plon = get_dyn_grid_parm('plon')
     plat = get_dyn_grid_parm('plat')
@@ -126,7 +126,7 @@ contains
     real(r8) sum(nlev,2)
     real(r8), allocatable :: n_pole(:,:), s_pole(:,:)
 
-    if (.not. dycore_is('LR')) return
+    if (.not. dycore_is('LR') .and. .not. dycore_is('GMCORE')) return
 
     plon = get_dyn_grid_parm('plon')
     plat = get_dyn_grid_parm('plat')

@@ -388,6 +388,7 @@ contains
     case default
       call log_error('Unhandled branch!', __FILE__, __LINE__, pid=proc%id_model)
     end select
+    if (this%initialized .and. .not. this%linked .and. associated(this%d)) deallocate(this%d)
     ! Use a temporary array pointer to fix compile error.
     tmp                 => other%d(:,:,i3)
     this%d(is:ie,js:je) => tmp
@@ -1039,6 +1040,7 @@ contains
     case default
       stop 'Unhandled branch in latlon_field3d_link_4d!'
     end select
+    if (this%initialized .and. .not. this%linked .and. associated(this%d)) deallocate(this%d)
     ! Use a temporary array pointer to fix compile error.
     tmp                       => other%d(:,:,:,i4)
     this%d(is:ie,js:je,ks:ke) => tmp

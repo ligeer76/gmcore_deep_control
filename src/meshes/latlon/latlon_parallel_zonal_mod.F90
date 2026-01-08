@@ -383,55 +383,98 @@ contains
 
   end subroutine scatter_zonal_array_2d_r8
 
-  subroutine zonal_avg_3d_r8(zonal_circle, f, j)
+  subroutine zonal_avg_3d_r8(f)
 
-    type(zonal_circle_type), intent(in) :: zonal_circle
     type(latlon_field3d_type), intent(inout) :: f
-    integer, intent(in) :: j
 
-    real(8) work(f%mesh%full_ids:f%mesh%full_ide,f%mesh%full_kds:f%mesh%full_kde)
+    real(8) work(f%mesh%full_ids:f%mesh%full_ide,f%mesh%full_kds:f%mesh%full_kde+1)
     real(8) pole(f%mesh%full_kds:f%mesh%full_kde)
-    integer i, k
+    integer is, ie, ks, ke, i, j, k
 
-    do k = f%mesh%full_kds, f%mesh%full_kde
-      do i = f%mesh%full_ids, f%mesh%full_ide
-        work(i,k) = f%d(i,j,k)
+    associate (mesh => f%mesh)
+    is = merge(mesh%full_ids, mesh%half_ids, f%full_lon)
+    ie = merge(mesh%full_ide, mesh%half_ide, f%full_lon)
+    ks = merge(mesh%full_kds, mesh%half_kds, f%full_lev)
+    ke = merge(mesh%full_kde, mesh%half_kde, f%full_lev)
+    if (mesh%has_south_pole()) then
+      j = mesh%full_jds
+      do k = ks, ke
+        do i = is, ie
+          work(i,k) = f%d(i,j,k)
+        end do
       end do
-    end do
-    call zonal_sum(zonal_circle, work, pole)
-    pole = pole / global_mesh%full_nlon
-    do k = f%mesh%full_kds, f%mesh%full_kde
-      do i = f%mesh%full_ids, f%mesh%full_ide
-        f%d(i,j,k) = pole(k)
+      call zonal_sum(proc%zonal_circle, work(is:ie,ks:ke), pole(ks:ke))
+      pole(ks:ke) = pole(ks:ke) / global_mesh%full_nlon
+      do k = ks, ke
+        do i = is, ie
+          f%d(i,j,k) = pole(k)
+        end do
       end do
-    end do
+    end if
+    if (mesh%has_north_pole()) then
+      j = mesh%full_jde
+      do k = ks, ke
+        do i = is, ie
+          work(i,k) = f%d(i,j,k)
+        end do
+      end do
+      call zonal_sum(proc%zonal_circle, work(is:ie,ks:ke), pole(ks:ke))
+      pole(ks:ke) = pole(ks:ke) / global_mesh%full_nlon
+      do k = ks, ke
+        do i = is, ie
+          f%d(i,j,k) = pole(k)
+        end do
+      end do
+    end if
+    end associate
 
   end subroutine zonal_avg_3d_r8
 
-  subroutine zonal_avg_4d_r8(zonal_circle, f, j)
+  subroutine zonal_avg_4d_r8(f, idx)
 
-    type(zonal_circle_type), intent(in) :: zonal_circle
     type(latlon_field4d_type), intent(inout) :: f
-    integer, intent(in) :: j
+    integer, intent(in) :: idx
 
-    real(8) work(f%mesh%full_ids:f%mesh%full_ide,f%mesh%full_kds:f%mesh%full_kde)
+    real(8) work(f%mesh%full_ids:f%mesh%full_ide,f%mesh%full_kds:f%mesh%full_kde+1)
     real(8) pole(f%mesh%full_kds:f%mesh%full_kde)
-    integer i, k, l
+    integer is, ie, ks, ke, i, j, k
 
-    do l = 1, f%dim4_size
-      do k = f%mesh%full_kds, f%mesh%full_kde
-        do i = f%mesh%full_ids, f%mesh%full_ide
-          work(i,k) = f%d(i,j,k,l)
+    associate (mesh => f%mesh)
+    is = merge(mesh%full_ids, mesh%half_ids, f%full_lon)
+    ie = merge(mesh%full_ide, mesh%half_ide, f%full_lon)
+    ks = merge(mesh%full_kds, mesh%half_kds, f%full_lev)
+    ke = merge(mesh%full_kde, mesh%half_kde, f%full_lev)
+    if (mesh%has_south_pole()) then
+      j = mesh%full_jds
+      do k = ks, ke
+        do i = is, ie
+          work(i,k) = f%d(i,j,k,idx)
         end do
       end do
-      call zonal_sum(zonal_circle, work, pole)
-      pole = pole / global_mesh%full_nlon
-      do k = f%mesh%full_kds, f%mesh%full_kde
-        do i = f%mesh%full_ids, f%mesh%full_ide
-          f%d(i,j,k,l) = pole(k)
+      call zonal_sum(proc%zonal_circle, work(is:ie,ks:ke), pole(ks:ke))
+      pole(ks:ke) = pole(ks:ke) / global_mesh%full_nlon
+      do k = ks, ke
+        do i = is, ie
+          f%d(i,j,k,idx) = pole(k)
         end do
       end do
-    end do
+    end if
+    if (mesh%has_north_pole()) then
+      j = mesh%full_jde
+      do k = ks, ke
+        do i = is, ie
+          work(i,k) = f%d(i,j,k,idx)
+        end do
+      end do
+      call zonal_sum(proc%zonal_circle, work(is:ie,ks:ke), pole(ks:ke))
+      pole(ks:ke) = pole(ks:ke) / global_mesh%full_nlon
+      do k = ks, ke
+        do i = is, ie
+          f%d(i,j,k,idx) = pole(k)
+        end do
+      end do
+    end if
+    end associate
 
   end subroutine zonal_avg_4d_r8
 

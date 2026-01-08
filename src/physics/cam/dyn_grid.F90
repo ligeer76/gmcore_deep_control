@@ -135,7 +135,7 @@ contains
 
   subroutine get_block_gcol_d(blockid, size, cdex)
 
-    integer, intent(in ) :: blockid         ! Global block ID
+    integer, intent(in ) :: blockid         ! Global block ID starting from 1
     integer, intent(in ) :: size            ! Array size
     integer, intent(out) :: cdex(size)      ! Global column indices
 
@@ -148,7 +148,7 @@ contains
 
   integer function get_block_gcol_cnt_d(blockid) result(res)
 
-    integer, intent(in) :: blockid          ! Global block ID
+    integer, intent(in) :: blockid          ! Global block ID starting from 1
 
     res = count(proc%grid_proc_idmap == blockid)
 
@@ -156,7 +156,7 @@ contains
 
   subroutine get_block_levels_d(blockid, bcid, lvlsiz, levels)
 
-    integer, intent(in ) :: blockid         ! Global block ID
+    integer, intent(in ) :: blockid         ! Global block ID starting from 1
     integer, intent(in ) :: bcid            ! Column index within block
     integer, intent(in ) :: lvlsiz          ! Dimension of levels array
     integer, intent(out) :: levels(lvlsiz)  ! Levels indices for block
@@ -178,7 +178,7 @@ contains
 
   integer function get_block_levels_cnt_d(blockid, bcid) result(res)
 
-    integer, intent(in) :: blockid          ! Global block ID
+    integer, intent(in) :: blockid          ! Global block ID starting from 1
     integer, intent(in) :: bcid             ! Column index within block
 
     res = plevp
@@ -187,7 +187,7 @@ contains
 
   integer function get_block_owner_d(blockid) result(res)
 
-    integer, intent(in) :: blockid          ! Global block ID
+    integer, intent(in) :: blockid          ! Global block ID starting from 1
 
     res = blockid - 1
 

@@ -620,57 +620,19 @@ contains
 
       ! For cam3 physics package, call non-dilute
       call buoyan( &
-        lchnk    , &
-        ncol     , &
-        q        , &
-        t        , &
-        p        , &
-        z        , &
-        pf       , &
-        tp       , &
-        qstp     , &
-        tl       , &
-        rl       , &
-        cape     , &
-        pblt     , &
-        lcl      , &
-        lel      , &
-        lon      , &
-        maxi     , &
-        rgas     , &
-        grav     , &
-        cpres    , &
-        msg      , &
-        tpert    )
+        lchnk   , ncol    , q       , t       , p       , z       , pf      , &
+        tp      , qstp    , tl      , rl      , cape    , pblt    , lcl     , &
+        lel     , lon     , maxi    , rgas    , grav    , cpres   , msg     , &
+        tpert   )
     else
 
       !  Evaluate Tparcel, qs(Tparcel), buoyancy and CAPE,
       !     lcl, lel, parcel launch level at index maxi()=hmax
       call buoyan_dilute( &
-        lchnk           , &
-        ncol            , &
-        q               , &
-        t               , &
-        p               , &
-        z               , &
-        pf              , &
-        tp              , &
-        qstp            , &
-        tl              , &
-        rl              , &
-        cape            , &
-        pblt            , &
-        lcl             , &
-        lel             , &
-        lon             , &
-        maxi            , &
-        rgas            , &
-        grav            , &
-        cpres           , &
-        msg             , &
-        tpert           , &
-        org2d           , &
-        landfrac        )
+        lchnk   , ncol    , q       , t       , p       , z       , pf      , &
+        tp      , qstp    , tl      , rl      , cape    , pblt    , lcl     , &
+        lel     , lon     , maxi    , rgas    , grav    , cpres   , msg     , &
+        tpert   , org2d   , landfrac)
     end if
 
     !
@@ -786,54 +748,13 @@ contains
     ! Obtain cloud properties.
     !
     call cldprp( &
-      lchnk    , &
-      qg       , &
-      tg       , &
-      ug       , &
-      vg       , &
-      pg       , &
-      zg       , &
-      sg       , &
-      mu       , &
-      eu       , &
-      du       , &
-      md       , &
-      ed       , &
-      sd       , &
-      qd       , &
-      mc       , &
-      qu       , &
-      su       , &
-      zfg      , &
-      qs       , &
-      hmn      , &
-      hsat     , &
-      shat     , &
-      qlg      , &
-      cmeg     , &
-      maxg     , &
-      lelg     , &
-      jt       , &
-      jlcl     , &
-      maxg     , &
-      j0       , &
-      jd       , &
-      rl       , &
-      lengath  , &
-      rgas     , &
-      grav     , &
-      cpres    , &
-      msg      , &
-      pflxg    , &
-      evpg     , &
-      cug      , &
-      rprdg    , &
-      limcnv   , &
-      landfracg, &
-      qldeg    , &
-      aero     , &
-      loc_conv , &
-      qhat     )
+      lchnk    , qg       , tg       , ug       , vg       , pg       , zg       , &
+      sg       , mu       , eu       , du       , md       , ed       , sd       , &
+      qd       , mc       , qu       , su       , zfg      , qs       , hmn      , &
+      hsat     , shat     , qlg      , cmeg     , maxg     , lelg     , jt       , &
+      jlcl     , maxg     , j0       , jd       , rl       , lengath  , rgas     , &
+      grav     , cpres    , msg      , pflxg    , evpg     , cug      , rprdg    , &
+      limcnv   , landfracg, qldeg    , aero     , loc_conv , qhat     )
 
     if (zmconv_microp) then
       do i = 1, lengath
@@ -866,44 +787,13 @@ contains
     end if
 
     call closure( &
-      lchnk     , &
-      qg        , &
-      tg        , &
-      pg        , &
-      zg        , &
-      sg        , &
-      tpg       , &
-      qs        , &
-      qu        , &
-      su        , &
-      mc        , &
-      du        , &
-      mu        , &
-      md        , &
-      qd        , &
-      sd        , &
-      qhat      , &
-      shat      , &
-      dp        , &
-      qstpg     , &
-      zfg       , &
-      qlg       , &
-      dsubcld   , &
-      mb        , &
-      capeg     , &
-      tlg       , &
-      lclg      , &
-      lelg      , &
-      jt        , &
-      maxg      , &
-      1         , &
-      lengath   , &
-      rgas      , &
-      grav      , &
-      cpres     , &
-      rl        , &
-      msg       , &
-      capelmt   )
+      lchnk     , qg        , tg        , pg        , zg        , sg        , tpg       , &
+      qs        , qu        , su        , mc        , du        , mu        , md        , &
+      qd        , sd        , qhat      , shat      , dp        , qstpg     , zfg       , &
+      qlg       , dsubcld   , mb        , capeg     , tlg       , lclg      , lelg      , &
+      jt        , maxg      , 1         , lengath   , rgas      , grav      , cpres     , &
+      rl        , msg       , capelmt   )
+
     !
     ! Limit cloud base mass flux to theoretical upper bound.
     !
@@ -3430,44 +3320,11 @@ contains
   end subroutine cldprp
 
   subroutine closure( &
-    lchnk           , &
-    q               , &
-    t               , &
-    p               , &
-    z               , &
-    s               , &
-    tp              , &
-    qs              , &
-    qu              , &
-    su              , &
-    mc              , &
-    du              , &
-    mu              , &
-    md              , &
-    qd              , &
-    sd              , &
-    qhat            , &
-    shat            , &
-    dp              , &
-    qstp            , &
-    zf              , &
-    ql              , &
-    dsubcld         , &
-    mb              , &
-    cape            , &
-    tl              , &
-    lcl             , &
-    lel             , &
-    jt              , &
-    mx              , &
-    il1g            , &
-    il2g            , &
-    rd              , &
-    grav            , &
-    cp              , &
-    rl              , &
-    msg             , &
-    capelmt         )
+    lchnk  , q      , t      , p      , z      , s      , tp     , qs     , &
+    qu     , su     , mc     , du     , mu     , md     , qd     , sd     , &
+    qhat   , shat   , dp     , qstp   , zf     , ql     , dsubcld, mb     , &
+    cape   , tl     , lcl    , lel    , jt     , mx     , il1g   , il2g   , &
+    rd     , grav   , cp     , rl     , msg    , capelmt)
     !-----------------------------------------------------------------------
     !
     ! Purpose:
@@ -3517,6 +3374,8 @@ contains
     integer , intent(in   ), dimension(pcols       ) :: lel     ! index of launch leve
     integer , intent(in   ), dimension(pcols       ) :: jt      ! top of updraft
     integer , intent(in   ), dimension(pcols       ) :: mx      ! base of updraft
+    integer , intent(in   ) :: il1g
+    integer , intent(in   ) :: il2g
 
     real(r8), dimension(pcols,pver) :: dtpdt
     real(r8), dimension(pcols,pver) :: dqsdtp
@@ -3537,8 +3396,6 @@ contains
     real(r8) eb
     real(r8) grav
     integer i
-    integer il1g
-    integer il2g
     integer k, kmin, kmax
     integer msg
     real(r8) rd

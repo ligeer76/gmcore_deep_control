@@ -29,7 +29,7 @@ module latlon_parallel_mod
   public wait_halo
   public zonal_sum
   public zonal_max
-  public zonal_avg
+  public pole_avg
   public global_sum
   public global_max
   public global_min

@@ -20,7 +20,7 @@ module latlon_parallel_zonal_mod
 
   public zonal_sum
   public zonal_max
-  public zonal_avg
+  public pole_avg
 
   interface zonal_sum
     module procedure zonal_sum_0d_i4
@@ -35,10 +35,11 @@ module latlon_parallel_zonal_mod
     module procedure zonal_max_r8
   end interface zonal_max
 
-  interface zonal_avg
-    module procedure zonal_avg_3d_r8
-    module procedure zonal_avg_4d_r8
-  end interface zonal_avg
+  interface pole_avg
+    module procedure pole_avg_2d_r8
+    module procedure pole_avg_3d_r8
+    module procedure pole_avg_4d_r8
+  end interface pole_avg
 
   interface gather_zonal_array
     module procedure gather_zonal_array_1d_i4
@@ -383,7 +384,44 @@ contains
 
   end subroutine scatter_zonal_array_2d_r8
 
-  subroutine zonal_avg_3d_r8(f)
+  subroutine pole_avg_2d_r8(f)
+
+    type(latlon_field2d_type), intent(inout) :: f
+
+    real(8) work(f%mesh%full_ids:f%mesh%full_ide)
+    real(8) pole
+    integer is, ie, i, j
+
+    associate (mesh => f%mesh)
+    is = merge(mesh%full_ids, mesh%half_ids, f%full_lon)
+    ie = merge(mesh%full_ide, mesh%half_ide, f%full_lon)
+    if (mesh%has_south_pole()) then
+      j = mesh%full_jds
+      do i = is, ie
+        work(i) = f%d(i,j)
+      end do
+      call zonal_sum(proc%zonal_circle, work(is:ie), pole)
+      pole = pole / global_mesh%full_nlon
+      do i = is, ie
+        f%d(i,j) = pole
+      end do
+    end if
+    if (mesh%has_north_pole()) then
+      j = mesh%full_jde
+      do i = is, ie
+        work(i) = f%d(i,j)
+      end do
+      call zonal_sum(proc%zonal_circle, work(is:ie), pole)
+      pole = pole / global_mesh%full_nlon
+      do i = is, ie
+        f%d(i,j) = pole
+      end do
+    end if
+    end associate
+
+  end subroutine pole_avg_2d_r8
+
+  subroutine pole_avg_3d_r8(f)
 
     type(latlon_field3d_type), intent(inout) :: f
 
@@ -428,9 +466,9 @@ contains
     end if
     end associate
 
-  end subroutine zonal_avg_3d_r8
+  end subroutine pole_avg_3d_r8
 
-  subroutine zonal_avg_4d_r8(f, idx)
+  subroutine pole_avg_4d_r8(f, idx)
 
     type(latlon_field4d_type), intent(inout) :: f
     integer, intent(in) :: idx
@@ -476,6 +514,6 @@ contains
     end if
     end associate
 
-  end subroutine zonal_avg_4d_r8
+  end subroutine pole_avg_4d_r8
 
 end module latlon_parallel_zonal_mod

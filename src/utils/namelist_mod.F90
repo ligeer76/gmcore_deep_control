@@ -37,6 +37,7 @@ module namelist_mod
   ! 3 : Update dynamics and tracers after physics.
   ! 14: Update modified potential temperature in RK substeps and others like 1.
   integer         :: pdc_type                 = 14
+  logical         :: ptend_pole_avg           = .false.
 
   character(256)  :: case_desc                = 'N/A'
   character(256)  :: case_name                = 'N/A'
@@ -237,6 +238,7 @@ module namelist_mod
     dt_adv                    , &
     dt_phys                   , &
     pdc_type                  , &
+    ptend_pole_avg            , &
     run_years                 , &
     run_my                    , &
     run_sol                   , &
@@ -469,6 +471,7 @@ contains
       write(*, *) 'time_scheme            = ', trim(time_scheme)
       write(*, *) 'save_dyn_calc          = ', to_str(save_dyn_calc)
       write(*, *) 'pdc_type               = ', to_str(pdc_type)
+      write(*, *) 'ptend_pole_avg         = ', to_str(ptend_pole_avg)
       write(*, *) 'filter_wave_speed      = ', filter_wave_speed
       write(*, *) 'filter_coef_a          = ', filter_coef_a
       write(*, *) 'filter_coef_b          = ', filter_coef_b

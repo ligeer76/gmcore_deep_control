@@ -696,8 +696,8 @@ subroutine micro_mg_tend ( &
 
   ! physical properties of the air at a given point
   real(r8) :: rho(mgncol,nlev)    ! density (kg m-3)
-  real(r8), volatile :: dv(mgncol,nlev)     ! diffusivity of water vapor
-  real(r8), volatile :: mu(mgncol,nlev)     ! viscosity
+  real(r8) :: dv(mgncol,nlev)     ! diffusivity of water vapor
+  real(r8) :: mu(mgncol,nlev)     ! viscosity
   real(r8) :: sc(mgncol,nlev)     ! schmidt number
   real(r8) :: rhof(mgncol,nlev)   ! density correction factor for fallspeed
 

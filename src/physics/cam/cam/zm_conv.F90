@@ -3386,7 +3386,7 @@ contains
     real(r8), dimension(pcols,pver) :: thetavm
     real(r8), dimension(pcols     ) :: dtbdt
     real(r8), dimension(pcols     ) :: dqbdt
-    real(r8), dimension(pcols     ), volatile :: dtldt
+    real(r8), dimension(pcols     ) :: dtldt
     real(r8), dimension(pcols     ) :: dadt
     real(r8) beta
     real(r8) capelmt

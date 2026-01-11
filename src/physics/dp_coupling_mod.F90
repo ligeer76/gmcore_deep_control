@@ -227,6 +227,7 @@ contains
             icol = icol + 1
           end do
         end do
+        if (ptend_pole_avg) call pole_avg(dpsdt)
       end if
       ! ------------------------------------------------------------------------
       ! Wind component tendencies
@@ -243,6 +244,8 @@ contains
             end do
           end do
         end do
+        if (ptend_pole_avg) call pole_avg(dudt)
+        if (ptend_pole_avg) call pole_avg(dvdt)
         call fill_halo(dudt, west_halo=.false., south_halo=.false., north_halo=.false., async=.true.)
         call fill_halo(dvdt, west_halo=.false., east_halo=.false., south_halo=.false. , async=.true.)
       end if
@@ -273,6 +276,7 @@ contains
               end do
             end do
           end if
+          if (ptend_pole_avg) call pole_avg(dqdt, m)
         end if
       end do
       ! ------------------------------------------------------------------------

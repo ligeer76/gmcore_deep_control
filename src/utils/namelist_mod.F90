@@ -25,6 +25,7 @@ module namelist_mod
   real(r8)        :: run_years                = 0
   real(r8)        :: run_my                   = 0
   real(r8)        :: run_sol                  = 0
+  character(30)   :: calendar_type            = 'gregorian' ! gregorian, noleap
 
   ! Individual time step sizes in target planet time system
   real(r8)        :: dt_dyn                   = 0
@@ -241,6 +242,7 @@ module namelist_mod
     run_sol                   , &
     run_hours                 , &
     run_days                  , &
+    calendar_type             , &
     history_interval          , &
     restart_interval          , &
     print_interval            , &
@@ -463,6 +465,7 @@ contains
       write(*, *) 'dt_dyn                 = ', to_str(dt_dyn , 2)
       write(*, *) 'dt_adv                 = ', to_str(dt_adv , 2)
       write(*, *) 'dt_phys                = ', to_str(dt_phys, 2)
+      write(*, *) 'calendar_type          = ', trim(calendar_type)
       write(*, *) 'time_scheme            = ', trim(time_scheme)
       write(*, *) 'save_dyn_calc          = ', to_str(save_dyn_calc)
       write(*, *) 'pdc_type               = ', to_str(pdc_type)

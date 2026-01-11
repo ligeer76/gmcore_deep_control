@@ -69,18 +69,27 @@ contains
     ! Time step size in Earth time system (s)
     real(r8), intent(in) :: dt_in_seconds
 
+    integer calendar
+
     move_forward = dt_in_seconds > 0
 
     select case (planet)
     case ('earth')
+      select case (calendar_type)
+      case ('gregorian')
+        calendar = datetime_gregorian_calendar
+      case ('noleap')
+        calendar = datetime_noleap_calendar
+      end select
       if (sum(start_time_array) > 0) then
         call start_time%init(year  =start_time_array(1), &
                              month =start_time_array(2), &
                              day   =start_time_array(3), &
                              hour  =start_time_array(4), &
-                             minute=start_time_array(5))
+                             minute=start_time_array(5), &
+                             calendar=calendar)
       else
-        call start_time%init(year=2000, month=1, day=1, hour=0, minute=0)
+        call start_time%init(year=2000, month=1, day=1, hour=0, minute=0, calendar=calendar)
       end if
     case ('mars')
       if (sum(start_time_array) > 0) then

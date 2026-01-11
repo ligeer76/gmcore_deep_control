@@ -30,7 +30,7 @@ module cam_physics_driver_mod
   use air_composition   , only: air_composition_init
   use camsrfexch
   use runtime_opts      , only: read_namelist
-  use shr_cal_mod       , only: shr_cal_gregorian
+  use shr_cal_mod       , only: shr_cal_gregorian, shr_cal_noleap
   use shr_pio_mod       , only: shr_pio_init1, shr_pio_init2
   use cam_pio_utils     , only: init_pio_subsystem
   use cam_instance      , only: cam_instance_init
@@ -42,7 +42,7 @@ module cam_physics_driver_mod
   ! GMCORE modules
   use flogger
   use string            , only: to_int
-  use namelist_mod      , only: dt_phys, dt_adv, restart, cam_namelist_path, case_name, case_desc, use_aqua_planet
+  use namelist_mod      , only: dt_phys, dt_adv, restart, cam_namelist_path, case_name, case_desc, use_aqua_planet, calendar_type
   use process_mod       , only: proc, process_barrier
   use time_mod          , only: start_time, end_time, curr_time
   use tracer_mod        , only: tracer_add, tracers
@@ -98,12 +98,20 @@ contains
     real(r8), intent(in) :: dt_phys
 
     integer ncol, c, i, icol, m
+    character(32) calendar
     real(r8) :: eccen  = SHR_ORB_UNDEF_REAL
     real(r8) :: obliq  = SHR_ORB_UNDEF_REAL
     real(r8) :: mvelp  = SHR_ORB_UNDEF_REAL
     real(r8) :: obliqr = SHR_ORB_UNDEF_REAL
     real(r8) :: lambm0 = SHR_ORB_UNDEF_REAL
     real(r8) :: mvelpp = SHR_ORB_UNDEF_REAL
+
+    select case (calendar_type)
+    case ('gregorian')
+      calendar = shr_cal_gregorian
+    case ('noleap')
+      calendar = shr_cal_noleap
+    end select
 
     call shr_orb_params( &
       iyear_AD=2000    , &
@@ -136,7 +144,7 @@ contains
     call cam_ctrl_set_orbit(eccen_in=eccen, obliqr_in=obliqr, lambm0_in=lambm0, mvelpp_in=mvelpp)
     call timemgr_init(                                                        &
       dtime_in=int(dt_phys)                                                 , &
-      calendar_in=shr_cal_gregorian                                         , &
+      calendar_in=calendar                                                  , &
       start_ymd=to_int(start_time%format('%Y%m%d'))                         , &
       start_tod=start_time%hour*3600+start_time%minute*60+start_time%second , &
       ref_ymd=20000101                                                      , &

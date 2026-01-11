@@ -3386,7 +3386,7 @@ contains
     real(r8), dimension(pcols,pver) :: thetavm
     real(r8), dimension(pcols     ) :: dtbdt
     real(r8), dimension(pcols     ) :: dqbdt
-    real(r8), dimension(pcols     ) :: dtldt
+    real(r8), dimension(pcols     ), volatile :: dtldt
     real(r8), dimension(pcols     ) :: dadt
     real(r8) beta
     real(r8) capelmt
@@ -3416,7 +3416,7 @@ contains
       dqbdt(i) = (1.0_r8 / dsubcld(i)) * (mu(i,mx(i)) * (qhat(i,mx(i)) - qu(i,mx(i))) + &
                  md(i,mx(i)) * (qhat(i,mx(i)) - qd(i,mx(i))))
       debdt = eps1*p(i,mx(i)) / (eps1 + q(i,mx(i)))**2 * dqbdt(i)
-      dtldt(i) = -2840 * (3.5_r8 / t(i,mx(i)) * dtbdt(i) - debdt/eb) / &
+      dtldt(i) = -2840.0_r8 * (3.5_r8 / t(i,mx(i)) * dtbdt(i) - debdt/eb) / &
                  (3.5_r8 * log(t(i,mx(i))) - log(eb) - 4.805_r8)**2
     end do
     ! dtmdt and dqmdt are cumulus heating and drying.

@@ -696,8 +696,8 @@ subroutine micro_mg_tend ( &
 
   ! physical properties of the air at a given point
   real(r8) :: rho(mgncol,nlev)    ! density (kg m-3)
-  real(r8) :: dv(mgncol,nlev)     ! diffusivity of water vapor
-  real(r8) :: mu(mgncol,nlev)     ! viscosity
+  real(r8), volatile :: dv(mgncol,nlev)     ! diffusivity of water vapor
+  real(r8), volatile :: mu(mgncol,nlev)     ! viscosity
   real(r8) :: sc(mgncol,nlev)     ! schmidt number
   real(r8) :: rhof(mgncol,nlev)   ! density correction factor for fallspeed
 
@@ -3802,16 +3802,15 @@ pure subroutine micro_mg_get_cols(ncol, nlev, top_lev, mgncol, mgcols, &
   ! not columns, so we know if water is present at any level
   ! in each column.
 
-  ! ltrue = any(qcn(:ncol,top_lev:(nlev+lev_offset)) >= qsmall, 2)
-  ! ltrue = ltrue .or. any(qin(:ncol,top_lev:(nlev+lev_offset)) >= qsmall, 2)
-  ! ltrue = ltrue .or. any(qrn(:ncol,top_lev:(nlev+lev_offset)) >= qsmall, 2)
-  ! ltrue = ltrue .or. any(qsn(:ncol,top_lev:(nlev+lev_offset)) >= qsmall, 2)
+  ltrue = any(qcn(:ncol,top_lev:(nlev+lev_offset)) >= qsmall, 2)
+  ltrue = ltrue .or. any(qin(:ncol,top_lev:(nlev+lev_offset)) >= qsmall, 2)
+  ltrue = ltrue .or. any(qrn(:ncol,top_lev:(nlev+lev_offset)) >= qsmall, 2)
+  ltrue = ltrue .or. any(qsn(:ncol,top_lev:(nlev+lev_offset)) >= qsmall, 2)
 
-  ! if(present(qgr)) ltrue = ltrue .or. any(qgr(:ncol,top_lev:(nlev+lev_offset)) >= qsmall, 2)
+  if(present(qgr)) ltrue = ltrue .or. any(qgr(:ncol,top_lev:(nlev+lev_offset)) >= qsmall, 2)
 
   ! Scan for true values to get a usable list of indices.
 
-  ltrue = .true.
   mgncol = count(ltrue)
   allocate(mgcols(mgncol))
   i = 0

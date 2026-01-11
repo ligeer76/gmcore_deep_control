@@ -426,7 +426,7 @@ contains
     type(latlon_field3d_type), intent(inout) :: f
 
     real(8) work(f%mesh%full_ids:f%mesh%full_ide,f%mesh%full_kds:f%mesh%full_kde+1)
-    real(8) pole(f%mesh%full_kds:f%mesh%full_kde)
+    real(8) pole(f%mesh%full_kds:f%mesh%full_kde+1)
     integer is, ie, ks, ke, i, j, k
 
     associate (mesh => f%mesh)
@@ -474,7 +474,7 @@ contains
     integer, intent(in) :: idx
 
     real(8) work(f%mesh%full_ids:f%mesh%full_ide,f%mesh%full_kds:f%mesh%full_kde+1)
-    real(8) pole(f%mesh%full_kds:f%mesh%full_kde)
+    real(8) pole(f%mesh%full_kds:f%mesh%full_kde+1)
     integer is, ie, ks, ke, i, j, k
 
     associate (mesh => f%mesh)

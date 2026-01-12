@@ -293,6 +293,7 @@ contains
             end do
           end do
         end do
+        if (ptend_pole_avg) call pole_avg(dtdt)
       else if (ptend%updated_pt) then
         do k = mesh%full_kds, mesh%full_kde
           icol = 1
@@ -303,6 +304,7 @@ contains
             end do
           end do
         end do
+        if (ptend_pole_avg) call pole_avg(dptdt)
       end if
       end associate
 

@@ -44,6 +44,7 @@ module camsrfexch
     real(r8), allocatable, dimension(:  ) :: rho                        ! bot level density
     real(r8), allocatable, dimension(:  ) :: netsw                      !
     real(r8), allocatable, dimension(:  ) :: flwds                      !
+    real(r8), allocatable, dimension(:  ) :: flnt                       ! Net longwave flux at top of model !cui
     real(r8), allocatable, dimension(:  ) :: precsc                     !
     real(r8), allocatable, dimension(:  ) :: precsl                     !
     real(r8), allocatable, dimension(:  ) :: precc                      !
@@ -145,6 +146,7 @@ contains
     allocate(this%rho     (pcols      ))
     allocate(this%netsw   (pcols      ))
     allocate(this%flwds   (pcols      ))
+    allocate(this%flnt    (pcols      )) !cui
     allocate(this%precsc  (pcols      ))
     allocate(this%precsl  (pcols      ))
     allocate(this%precc   (pcols      ))
@@ -188,6 +190,7 @@ contains
     if (allocated(this%rho     )) deallocate(this%rho     )
     if (allocated(this%netsw   )) deallocate(this%netsw   )
     if (allocated(this%flwds   )) deallocate(this%flwds   )
+    if (allocated(this%flnt    )) deallocate(this%flnt    ) ! cui
     if (allocated(this%precsc  )) deallocate(this%precsc  )
     if (allocated(this%precsl  )) deallocate(this%precsl  )
     if (allocated(this%precc   )) deallocate(this%precc   )
@@ -455,6 +458,7 @@ contains
       cam_out(c)%rho      = 0
       cam_out(c)%netsw    = 0
       cam_out(c)%flwds    = 0
+      cam_out(c)%flnt     = 0 !cui
       cam_out(c)%precsc   = 0
       cam_out(c)%precsl   = 0
       cam_out(c)%precc    = 0

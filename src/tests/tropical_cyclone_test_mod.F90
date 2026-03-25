@@ -81,7 +81,8 @@ module tropical_cyclone_test_mod
     gamma    = 0.007d0   , & ! lapse rate
     Ts0      = 302.15d0  , & ! Surface temperature (SST)
     p00      = 101500.d0 , & ! global mean surface pressure
-    cen_lat  = 10 * rad  , & ! Center latitude of initial vortex
+    ! cen_lat  = 10 * rad  , & ! Center latitude of initial vortex
+    cen_lat  = 5 * rad  , & ! Center latitude of initial vortex
     cen_lon  = 180 * rad , & ! Center longitufe of initial vortex
     zq1      = 3000.d0   , & ! Height 1 for qv calculation
     zq2      = 8000.d0   , & ! Height 2 for qv calculation

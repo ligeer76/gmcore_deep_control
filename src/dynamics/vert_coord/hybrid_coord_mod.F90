@@ -115,6 +115,8 @@ contains
       case ('wrf')
         call hybrid_coord_wrf(p0, ptop, hyai, hybi)
         local_ptop = ptop
+      case ('sub_l40')
+        call hybrid_coord_subinertial_l40(p0, ptop, hyai, hybi)
       case default
         if (baroclinic .and. proc%is_root()) then
           call log_error('Hybrid vertical coordinate template "' // trim(template) // '" is invalid!')

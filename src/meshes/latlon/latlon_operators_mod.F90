@@ -36,6 +36,7 @@ module latlon_operators_mod
   public divy_operator
   public div_operator
   public curl_operator
+  public curl_operator_deep
   public grad_operator
   public wind_c2a_operator
   public wind_a2c_operator
@@ -43,6 +44,7 @@ module latlon_operators_mod
   interface div_operator
     module procedure div_operator_2d
     module procedure div_operator_3d
+    module procedure div_operator_3d_deep
   end interface div_operator
 
   interface grad_operator
@@ -368,6 +370,122 @@ contains
 
   end subroutine div_operator_3d
 
+  subroutine div_operator_3d_deep(fx, rx, fy, ry, div, with_halo)
+
+    type(latlon_field3d_type), intent(inout) :: fx
+    type(latlon_field3d_type), intent(inout) :: rx
+    type(latlon_field3d_type), intent(inout) :: fy
+    type(latlon_field3d_type), intent(inout) :: ry
+    type(latlon_field3d_type), intent(inout) :: div
+    logical, intent(in), optional :: with_halo
+
+    logical with_halo_opt
+    real(r8) work(div%mesh%full_ids:div%mesh%full_ide,div%nlev+1)
+    real(r8) pole(div%nlev+1)
+    integer i, j, k, is, ie, js, je, ks, ke
+
+    with_halo_opt = .false.; if (present(with_halo)) with_halo_opt = with_halo
+
+    call wait_halo(fx)
+    call wait_halo(fy)
+
+    call perf_start('div_operator_3d_deep')
+
+    associate (mesh => div%mesh)
+    ks = merge(mesh%full_kds, mesh%half_kds, div%loc(1:3) /= 'lev')
+    ke = merge(mesh%full_kde, mesh%half_kde, div%loc(1:3) /= 'lev')
+    select case (div%loc)
+    case ('cell', 'lev')
+      is = mesh%full_ids
+      ie = mesh%full_ide + merge(1, 0, with_halo_opt)
+      js = mesh%full_jds_no_pole
+      je = mesh%full_jde_no_pole + merge(1, 0, with_halo_opt .and. .not. mesh%has_north_pole())
+      do k = ks, ke
+        do j = js, je
+          do i = is, ie
+            div%d(i,j,k) = ((                    &
+              fx%d(i,j,k) * radius / rx%d(i,j,k) - fx%d(i-1,j,k) * radius / rx%d(i-1,j,k)        &
+            ) * mesh%le_lon(j) + (               &
+              fy%d(i,j  ,k) * radius / ry%d(i,j  ,k) * mesh%le_lat(j  ) - &
+              fy%d(i,j-1,k) * radius / ry%d(i,j-1,k) * mesh%le_lat(j-1)   &
+            )) / mesh%area_cell(j)
+          end do
+        end do
+      end do
+      if (mesh%has_south_pole()) then
+        j = mesh%full_jds
+        do k = ks, ke
+          do i = mesh%full_ids, mesh%full_ide
+            work(i,k) = fy%d(i,j,k) * radius / ry%d(i,j,k)
+          end do
+        end do
+        call zonal_sum(proc%zonal_circle, work(:,ks:ke), pole(ks:ke))
+        pole(ks:ke) = pole(ks:ke) * mesh%le_lat(j) / global_mesh%area_pole_cap
+        do k = ks, ke
+          do i = mesh%full_ids, mesh%full_ide
+            div%d(i,j,k) = pole(k)
+          end do
+        end do
+      end if
+      if (mesh%has_north_pole()) then
+        j = mesh%full_jde
+        do k = ks, ke
+          do i = mesh%full_ids, mesh%full_ide
+            work(i,k) = fy%d(i,j-1,k) * radius / ry%d(i,j,k)
+          end do
+        end do
+        call zonal_sum(proc%zonal_circle, work(:,ks:ke), pole(ks:ke))
+        pole(ks:ke) = -pole(ks:ke) * mesh%le_lat(j-1) / global_mesh%area_pole_cap
+        do k = ks, ke
+          do i = mesh%full_ids, mesh%full_ide
+            div%d(i,j,k) = pole(k)
+          end do
+        end do
+      end if
+    case ('lon')
+      is = mesh%half_ids
+      ie = mesh%half_ide
+      js = mesh%full_jds_no_pole
+      je = mesh%full_jde_no_pole
+      do k = ks, ke
+        do j = js, je
+          do i = is, ie
+            div%d(i,j,k) = ((                    &
+              fx%d(i+1,j,k) * radius / rx%d(i+1,j,k) - fx%d(i,j,k) * radius / rx%d(i,j,k)     &
+            ) * mesh%le_lon(j) + (               &
+              fy%d(i,j  ,k) * radius / ry%d(i,j  ,k) * mesh%le_lat(j  ) - &
+              fy%d(i,j-1,k) * radius / ry%d(i,j-1,k) * mesh%le_lat(j-1)   &
+            )) / (2 * mesh%area_lon(j))
+          end do
+        end do
+      end do
+      ! No need to handle poles.
+    case ('lat')
+      is = mesh%full_ids
+      ie = mesh%full_ide
+      js = mesh%half_jds
+      je = mesh%half_jde
+      do k = ks, ke
+        do j = js, je
+          do i = is, ie
+            div%d(i,j,k) = ((                    &
+              fx%d(i,j,k) * radius / rx%d(i,j,k)- fx%d(i-1,j,k) * radius / rx%d(i-1,j,k)       &
+            ) * mesh%de_lat(j) + (               &
+              fy%d(i,j+1,k) * radius / ry%d(i,j+1,k) * mesh%de_lon(j+1) - &
+              fy%d(i,j  ,k) * radius / ry%d(i,j  ,k) * mesh%de_lon(j)     &
+            )) / (2 * mesh%area_lat(j))
+          end do
+        end do
+      end do
+    case default
+      call log_error('div_operator_3d: unsupported location ' // trim(div%loc) // '!', __FILE__, __LINE__, pid=proc%id_model)
+    end select
+    end associate
+
+    call perf_stop('div_operator_3d_deep')
+
+  end subroutine div_operator_3d_deep
+
   subroutine curl_operator(fx, fy, curl, with_halo)
 
     type(latlon_field3d_type), intent(inout) :: fx
@@ -407,6 +525,48 @@ contains
     call perf_stop('curl_operator')
 
   end subroutine curl_operator
+
+  subroutine curl_operator_deep(fx,rx, fy,ry, curl, with_halo)
+
+    type(latlon_field3d_type), intent(inout) :: fx
+    type(latlon_field3d_type), intent(inout) :: rx
+    type(latlon_field3d_type), intent(inout) :: fy
+    type(latlon_field3d_type), intent(inout) :: ry
+    type(latlon_field3d_type), intent(inout) :: curl
+    logical, intent(in), optional :: with_halo
+
+    logical with_halo_opt
+    integer i, j, k, is, ie, js, je, ks, ke
+
+    with_halo_opt = .false.; if (present(with_halo)) with_halo_opt = with_halo
+
+    call wait_halo(fx)
+    call wait_halo(fy)
+
+    call perf_start('curl_operator')
+
+    associate (mesh => curl%mesh)
+    ks = merge(mesh%full_kds, mesh%half_kds, curl%loc(1:3) /= 'lev')
+    ke = merge(mesh%full_kde, mesh%half_kde, curl%loc(1:3) /= 'lev')
+    is = mesh%half_ids - merge(1, 0, with_halo_opt)
+    ie = mesh%half_ide
+    js = mesh%half_jds - merge(1, 0, with_halo_opt .and. .not. mesh%has_south_pole())
+    je = mesh%half_jde
+    do k = ks, ke
+      do j = js, je
+        do i = is, ie
+          curl%d(i,j,k) = (                                                     &
+            fx%d(i  ,j,k) * mesh%de_lon(j)* radius / rx%d(i,j,k) - fx%d(i,j+1,k) * mesh%de_lon(j+1)* radius / rx%d(i,j+1,k) + &
+            fy%d(i+1,j,k) * mesh%de_lat(j)* radius / ry%d(i+1,j,k) - fy%d(i,j  ,k) * mesh%de_lat(j  ) * radius / ry%d(i,j,k)  &
+          ) / mesh%area_vtx(j)
+        end do
+      end do
+    end do
+    end associate
+
+    call perf_stop('curl_operator')
+
+  end subroutine curl_operator_deep
 
   subroutine grad_operator_2d(f, gradx, grady, with_halo)
 

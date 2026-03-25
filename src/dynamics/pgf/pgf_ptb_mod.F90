@@ -129,6 +129,9 @@ contains
 
     real(r8) L, tmp1, tmp2, tmp3, tmp4, tmp
     integer i, j, k
+#ifdef USE_DEEP_ATM
+    real(r8) :: factor_r
+#endif
 
     if (nonhydrostatic) call wait_halo(dstate%p_lev)
 
@@ -144,6 +147,10 @@ contains
                p_lev  => dstate%p_lev          , & ! in
                rhod   => block%aux%rhod        , & ! in
                gz     => dstate%gz             , & ! in
+#ifdef USE_DEEP_ATM               
+               rdp_lat=> block%aux%rdp_lat     , & ! cui
+               rdp_lon=> block%aux%rdp_lon     , & ! cui
+#endif               
                dudt   => dtend%dudt            , & ! out
                dvdt   => dtend%dvdt            )   ! out
     do k = mesh%full_kds, mesh%full_kde
@@ -159,13 +166,22 @@ contains
     do k = mesh%full_kds, mesh%full_kde
       do j = mesh%full_jds_no_pole, mesh%full_jde_no_pole
         do i = mesh%half_ids, mesh%half_ide
+#ifdef USE_DEEP_ATM
+          factor_r = merge((radius / rdp_lon%d(i,j,k))**1, 1.0_r8, deepwater .and. use_mesh_change) 
+#endif
           L = 1 + 0.5_r8 * (qm%d(i,j,k) + qm%d(i+1,j,k))
           tmp1 = 0.5_r8 * (ad_ptb%d(i,j,k) + ad_ptb%d(i+1,j,k)) * pro%dmgdx%d(i,j,k)
           tmp2 = 0.5_r8 * (1.0_r8 / rhod%d(i,j,k) + 1.0_r8 / rhod%d(i+1,j,k)) * &
                  (p_ptb%d(i+1,j,k) - p_ptb%d(i,j,k)) / mesh%de_lon(j)
+#ifdef USE_DEEP_ATM                 
+          tmp3 = (gz_ptb%d(i+1,j,k) - gz_ptb%d(i,j,k)) / mesh%de_lon(j) /factor_r
+          tmp4 = 0.5_r8 * (dp_ptb%d(i,j,k) / dmg%d(i,j,k) + dp_ptb%d(i+1,j,k) / dmg%d(i+1,j,k)) * &
+                 (gz%d(i+1,j,k) - gz%d(i,j,k)) / mesh%de_lon(j) /factor_r
+#else
           tmp3 = (gz_ptb%d(i+1,j,k) - gz_ptb%d(i,j,k)) / mesh%de_lon(j)
           tmp4 = 0.5_r8 * (dp_ptb%d(i,j,k) / dmg%d(i,j,k) + dp_ptb%d(i+1,j,k) / dmg%d(i+1,j,k)) * &
                  (gz%d(i+1,j,k) - gz%d(i,j,k)) / mesh%de_lon(j)
+#endif
           tmp = -(tmp1 + tmp2 + tmp3 + tmp4) / L
           dudt%d(i,j,k) = dudt%d(i,j,k) + tmp
 #ifdef OUTPUT_H1_DTEND
@@ -175,13 +191,22 @@ contains
       end do
       do j = mesh%half_jds, mesh%half_jde
         do i = mesh%full_ids, mesh%full_ide
+#ifdef USE_DEEP_ATM
+          factor_r = merge((radius / rdp_lat%d(i,j,k))**1,1.0_r8,deepwater .and. use_mesh_change)
+#endif
           L = 1 + 0.5_r8 * (qm%d(i,j,k) + qm%d(i,j+1,k))
           tmp1 = 0.5_r8 * (ad_ptb%d(i,j,k) + ad_ptb%d(i,j+1,k)) * pro%dmgdy%d(i,j,k)
           tmp2 = 0.5_r8 * (1.0_r8 / rhod%d(i,j,k) + 1.0_r8 / rhod%d(i,j+1,k)) * &
                  (p_ptb%d(i,j+1,k) - p_ptb%d(i,j,k)) / mesh%de_lat(j)
+#ifdef USE_DEEP_ATM                    
+          tmp3 = (gz_ptb%d(i,j+1,k) - gz_ptb%d(i,j,k)) / mesh%de_lat(j) / factor_r
+          tmp4 = 0.5_r8 * (dp_ptb%d(i,j,k) / dmg%d(i,j,k) + dp_ptb%d(i,j+1,k) / dmg%d(i,j+1,k)) * &
+                 (gz%d(i,j+1,k) - gz%d(i,j,k)) / mesh%de_lat(j) /factor_r
+#else
           tmp3 = (gz_ptb%d(i,j+1,k) - gz_ptb%d(i,j,k)) / mesh%de_lat(j)
           tmp4 = 0.5_r8 * (dp_ptb%d(i,j,k) / dmg%d(i,j,k) + dp_ptb%d(i,j+1,k) / dmg%d(i,j+1,k)) * &
                  (gz%d(i,j+1,k) - gz%d(i,j,k)) / mesh%de_lat(j)
+#endif
           tmp = -(tmp1 + tmp2 + tmp3 + tmp4) / L
           dvdt%d(i,j,k) = dvdt%d(i,j,k) + tmp
 #ifdef OUTPUT_H1_DTEND

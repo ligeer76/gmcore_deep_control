@@ -317,6 +317,17 @@ contains
                        qmfz  => batch%qmfz)   ! work array
             ! Calculate horizontal tracer mass flux.
             call adv_calc_tracer_hflx(batch, q_old, qmfx, qmfy)
+#ifdef USE_DEEP_ATM
+            if (deepwater.and.use_mesh_change) then
+              call wait_halo(blocks(iblk)%aux%rdp_lon)
+              call wait_halo(blocks(iblk)%aux%rdp_lat)
+              call div_operator(qmfx,blocks(iblk)%aux%rdp_lon, qmfy,blocks(iblk)%aux%rdp_lat, dqdt)
+            else
+              call div_operator(qmfx, qmfy, dqdt) 
+            end if
+#else
+              call div_operator(qmfx, qmfy, dqdt)
+#endif            
             call div_operator(qmfx, qmfy, dqdt)
             ! Update tracer mixing ratio due to horizontal advection.
             do k = mesh%full_kds, mesh%full_kde

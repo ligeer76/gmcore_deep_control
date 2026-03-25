@@ -33,6 +33,8 @@ module cam_physics_types_mod
     real(r8), allocatable, dimension(:  ) :: aldir
     ! Albedo for diffuse long wave radiation
     real(r8), allocatable, dimension(:  ) :: aldif
+    ! olr
+    real(r8), allocatable, dimension(:  ) :: olr
   contains
     procedure :: init  => cam_state_init
     procedure :: clear => cam_state_clear
@@ -62,6 +64,7 @@ contains
     allocate(this%asdif(mesh%ncol         ))
     allocate(this%aldir(mesh%ncol         ))
     allocate(this%aldif(mesh%ncol         ))
+    allocate(this%olr  (mesh%ncol         ))
 
     call this%physics_state_init(mesh)
 
@@ -77,6 +80,7 @@ contains
     if (allocated(this%asdif)) deallocate(this%asdif)
     if (allocated(this%aldir)) deallocate(this%aldir)
     if (allocated(this%aldif)) deallocate(this%aldif)
+    if (allocated(this%olr))   deallocate(this%olr)
 
     call this%physics_state_clear()
 

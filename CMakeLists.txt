@@ -22,6 +22,7 @@ option(USE_CHEM "Use chemistry" OFF)
 option(USE_CAM "Use CAM physics" OFF)
 option(USE_CLM "Use CLM land model" OFF)
 option(OUTPUT_H1_DTEND "Output each dynamics tendency in h1 file" OFF)
+option(USE_DEEP_ATM "Deep atmosphere switch" OFF)
 
 if (R4)
   add_definitions(-DREAL_KIND=4)
@@ -45,6 +46,9 @@ if (CHECK_TRACERS)
 endif ()
 if (OUTPUT_H1_DTEND)
   add_definitions(-DOUTPUT_H1_DTEND)
+endif ()
+if (USE_DEEP_ATM) 
+  add_definitions(-DUSE_DEEP_ATM)
 endif ()
 
 set(CMAKE_Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR})
@@ -355,6 +359,13 @@ target_sources(gmcore PRIVATE
   src/tests/swm/steady_geostrophic_flow_test_mod.F90
   src/tests/swm/vortex_erosion_test_mod.F90
   src/tests/tropical_cyclone_test_mod.F90
+  src/tests/tropical_wave_test_mod.F90
+  src/tests/equatorial_wave_test_mod.F90
+  src/tests/weak_stratified_wave_test_mod.F90
+  src/tests/axis_parallel_vortex_test_mod.F90
+  src/tests/subinertial_wave_test_mod.F90
+  src/tests/critical_wave_test_mod.F90
+  src/tests/swg_wave_test_mod.F90
   src/tests/colliding_modons_test_mod.F90
   src/tests/supercell_test_mod.F90
   src/utils/accum_mod.F90

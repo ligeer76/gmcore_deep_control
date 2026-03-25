@@ -91,6 +91,10 @@ module latlon_mesh_mod
     ! Coriolis parameters
     real(8), allocatable, dimension(:  ) :: f_lon
     real(8), allocatable, dimension(:  ) :: f_lat
+#ifdef USE_DEEP_ATM
+    real(8), allocatable, dimension(:  ) :: fd_lon  ! deep eq coriolis
+    real(8), allocatable, dimension(:  ) :: fd_lat
+#endif
     ! Weight for constructing tangential wind
     real(8), allocatable, dimension(:,:) :: tg_wgt_lon
     real(8), allocatable, dimension(:,:) :: tg_wgt_lat
@@ -250,9 +254,15 @@ contains
 
     do j = this%full_jds, this%full_jde
       this%f_lon(j) = 2 * omega * this%full_sin_lat(j)
+#ifdef USE_DEEP_ATM
+      this%fd_lon(j) = 2 * omega * this%full_cos_lat(j)
+#endif
     end do
     do j = this%half_jds, this%half_jde
       this%f_lat(j) = 2 * omega * this%half_sin_lat(j)
+#ifdef USE_DEEP_ATM
+      this%fd_lat(j) = 2 * omega * this%half_cos_lat(j)
+#endif
     end do
 
     do j = this%full_jds_no_pole, this%full_jde_no_pole
@@ -342,6 +352,9 @@ contains
       this%le_lon        (j) = parent%le_lon        (j)
       this%de_lon        (j) = parent%de_lon        (j)
       this%f_lon         (j) = parent%f_lon         (j)
+#ifdef USE_DEEP_ATM
+      this%fd_lon        (j) = parent%fd_lon        (j)
+#endif
       this%tg_wgt_lon  (:,j) = parent%tg_wgt_lon  (:,j)
     end do
     do j = this%half_jms, this%half_jme
@@ -354,6 +367,9 @@ contains
       this%le_lat        (j) = parent%le_lat        (j)
       this%de_lat        (j) = parent%de_lat        (j)
       this%f_lat         (j) = parent%f_lat         (j)
+#ifdef USE_DEEP_ATM
+      this%fd_lat        (j) = parent%fd_lat        (j)
+#endif
       this%tg_wgt_lat  (:,j) = parent%tg_wgt_lat  (:,j)
     end do
     this%area_pole_cap = parent%area_pole_cap
@@ -443,6 +459,10 @@ contains
     allocate(this%le_lon             (this%full_jms:this%full_jme)); this%le_lon              = 0
     allocate(this%f_lon              (this%full_jms:this%full_jme)); this%f_lon               = inf
     allocate(this%f_lat              (this%half_jms:this%half_jme)); this%f_lat               = inf
+#ifdef USE_DEEP_ATM
+    allocate(this%fd_lon             (this%full_jms:this%full_jme)); this%fd_lon              = inf
+    allocate(this%fd_lat             (this%half_jms:this%half_jme)); this%fd_lat              = inf
+#endif
     allocate(this%tg_wgt_lon       (2,this%full_jms:this%full_jme)); this%tg_wgt_lon          = inf
     allocate(this%tg_wgt_lat       (2,this%half_jms:this%half_jme)); this%tg_wgt_lat          = inf
 
@@ -539,6 +559,10 @@ contains
     if (allocated(this%le_lon        )) deallocate(this%le_lon        )
     if (allocated(this%f_lon         )) deallocate(this%f_lon         )
     if (allocated(this%f_lat         )) deallocate(this%f_lat         )
+#ifdef USE_DEEP_ATM
+    if (allocated(this%fd_lon        )) deallocate(this%fd_lon        )
+    if (allocated(this%fd_lat        )) deallocate(this%fd_lat        )
+#endif
     if (allocated(this%tg_wgt_lon    )) deallocate(this%tg_wgt_lon    )
     if (allocated(this%tg_wgt_lat    )) deallocate(this%tg_wgt_lat    )
 

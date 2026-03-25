@@ -160,6 +160,25 @@ module dynamics_types_mod
     type(latlon_field3d_type) dmf         ! Mass flux divergence on full level (Pa s-1)
     type(latlon_field3d_type) dmf_lev     ! Mass flux divergence on half level (Pa s-1)
     type(latlon_field3d_type) omg         ! Vertical pressure velocity (Pa s-1)
+#ifdef USE_DEEP_ATM
+    type(latlon_field3d_type) gz_lon
+    type(latlon_field3d_type) w_lon
+
+    type(latlon_field3d_type) gz_lat
+    type(latlon_field3d_type) w_lat
+
+    type(latlon_field3d_type) u_lev
+    type(latlon_field3d_type) v_lev
+    type(latlon_field3d_type) rdp
+
+    type(latlon_field3d_type) rdp_lon
+    type(latlon_field3d_type) rdp_lat
+    type(latlon_field3d_type) rdp_lev
+    type(latlon_field3d_type) rdp_vtx
+    type(latlon_field3d_type) rdp_lev_lon
+    type(latlon_field3d_type) rdp_lev_lat
+    !! cui
+#endif
     ! Tendencies from physics
     logical updated_u
     type(latlon_field3d_type) dudt_phys
@@ -326,6 +345,7 @@ contains
         mesh            =filter_mesh                                         , &
         halo            =filter_halo                                         , &
         halo_cross_pole =.true.                                              , &
+        output          ='h0'                                                , &
         restart         =.true.                                              , &
         field           =this%pt                                             )
     end if
@@ -1537,6 +1557,143 @@ contains
         restart         =.false.                                             , &
         field           =this%adv_gz_lev                                     )
     end if
+#ifdef USE_DEEP_ATM
+    print*,"define deep atm"
+  ! if (deepwater) then !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    call append_field(this%fields                                          , &
+      name            ='rdp'                                               , &
+      long_name       ='radius deep water'                                 , &
+      units           ='m'                                                 , &
+      loc             ='cell'                                              , &
+      mesh            =mesh                                                , &
+      halo            =halo                                                , &
+      output          ='h0'                                                , &
+      restart         =.false.                                             , &
+      field           =this%rdp                                            )
+   call append_field(this%fields                                          , &
+      name            ='rdp_vtx'                                           , &
+      long_name       ='radius deep water on vertex'                       , &
+      units           ='m'                                                 , &
+      loc             ='vtx'                                               , &
+      mesh            =mesh                                                , &
+      halo            =halo                                                , &
+      output          =''                                                  , &
+      restart         =.false.                                             , &
+      field           =this%rdp_vtx                                        )
+    call append_field(this%fields                                          , &
+      name            ='rdp_lon'                                           , &
+      long_name       ='radius deep water on lon'                          , &
+      units           ='m'                                                 , &
+      loc             ='lon'                                               , &
+      mesh            =mesh                                                , &
+      halo            =halo                                                , &
+      halo_diagonal   =.true.                                              , &
+      output          =''                                                  , &
+      restart         =.false.                                             , &
+      field           =this%rdp_lon                                        )
+    call append_field(this%fields                                          , &
+      name            ='rdp_lat'                                           , &
+      long_name       ='radius deep water on lat'                          , &
+      units           ='m'                                                 , &
+      loc             ='lat'                                               , &
+      mesh            =mesh                                                , &
+      halo            =halo                                                , &
+      halo_diagonal   =.true.                                              , &
+      output          =''                                                  , &
+      restart         =.false.                                             , &
+      field           =this%rdp_lat                                        )   
+    call append_field(this%fields                                          , &
+      name            ='rdp_lev'                                           , &
+      long_name       ='radius deep water on half level'                   , &
+      units           ='m'                                                 , &
+      loc             ='lev'                                               , &
+      mesh            =mesh                                                , &
+      halo            =halo                                                , &
+      output          ='h0'                                                , &
+      restart         =.false.                                             , &
+      field           =this%rdp_lev                                        )
+    call append_field(this%fields                                          , &
+      name            ='rdp_lev_lon'                                       , &
+      long_name       ='radius deep water on half level lon'               , &
+      units           ='m'                                                 , &
+      loc             ='lev_lon'                                           , &
+      mesh            =mesh                                                , &
+      halo            =halo                                                , &
+      output          =''                                                  , &
+      restart         =.false.                                             , &
+      field           =this%rdp_lev_lon                                    )
+    call append_field(this%fields                                          , &
+      name            ='rdp_lev_lat'                                       , &
+      long_name       ='radius deep water on half level lat'               , &
+      units           ='m'                                                 , &
+      loc             ='lev_lat'                                           , &
+      mesh            =mesh                                                , &
+      halo            =halo                                                , &
+      output          =''                                                  , &
+      restart         =.false.                                             , &
+      field           =this%rdp_lev_lat                                    )
+    call append_field(this%fields                                          , &
+      name            ='w_lon'                                             , &
+      long_name       ='w on the zonal edge'                               , &
+      units           ='m s-1'                                             , &
+      loc             ='lon'                                               , &
+      mesh            =mesh                                                , &
+      halo            =halo                                                , &
+      output          =''                                                  , &
+      restart         =.false.                                             , &
+      field           =this%w_lon                                          )
+    call append_field(this%fields                                          , &
+      name            ='gz_lon'                                            , &
+      long_name       ='gz on the zonal edge'                              , &
+      units           ='m2 s-2'                                            , &
+      loc             ='lon'                                               , &
+      mesh            =mesh                                                , &
+      halo            =halo                                                , &
+      output          =''                                                  , &
+      restart         =.false.                                             , &
+      field           =this%gz_lon                                          )
+    call append_field(this%fields                                          , &
+      name            ='w_lat'                                             , &
+      long_name       ='w on the meridional edge'                          , &
+      units           ='m s-1'                                             , &
+      loc             ='lat'                                               , &
+      mesh            =mesh                                                , &
+      halo            =halo                                                , &
+      output          =''                                                  , &
+      restart         =.false.                                             , &
+      field           =this%w_lat                                          )
+    call append_field(this%fields                                          , &
+      name            ='gz_lat'                                            , &
+      long_name       ='gz on the meridional edge'                         , &
+      units           ='m2 s-2'                                            , &
+      loc             ='lat'                                               , &
+      mesh            =mesh                                                , &
+      halo            =halo                                                , &
+      output          =''                                                  , &
+      restart         =.false.                                             , &
+      field           =this%gz_lat                                         )
+    call append_field(this%fields                                          , &
+      name            ='u_lev'                                             , &
+      long_name       ='u on the half lev'                                 , &
+      units           ='m s-1'                                             , &
+      loc             ='lev'                                               , &
+      mesh            =mesh                                                , &
+      halo            =halo                                                , &
+      output          =''                                                  , &
+      restart         =.false.                                             , &
+      field           =this%u_lev                                          )
+    call append_field(this%fields                                          , &
+      name            ='v_lev'                                             , &
+      long_name       ='v on the half lev'                                 , &
+      units           ='m s-1'                                             , &
+      loc             ='lev'                                               , &
+      mesh            =mesh                                                , &
+      halo            =halo                                                , &
+      output          =''                                                  , &
+      restart         =.false.                                             , &
+      field           =this%v_lev                                          )
+  ! end if
+#endif
 
   end subroutine aux_array_init
 

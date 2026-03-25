@@ -158,6 +158,14 @@ contains
     integer i, j, k
     real(r8) c, lat0
     real(r8) tmp(block%mesh%full_ids-1:block%mesh%full_ide+1)
+    ! ======================================================================
+    ! ==== IGW 试验新增变量开始 ====
+    real(r8) :: lat_c, lon_c, k_c, dlat, dlon, dk, Q0, forcing_amp, sigma
+    real(r8) :: Tper,tc,tau,time_env
+    real(r8), save :: sim_time = 0.0_r8 ! 追踪积分的绝对时间 (加上 save 属性使其跨步保留)
+    ! ==== IGW 试验新增变量结束 ====
+    ! ======================================================================
+
 
     associate (mesh   => block%mesh  , &
                dmgsdt => dtend%dmgsdt, &
@@ -186,6 +194,56 @@ contains
         ! ----------------------------------------------------------------------
         call filter_run(block%small_filter, dptdt)
         ! ----------------------------------------------------------------------
+        !!!
+        !!!
+! ! ======================================================================
+!         ! [CUSTOM IGW FORCING] 连续热力学强迫：激发特定频率的惯性重力内波
+!         ! ======================================================================
+!         ! 1. 更新绝对时间 (仅在多步积分的最后一步累加，防止时间走得过快)
+!         if (substep == total_substeps) then
+!           sim_time = sim_time + dt
+!         end if
+        
+!         ! 2. 强迫核心物理参数
+!         sigma = 1.0*7.292115e-5_r8  ! 目标频率：地球自转角速度 Omega (rad/s)
+!         Q0    = 1.0e-1_r8       ! 强迫振幅：1e-5 K/s (保持微扰在线性范围内)
+        
+!         ! ====> 扰动中心位置设置 <====
+!         lat_c = 20.0_r8         ! 中心纬度：北纬 20°
+!         lon_c = 20.0_r8         ! 中心经度：东经 20°
+!         k_c   = (mesh%full_kds + mesh%full_kde) / 2.0_r8 ! 垂直中心：模式中间层
+        
+!         ! 3. 空间高斯包络的衰减半宽
+!         dlat  = 5.0_r8          ! 纬向半宽：5度
+!         dlon  = 10.0_r8         ! 经向半宽：10度
+!         dk    = 5.0_r8          ! 垂直半宽：5个模式层
+        
+!         ! 4. 将时空耦合的震荡热源叠加到地位温倾向 (dptdt) 中
+!         do k = mesh%full_kds, mesh%full_kde
+!           do j = mesh%full_jds_no_pole, mesh%full_jde_no_pole
+!             do i = mesh%full_ids, mesh%full_ide
+!               ! 计算当前格点相对于扰动中心的三维空间距离衰减
+!               forcing_amp = Q0 * exp(-( (mesh%full_lat_deg(j) - lat_c)**2 / dlat**2 + &
+!                                         (mesh%full_lon_deg(i) - lon_c)**2 / dlon**2 + &
+!                                         (real(k, r8) - k_c)**2 / dk**2 ))
+              
+!               ! 施加外源：原有倾向 + 空间高斯包络 * 时间余弦震荡
+!               ! dptdt%d(i,j,k) = dptdt%d(i,j,k) + forcing_amp * cos(sigma * sim_time)
+!               Tper = 2.0_r8*pi / sigma
+!               tc   = 1.5_r8 * Tper
+!               tau  = 0.7_r8 * Tper
+
+!               time_env = exp( - ((sim_time - tc)**2) / (tau**2) )
+
+!               dptdt%d(i,j,k) = dptdt%d(i,j,k) + forcing_amp * time_env * cos(sigma * sim_time)
+!             end do
+!           end do
+!         end do
+!         ! ======================================================================
+!         !!!
+
+        !!!
+
         do k = mesh%full_kds, mesh%full_kde
           do j = mesh%full_jds, mesh%full_jde
             do i = mesh%full_ids, mesh%full_ide

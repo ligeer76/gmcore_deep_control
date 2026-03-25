@@ -708,7 +708,7 @@ contains
     real(r8), pointer :: fsns(:)  ! Surface solar absorbed flux
     real(r8), pointer :: fsnt(:)  ! Net column abs solar flux at model top
     real(r8), pointer :: flns(:)  ! Srf longwave cooling (up-down) flux
-    real(r8), pointer :: flnt(:)  ! Net outgoing lw flux at model top
+    ! real(r8), pointer :: flnt(:)  ! Net outgoing lw flux at model top !cui
 
     real(r8), pointer, dimension(:,:,:) :: su => NULL()  ! shortwave spectral flux up
     real(r8), pointer, dimension(:,:,:) :: sd => NULL()  ! shortwave spectral flux down
@@ -857,7 +857,7 @@ contains
     call pbuf_get_field(pbuf, fsds_idx, fsds)
     call pbuf_get_field(pbuf, fsns_idx, fsns)
     call pbuf_get_field(pbuf, flns_idx, flns)
-    call pbuf_get_field(pbuf, flnt_idx, flnt)
+    ! call pbuf_get_field(pbuf, flnt_idx, flnt) ! cui
 
     if (spectralflux) then
       call pbuf_get_field(pbuf, su_idx, su)
@@ -1143,7 +1143,8 @@ contains
             call rad_rrtmg_lw( &
                lchnk, ncol, num_rrtmg_levs, r_state, state%pmid,  &
                aer_lw_abs, cldfprime, c_cld_lw_abs, qrl, rd%qrlc, &
-               flns, flnt, rd%flnsc, rd%flntc, cam_out%flwds,     &
+              !  flns, flnt, rd%flnsc, rd%flntc, cam_out%flwds,     & !cui
+               flns, cam_out%flnt, rd%flnsc, rd%flntc, cam_out%flwds,     & 
                rd%flut, rd%flutc, fnl, fcnl, rd%fldsc,            &
                lu, ld)
 
@@ -1231,7 +1232,8 @@ contains
 
     ! Compute net radiative heating tendency
     call radheat_tend(state, pbuf,  ptend, qrl, qrs, fsns, &
-                      fsnt, flns, flnt, cam_in%asdir, net_flx)
+                      ! fsnt, flns, flnt, cam_in%asdir, net_flx) !cui
+                      fsnt, flns, cam_out%flnt, cam_in%asdir, net_flx)                      
 
     if (write_output) then
       ! Compute heating rate for dtheta/dt
@@ -1354,19 +1356,19 @@ contains
     real(r8)                 , intent(in) :: flntclr(pcols)
 
     real(r8), pointer :: qrl(:,:)
-    real(r8), pointer :: flnt(:)
+    ! real(r8), pointer :: flnt(:) !cui
     real(r8), pointer :: flns(:)
 
     real(r8) ftem(pcols)
 
     call pbuf_get_field(pbuf, qrl_idx,  qrl)
-    call pbuf_get_field(pbuf, flnt_idx, flnt)
+    ! call pbuf_get_field(pbuf, flnt_idx, flnt) !cui
     call pbuf_get_field(pbuf, flns_idx, flns)
 
     call outfld('QRL'//diag(icall),     qrl(:ncol,:)/cpair,     ncol, lchnk)
     call outfld('QRLC'//diag(icall),    rd%qrlc(:ncol,:)/cpair, ncol, lchnk)
 
-    call outfld('FLNT'//diag(icall),    flnt,          pcols, lchnk)
+    ! call outfld('FLNT'//diag(icall),    flnt,          pcols, lchnk) !cui
     call outfld('FLNTC'//diag(icall),   rd%flntc,      pcols, lchnk)
 
     call outfld('FREQCLR'//diag(icall), freqclr,       pcols, lchnk)

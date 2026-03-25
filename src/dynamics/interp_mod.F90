@@ -403,6 +403,24 @@ contains
           end do
         end do
       end do
+    ! --------------------------------------------------------------------------
+    case ('lev_lon>lev')
+      do k = x%mesh%half_kds, x%mesh%half_kde
+        do j = x%mesh%full_jds_no_pole, x%mesh%full_jde_no_pole
+          do i = x%mesh%full_ids, x%mesh%full_ide
+            y%d(i,j,k) = 0.5_r8 * (x%d(i-1,j,k) + x%d(i,j,k))
+          end do
+        end do
+      end do
+    ! --------------------------------------------------------------------------
+     case ('lev_lat>lev')
+      do k = x%mesh%half_kds, x%mesh%half_kde
+        do j = x%mesh%full_jds_no_pole, x%mesh%full_jde_no_pole
+          do i = x%mesh%full_ids, x%mesh%full_ide
+            y%d(i,j,k) = 0.5_r8 * (x%d(i,j,k) + x%d(i,j-1,k))
+          end do
+        end do
+      end do 
     end select
 
   end subroutine interp_run_3d

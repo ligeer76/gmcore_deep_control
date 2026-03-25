@@ -321,6 +321,7 @@ contains
       do i = 1, cam_in(c)%ncol
         pstate%wsp10(icol_map(i,c)  ) = cam_in(c)%u10 (i)
         pstate%qflx (icol_map(i,c),1) = cam_in(c)%cflx(i,1)
+        pstate%olr  (icol_map(i,c)) = cam_out(c)%flnt(i)
       end do
     end do
     end associate

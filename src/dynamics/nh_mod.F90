@@ -89,6 +89,16 @@ contains
     call interp_run(dmg_lev, v_lev_lat)
     call v_lev_lat%div(mfy_lev_lat, v_lev_lat)
     call fill_halo(v_lev_lat, async=.true.)
+#ifdef USE_DEEP_ATM
+    if (deepwater) then
+      call interp_run(u_lev_lon, block%aux%u_lev)
+      call fill_halo(block%aux%u_lev, async=.true.)
+      call interp_run(v_lev_lat, block%aux%v_lev)
+      call fill_halo(block%aux%v_lev, async=.true.)
+      call wait_halo(block%aux%rdp_lon)
+      call wait_halo(block%aux%rdp_lat)
+    end if
+#endif
 
     call interp_run(mfz_lev, mfz)
     call wait_halo(mfx_lev_lon)
@@ -104,7 +114,15 @@ contains
       m                 =dmg_lev    , &
       dt                =dt         )
     call swift_prepare(block%adv_batch_nh, dt)
-    call div_operator(mfx_lev_lon, mfy_lev_lat, dmf_lev)
+#ifdef USE_DEEP_ATM
+    if (deepwater .and. use_mesh_change) then
+      call div_operator(mfx_lev_lon,block%aux%rdp_lev_lon, mfy_lev_lat, block%aux%rdp_lev_lat,dmf_lev)
+    else 
+      call div_operator(mfx_lev_lon, mfy_lev_lat, dmf_lev)
+    end if
+#else
+  call div_operator(mfx_lev_lon, mfy_lev_lat, dmf_lev)
+#endif
     end associate
 
   end subroutine interp_wind
@@ -128,7 +146,17 @@ contains
                qmfy     => block%adv_batch_nh%qmfy, &
                qmfz     => block%adv_batch_nh%qmfz)
     call adv_calc_tracer_hflx(block%adv_batch_nh, q_lev, qmfx, qmfy, dt)
+#ifdef USE_DEEP_ATM
+    if (deepwater .and. use_mesh_change) then
+      call wait_halo(block%aux%rdp_lon)
+      call wait_halo(block%aux%rdp_lat)
+      call div_operator(qmfx,block%aux%rdp_lev_lon, qmfy, block%aux%rdp_lev_lat,dqdt_lev)
+    else
+      call div_operator(qmfx, qmfy, dqdt_lev) 
+    end if
+#else
     call div_operator(qmfx, qmfy, dqdt_lev)
+#endif
     ! Remove horizontal mass flux divergence part.
     do k = mesh%half_kds, mesh%half_kde
       do j = mesh%full_jds, mesh%full_jde
@@ -197,6 +225,13 @@ contains
     real(r8) c  (block%mesh%half_kds  :block%mesh%half_kde  )
     real(r8) d  (block%mesh%half_kds  :block%mesh%half_kde  )
     integer i, j, k
+#ifdef USE_DEEP_ATM
+    real(r8) factor_r  (block%mesh%half_kms:block%mesh%half_kme) !cui
+    call wait_halo(block%aux%u_lev)
+    call wait_halo(block%aux%v_lev)
+    call wait_halo(block%aux%rdp)
+    call wait_halo(block%aux%rdp_lev)
+#endif
 
     call apply_bc_w_lev(block, new_dstate)
 
@@ -204,6 +239,12 @@ contains
                beta         => implicit_w_wgt          , &
                adv_gz_lev   => block%aux%adv_gz_lev    , & ! in
                adv_w_lev    => block%aux%adv_w_lev     , & ! in
+#ifdef USE_DEEP_ATM
+               u_lev        => block%aux%u_lev         , & ! in add by cui
+               v_lev        => block%aux%v_lev         , & ! in add by cui
+               rdp          => block%aux%rdp           , & ! cui
+               rdp_lev      => block%aux%rdp_lev       , & ! cui          
+#endif               
                old_p        => old_dstate%p            , & ! in
                star_p       => star_dstate%p           , & ! in
                old_w_lev    => old_dstate%w_lev        , & ! in
@@ -229,6 +270,41 @@ contains
         !
         ! ϕ¹ = ϕⁿ + Δt adv_ϕ* + g Δt (1 - β) w*
         !
+#ifdef USE_DEEP_ATM  
+        !this helps considerate the deep-atm array and namelist deepwater followings.USE_DEEP_ATM and deepwater, is truly deep.
+        do k = mesh%half_kds, mesh%half_kde - 1
+          if(deepwater .and. use_mesh_change) then
+            factor_r(k) = (radius/rdp_lev%d(i,j,k))**2 ! a2/r2
+          else
+            factor_r(k) = 1.0_r8
+          end if
+          gz1(k) = old_gz_lev%d(i,j,k) + dt * adv_gz_lev%d(i,j,k) + gdt1mbeta * star_w_lev%d(i,j,k)
+        end do
+        gz1(mesh%half_kde) = old_gz_lev%d(i,j,mesh%half_kde)
+        do k = mesh%half_kds + 1, mesh%half_kde - 1
+          ! print*,w1(k),"i=",i,"j=",j,"k=",k,"begin"
+            ! if (mesh%full_lat_deg(j) .lt. 7.0 .and.mesh%full_lat_deg(j) .gt. 3.0 .and. &
+            !     mesh%full_lon_deg(i) .lt. 42.0.and.mesh%full_lon_deg(i) .gt. 38.0) then
+            !   print*,"dt * adv_w_lev %d(i,j,k)",dt * adv_w_lev %d(i,j,k)
+            !   print*,"g*factor_r(k)",g*factor_r(k) *dt,"factor_r(k)",factor_r(k),"dt=",dt
+            !   print*,"gdt1mbeta / factor_r(k) * (star_p%d(i,j,k) - star_p%d(i,j,k-1)) / star_dmg_lev%d(i,j,k) / (1 + qm_lev%d(i,j,k))",&
+            !    gdt1mbeta / factor_r(k) * (star_p%d(i,j,k) - star_p%d(i,j,k-1)) / star_dmg_lev%d(i,j,k) / (1 + qm_lev%d(i,j,k))
+            ! end if
+
+          w1(k) = old_w_lev %d(i,j,k) + dt * adv_w_lev %d(i,j,k) - g*factor_r(k) * dt + &
+            gdt1mbeta / factor_r(k) * (star_p%d(i,j,k) - star_p%d(i,j,k-1)) / star_dmg_lev%d(i,j,k) / (1 + qm_lev%d(i,j,k))
+        end do
+        if(deepwater .and. use_vert_nct) then ! calc nct
+          do k = mesh%half_kds + 1, mesh%half_kde - 1 ! add for deep eq
+            ! if (mesh%full_lat_deg(j) .lt. 7.0 .and.mesh%full_lat_deg(j) .gt. 3.0 .and. &
+            !     mesh%full_lon_deg(i) .lt. 42.0.and.mesh%full_lon_deg(i) .gt. 38.0) then
+            !   print*,"mesh%fd_lon(j) * u_lev%d(i,j,k) * dt",mesh%fd_lon(j) * u_lev%d(i,j,k) * dt
+            !   print*,"w1(k)", w1(k)
+            ! end if
+            w1(k) = w1(k) + mesh%fd_lon(j) * u_lev%d(i,j,k) * dt + dt * (u_lev%d(i,j,k)**2 + v_lev%d(i,j,k)**2) / rdp_lev%d(i,j,k)
+          end do
+        end if
+#else
         do k = mesh%half_kds, mesh%half_kde - 1
           gz1(k) = old_gz_lev%d(i,j,k) + dt * adv_gz_lev%d(i,j,k) + gdt1mbeta * star_w_lev%d(i,j,k)
         end do
@@ -240,6 +316,7 @@ contains
           w1(k) = old_w_lev %d(i,j,k) + dt * adv_w_lev %d(i,j,k) - g * dt + &
             gdt1mbeta * (star_p%d(i,j,k) - star_p%d(i,j,k-1)) / star_dmg_lev%d(i,j,k) / (1 + qm_lev%d(i,j,k))
         end do
+#endif
         ! Use linearized dstate of ideal gas to calculate the first part of 𝜹pⁿ⁺¹ (i.e. dp1).
         !
         ! 𝜹pⁿ⁺¹ ≈ 𝜹pⁿ + 𝜸 𝜹(pⁿ (𝜹𝜋 θₘ)ⁿ⁺¹ / (𝜹𝜋 θₘ)ⁿ) - 𝜸 𝜹(pⁿ 𝜹ϕ¹ / 𝜹ϕⁿ) - β Δt g 𝜸 𝜹(pⁿ 𝜹wⁿ⁺¹ / 𝜹φⁿ)
@@ -253,7 +330,11 @@ contains
             old_p%d(i,j,k  ) * (gz1(k+1) - gz1(k  )) / (old_gz_lev%d(i,j,k+1) - old_gz_lev%d(i,j,k  )) -         &
             old_p%d(i,j,k-1) * (gz1(k  ) - gz1(k-1)) / (old_gz_lev%d(i,j,k  ) - old_gz_lev%d(i,j,k-1))           &
           ))
+#ifdef USE_DEEP_ATM  
+          w1(k) = w1(k) + gdtbeta / factor_r(k) * dp1 / new_dmg_lev%d(i,j,k) / (1 + qm_lev%d(i,j,k))
+#else
           w1(k) = w1(k) + gdtbeta * dp1 / new_dmg_lev%d(i,j,k) / (1 + qm_lev%d(i,j,k))
+#endif
         end do
 
         ! Set coefficients for implicit solver and solve for w on the half levels.
@@ -274,10 +355,18 @@ contains
         ! call tridiag_thomas(a, b, c, d, new_w_lev%d(i,j,mesh%half_kds:mesh%half_kde))
         ! -----------------------------------------------------------------------
         do k = mesh%half_kds + 1, mesh%half_kde - 1
+#ifdef USE_DEEP_ATM
+          a(k) = gdtbeta2gam / factor_r(k) * old_p%d(i,j,k-1) / (old_gz_lev%d(i,j,k  ) - old_gz_lev%d(i,j,k-1)) / (1 + qm_lev%d(i,j,k))
+#else          
           a(k) = gdtbeta2gam * old_p%d(i,j,k-1) / (old_gz_lev%d(i,j,k  ) - old_gz_lev%d(i,j,k-1)) / (1 + qm_lev%d(i,j,k))
+#endif
         end do
         do k = mesh%half_kds + 1, mesh%half_kde - 1
+#ifdef USE_DEEP_ATM
+          c(k) = gdtbeta2gam / factor_r(k) * old_p%d(i,j,k  ) / (old_gz_lev%d(i,j,k+1) - old_gz_lev%d(i,j,k  )) / (1 + qm_lev%d(i,j,k))
+#else
           c(k) = gdtbeta2gam * old_p%d(i,j,k  ) / (old_gz_lev%d(i,j,k+1) - old_gz_lev%d(i,j,k  )) / (1 + qm_lev%d(i,j,k))
+#endif
         end do
         do k = mesh%half_kds + 1, mesh%half_kde - 1
           b(k) = new_dmg_lev%d(i,j,k) - a(k) - c(k)
@@ -300,8 +389,17 @@ contains
         do k = mesh%half_kds, mesh%half_kde - 1
           new_gz_lev%d(i,j,k) = gz1(k) + gdtbeta * new_w_lev%d(i,j,k)
         end do
+        ! do k = mesh%half_kds, mesh%half_kde - 1
+        !   if (mesh%full_lat_deg(j) .lt. 21.0 .and.mesh%full_lat_deg(j) .gt. 19.0 .and. &
+        !         mesh%full_lon_deg(i) .lt. 21.0.and.mesh%full_lon_deg(i) .gt. 19.0) then
+        !       print*,"mesh%fd_lon(j) * u_lev%d(i,j,k) * dt",mesh%fd_lon(j) * u_lev%d(i,j,k) * dt
+        !       print*,"w1(k)", new_w_lev%d(i,j,k),"k",k
+        !   end if
+        ! end do
+
       end do
     end do
+    
     call fill_halo(new_w_lev )
     call fill_halo(new_gz_lev)
     end associate

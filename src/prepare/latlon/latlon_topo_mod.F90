@@ -202,7 +202,7 @@ contains
 
   end subroutine zs_zonal_filter
 
-  subroutine zs_grad_filter(block, lnd, gzs, dzsdx, dzsdy)
+  subroutine zs_grad_filter(block, lnd, gzs, dzsdx, dzsdy) !fixme deep here grad div 
 
     type(block_type), intent(inout) :: block
     type(latlon_field2d_type), intent(in) :: lnd

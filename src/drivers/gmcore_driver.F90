@@ -36,6 +36,13 @@ program gmcore_driver
   use dcmip31_test_mod
   use mars_cold_run_mod
   use tropical_cyclone_test_mod
+  use tropical_wave_test_mod
+  use equatorial_wave_test_mod
+  use weak_stratified_wave_test_mod
+  use axis_parallel_vortex_test_mod
+  use subinertial_wave_test_mod
+  use critical_wave_test_mod
+  use swg_wave_test_mod
 #ifdef HAS_LAPACK
   use supercell_test_mod
 #endif
@@ -89,6 +96,21 @@ program gmcore_driver
     call mountain_wave_test_init()
   case ('tc')
     call tropical_cyclone_test_init()
+  case ('tw')
+    call tropical_wave_test_init(namelist_path)
+  case ('ew')
+    call equatorial_wave_test_init(namelist_path)
+  case ('weak')
+    call weak_stratified_wave_test_init(namelist_path)
+  case ('ax')
+    call axis_parallel_vortex_test_init()
+  case ('sub')
+    call subinertial_wave_test_init(namelist_path)
+  case ('crt')
+    call critical_wave_test_init(namelist_path)
+  case ('swg')
+    call swg_wave_test_init(namelist_path)
+
 #ifdef HAS_LAPACK
   case ('sc')
     call supercell_test_init(namelist_path)
@@ -153,6 +175,20 @@ program gmcore_driver
       set_ic => mars_cold_run_set_ic
     case ('tc')
       set_ic => tropical_cyclone_test_set_ic
+    case ('tw')
+      set_ic => tropical_wave_test_set_ic
+    case ('ew')
+      set_ic => equatorial_wave_test_set_ic
+    case ('weak')
+      set_ic => weak_stratified_wave_test_set_ic
+    case ('ax')
+      set_ic => axis_parallel_vortex_test_set_ic
+    case ('sub')
+      set_ic => subinertial_wave_test_set_ic
+    case ('crt')
+      set_ic => critical_wave_test_set_ic
+    case ('swg')
+      set_ic => swg_wave_test_set_ic
 #ifdef HAS_LAPACK
     case ('sc')
       set_ic => supercell_test_set_ic

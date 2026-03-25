@@ -61,6 +61,11 @@ module namelist_mod
   logical         :: baroclinic               = .false.
   logical         :: hydrostatic              = .true.
   logical         :: nonhydrostatic           = .false.
+  logical         :: deepwater                = .false.
+  logical         :: use_mesh_change          = .false.
+  logical         :: use_vert_nct             = .false.
+  logical         :: use_hor_nct              = .false.
+  real(r8)        :: scale_X                  = 1.0_r8
   logical         :: ideal_dry_core           = .false.
   logical         :: advection                = .false.
   logical         :: restart                  = .false.
@@ -221,6 +226,11 @@ module namelist_mod
     nlat                      , &
     nlev                      , &
     nonhydrostatic            , &
+    deepwater                 , &
+    use_mesh_change           , &
+    use_vert_nct              , &
+    use_hor_nct               , &
+    scale_X                   , &
     ideal_dry_core            , &
     advection                 , &
     nproc_io                  , &
@@ -396,6 +406,7 @@ contains
     if (.not. baroclinic) then
       hydrostatic    = .false.
       nonhydrostatic = .false.
+      deepwater      = .false.
       ke_scheme      = 1
     else
       hydrostatic = .not. nonhydrostatic
@@ -405,6 +416,7 @@ contains
       bg_adv_scheme  = 'ffsl'
       hydrostatic    = .false.
       baroclinic     = .false.
+      deepwater      = .false.
       nonhydrostatic = .false.
     end if
 
@@ -459,6 +471,11 @@ contains
       write(*, *) 'pbl_scheme             = ', trim(pbl_scheme)
       write(*, *) 'hydrostatic            = ', to_str(hydrostatic)
       write(*, *) 'nonhydrostatic         = ', to_str(nonhydrostatic)
+      write(*, *) 'deepwater              = ', to_str(deepwater)
+      write(*, *) 'use_mesh_change        = ', to_str(use_mesh_change)
+      write(*, *) 'use_vert_nct           = ', to_str(use_vert_nct)
+      write(*, *) 'use_hor_nct            = ', to_str(use_hor_nct)
+      write(*, *) 'scale_X                = ', scale_X 
       write(*, *) 'ideal_dry_core         = ', to_str(ideal_dry_core)
       write(*, *) 'vert_coord_scheme      = ', trim(vert_coord_scheme)
       write(*, *) 'vert_coord_template    = ', trim(vert_coord_template)

@@ -68,12 +68,21 @@ MODULE baroclinic_wave_test_mod
 !=======================================================================
 !    Test case parameters
 !=======================================================================
-  REAL(8), PARAMETER ::               &
-       T0E        = 310.d0     ,      & ! temperature at equatorial surface (K)
-       T0P        = 240.d0     ,      & ! temperature at polar surface (K)
-       B          = 2.d0       ,      & ! jet half-width parameter
-       K          = 3.d0       ,      & ! jet width parameter
-       lapse      = 0.005d0             ! lapse rate parameter
+  ! REAL(8), PARAMETER ::               &
+  !      T0E        = 310.d0     ,      & ! temperature at equatorial surface (K)
+  !      T0P        = 310.d0     ,      & ! temperature at polar surface (K)
+  !      B          = 2.d0       ,      & ! jet half-width parameter
+  !      K          = 3.d0       ,      & ! jet width parameter
+  !      lapse      = 0.001d0             ! lapse rate parameter
+       ! 1. 在 MODULE 开头，去掉 T0E, T0P, lapse 的 PARAMETER 属性，改为普通变量
+  REAL(8) :: T0E = 302.d0   ! 略微高于极地，产生微弱纬向风
+  REAL(8) :: T0P = 300.d0
+  REAL(8) :: lapse
+  REAL(8) :: target_N = 1.0d-4  ! 你想要的极端弱层结
+  ! REAL(8), PARAMETER :: B = 2.d0, K = 3.d0
+
+  ! 2. 保留其他 PARAMETER (B, K 等) 不变
+  REAL(8), PARAMETER :: B = 2.d0, K = 3.d0
 
   REAL(8), PARAMETER ::               &
        pertu0     = 0.5d0      ,      & ! SF Perturbation wind velocity (m/s)
@@ -97,8 +106,12 @@ MODULE baroclinic_wave_test_mod
        moistE0Ast = 610.78d0            ! Saturation vapor pressure at T0 (Pa) 
 
   integer :: moist = 0
+  integer :: deep  = 0
+  integer :: pertt = 0
 
   namelist /baroclinic_wave_control/ moist
+  namelist /baroclinic_wave_control/ deep
+  namelist /baroclinic_wave_control/ pertt
 
 CONTAINS
 
@@ -110,6 +123,24 @@ CONTAINS
     character(*), intent(in) :: namelist_path
 
     integer ignore
+    ! 新增精确反算 lapse 的逻辑
+    REAL(8) :: T0_avg, Gamma_d,  N2_term
+        
+    T0_avg = 0.5d0 * (T0E + T0P)                    ! 平均表面温度
+    Gamma_d = g / cp                                ! 干绝热直减率 (约 0.009762)
+    N2_term = (T0_avg / g) * (target_N**2)          ! 目标 N 带来的微小偏移量
+
+    ! 浅层大气下，不需要 a/r 的几何修正
+    lapse = Gamma_d - N2_term
+
+    ! 打印到屏幕，方便你确认参数生效
+    print *, "================================================="
+    print *, " INITIALIZING EXTREME WEAK STRATIFICATION (SHALLOW)"
+    print *, " Target N      : ", target_N, " s^-1"
+    print *, " Gamma_dry     : ", Gamma_d, " K/m"
+    print *, " Exact Lapse   : ", lapse, " K/m"
+    print *, "================================================="
+    ! ---------------------------------------------------------
 
     open(11, file=namelist_path, status='old')
     read(11, nml=baroclinic_wave_control, iostat=ignore)
@@ -118,6 +149,7 @@ CONTAINS
     if (moist == 1) then
       call tracer_add('moist', dt_adv, 'qv', 'Water vapor', 'kg kg-1')
     end if
+    
 
     ptop = 226.0d0 ! Recommended pressure at the model top
 
@@ -154,15 +186,17 @@ CONTAINS
     mgs%d = p0
     call calc_mg(block, block%dstate(1))
     call calc_ph(block, block%dstate(1))
+    ! print*,ph_lev%d(30,30,:)
+    ! stop 999
     z = 0
     do k = mesh%full_kds, mesh%full_kde
       do j = mesh%full_jds, mesh%full_jde
         do i = mesh%full_ids, mesh%full_ide
           call baroclinic_wave_test(  &
-            deep   =0               , &
+            deep   =deep            , &
             moist  =moist           , &
-            pertt  =1               , &
-            X      =1.0d0           , &
+            pertt  =pertt           , &
+            X      =scale_X         , &
             lon    =mesh%full_lon(i), &
             lat    =mesh%full_lat(j), &
             p      =mg%d(i,j,k)     , &

@@ -36,6 +36,7 @@ module hybrid_coord_test_mod
   public hybrid_coord_dcmip12
   public hybrid_coord_cam_l32
   public hybrid_coord_cam_l30
+  public hybrid_coord_subinertial_l40
 
 contains
 
@@ -1577,5 +1578,103 @@ contains
     ptop = p0 * hyai(1)
 
   end subroutine hybrid_coord_cam_l30
+
+  subroutine hybrid_coord_subinertial_l40(p0, ptop, hyai, hybi)
+    use, intrinsic :: iso_fortran_env, only: real64
+    implicit none
+    real(real64), intent(in)  :: p0
+    real(real64), intent(out) :: ptop
+    real(real64), intent(out) :: hyai(:)
+    real(real64), intent(out) :: hybi(:)
+  
+    ! --- constants ---
+    real(real64), parameter :: g  = 9.80616_real64
+    real(real64), parameter :: Rd = 287.0_real64
+    real(real64), parameter :: ztop = 20000.0_real64  ! m  (~20 km)
+    real(real64), parameter :: Tref = 250.0_real64    ! K  (rough mean for 0-20 km)
+  
+    ! --- refinement target (weak stratification layer) ---
+    real(real64), parameter :: p_ref = 80000.0_real64  ! Pa (center of 700-900 hPa)
+    real(real64), parameter :: Aamp  = 3.0_real64      ! refinement strength (>=0)
+    real(real64), parameter :: sig   = 0.18_real64     ! width in ln(p) (0.12~0.22 typical)
+  
+    integer :: half_nlev, full_nlev
+    integer, parameter :: nfine = 4001
+    real(real64) :: x_top, x_bot, dx
+    real(real64) :: x(nfine), w(nfine), C(nfine)
+    real(real64) :: xref, totalC, target, frac
+    real(real64) ,allocatable:: p_int_bot2top(:)
+    integer :: i, m, j
+  
+    half_nlev = size(hyai)
+    full_nlev = half_nlev - 1
+  
+    ! You want 40 layers => 41 interfaces
+    if (full_nlev /= 40) then
+      ! If you have a logger, replace with your log_error
+      stop 'hybrid_coord_subinertial_l40: nlev must be 40 (half_nlev=41)'
+    end if
+  
+    ! 1) estimate ptop from ztop (isothermal hydrostatic)
+    ptop = p0 * exp( -g * ztop / (Rd * Tref) )
+  
+    ! 2) build a weighted grid in ln(p): x = ln(p)
+    x_top = log(ptop)
+    x_bot = log(p0)
+    dx = (x_bot - x_top) / real(nfine-1, real64)
+  
+    xref = log(p_ref)
+  
+    do i = 1, nfine
+      x(i) = x_top + real(i-1, real64) * dx
+      ! weight function: concentrate layers near p_ref (700-900 hPa region)
+      w(i) = 1.0_real64 + Aamp * exp( -0.5_real64 * ((x(i) - xref)/sig)**2 )
+    end do
+  
+    ! 3) cumulative integral C(x) = \int w dx (trapezoid)
+    C(1) = 0.0_real64
+    do i = 2, nfine
+      C(i) = C(i-1) + 0.5_real64*(w(i-1) + w(i))*dx
+    end do
+    totalC = C(nfine)
+  
+    ! 4) invert C(x) to get interfaces bottom->top with equal weighted increments
+    allocate(p_int_bot2top(half_nlev))
+  
+    do m = 1, half_nlev
+      frac = real(m-1, real64) / real(half_nlev-1, real64)     ! 0..1 bottom->top
+      target = frac * totalC                                   ! target cumulative
+  
+      ! find j such that C(j) <= target < C(j+1)
+      j = 1
+      do i = 2, nfine
+        if (C(i) >= target) then
+          j = i-1
+          exit
+        end if
+      end do
+      if (j >= nfine) j = nfine-1
+  
+      ! linear interpolation in C to find x*
+      if (C(j+1) > C(j)) then
+        xref = x(j) + (target - C(j)) * (x(j+1)-x(j)) / (C(j+1)-C(j))
+      else
+        xref = x(j)
+      end if
+  
+      p_int_bot2top(m) = exp(xref)
+    end do
+  
+    ! 5) write hyai/hybi in TOP->BOTTOM order (k=1 top interface)
+    do m = 1, half_nlev
+      hybi(m) = 0.0_real64
+      ! hyai(m) = p_int_bot2top(half_nlev - m + 1) / p0
+      hyai(m) = p_int_bot2top(m) / p0
+      ! print*,hyai(m)
+    end do
+  
+    deallocate(p_int_bot2top)
+  
+  end subroutine hybrid_coord_subinertial_l40
 
 end module hybrid_coord_test_mod

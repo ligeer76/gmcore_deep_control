@@ -580,6 +580,9 @@ contains
         call calc_grad_ke          (block, star_dstate, dtend, dt)
         call pgf_run               (block, new_dstate , dtend)
         call calc_coriolis         (block, star_dstate, dtend, dt, substep)
+#ifdef USE_DEEP_ATM
+        if (deepwater .and. use_hor_nct) call calc_nct_coriolis(block, star_dstate, dtend, dt)
+#endif
         call calc_wedudlev_wedvdlev(block, star_dstate, dtend, dt)
 
         dtend%update_u   = .true.

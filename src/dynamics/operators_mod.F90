@@ -28,6 +28,11 @@ module operators_mod
   public calc_dmg
   public calc_t
   public calc_rhod
+#ifdef USE_DEEP_ATM
+  public calc_rdp
+  public calc_nct_coriolis
+  public deep_hamiton_modify_3d
+#endif
   public calc_gz
   public calc_mfz
   public calc_div
@@ -96,14 +101,25 @@ contains
         end if
       end if
       if (baroclinic    ) call calc_t     (blocks(iblk), blocks(iblk)%dstate(itime))
-      call calc_mf                        (blocks(iblk), blocks(iblk)%dstate(itime), dt)
-      call calc_ke                        (blocks(iblk), blocks(iblk)%dstate(itime),     total_substeps)
-      call calc_pv                        (blocks(iblk), blocks(iblk)%dstate(itime),     total_substeps)
-      call interp_pv                      (blocks(iblk), blocks(iblk)%dstate(itime), dt, total_substeps)
+      !!!
+      ! SA version calc_gz need tv and ph,in DA the r calc need to use gz, so we need calc gz in advance
+      !!!
       if (baroclinic .and. (hydrostatic .or. init_hydrostatic_gz)) then
         call calc_gz                      (blocks(iblk), blocks(iblk)%dstate(itime))
       end if
       if (baroclinic    ) call calc_rhod  (blocks(iblk), blocks(iblk)%dstate(itime))
+#ifdef USE_DEEP_ATM
+      ! if (deepwater     ) call calc_rdp (blocks(iblk), blocks(iblk)%dstate(itime))
+      call calc_rdp (blocks(iblk), blocks(iblk)%dstate(itime))
+#endif
+      call calc_mf                        (blocks(iblk), blocks(iblk)%dstate(itime), dt)
+      call calc_ke                        (blocks(iblk), blocks(iblk)%dstate(itime),     total_substeps)
+      call calc_pv                        (blocks(iblk), blocks(iblk)%dstate(itime),     total_substeps)
+      call interp_pv                      (blocks(iblk), blocks(iblk)%dstate(itime), dt, total_substeps)
+      ! if (baroclinic .and. (hydrostatic .or. init_hydrostatic_gz)) then
+      !   call calc_gz                      (blocks(iblk), blocks(iblk)%dstate(itime))
+      ! end if
+      ! if (baroclinic    ) call calc_rhod  (blocks(iblk), blocks(iblk)%dstate(itime))
     end do
 
   end subroutine operators_prepare_1
@@ -525,7 +541,19 @@ contains
                divx  => block%aux%g_3d_lon, & ! working array
                divy  => block%aux%g_3d_lat, & ! working array
                div2  => block%aux%div2    )   ! out
+#ifdef USE_DEEP_ATM
+    if (deepwater .and. use_mesh_change) then
+      call wait_halo(block%aux%rdp_lon)
+      call wait_halo(block%aux%rdp_lat)
+  
+      call div_operator(u_lon,block%aux%rdp_lon, v_lat,block%aux%rdp_lat, div, with_halo=.true.)
+    else
+      call div_operator(u_lon, v_lat, div, with_halo=.true.) 
+    end if
+    ! if (deepwater) call deep_hamiton_modify_3d(block,div,with_halo=.true.)
+#else
     call div_operator(u_lon, v_lat, div, with_halo=.true.)
+#endif
     if (div_damp_order == 4) then
       do k = mesh%full_kds, mesh%full_kde
         do j = mesh%full_jds_no_pole, mesh%full_jde_no_pole
@@ -679,6 +707,11 @@ contains
     real(r8), intent(in) :: dt
 
     integer i, j, k
+#ifdef USE_DEEP_ATM
+    real(r8) :: factor_r
+    call wait_halo(block%aux%rdp_lon)
+    call wait_halo(block%aux%rdp_lat)
+#endif
 
     call wait_halo(dstate%u_lon)
     call wait_halo(dstate%v_lat)
@@ -693,6 +726,10 @@ contains
                dmg_lat => block%aux%dmg_lat, & ! in
                u_lon   => dstate%u_lon     , & ! in
                v_lat   => dstate%v_lat     , & ! in
+#ifdef USE_DEEP_ATM
+               rdp_lat => block%aux%rdp_lat, & ! in
+               rdp_lon => block%aux%rdp_lon, & ! in
+#endif
                u_lat   => block%aux%u_lat  , & ! out
                v_lon   => block%aux%v_lon  , & ! out
                mfx_lon => block%aux%mfx_lon, & ! out
@@ -700,14 +737,24 @@ contains
     do k = mesh%full_kds, mesh%full_kde
       do j = mesh%full_jds_no_pole, mesh%full_jde_no_pole + merge(0, 1, mesh%has_north_pole())
         do i = mesh%half_ids - 1, mesh%half_ide
+#ifdef USE_DEEP_ATM
+          factor_r = merge(radius / rdp_lon%d(i,j,k), 1.0_r8, deepwater .and. use_mesh_change) 
+          mfx_lon%d(i,j,k) = dmg_lon%d(i,j,k) * u_lon%d(i,j,k) * factor_r
+#else
           mfx_lon%d(i,j,k) = dmg_lon%d(i,j,k) * u_lon%d(i,j,k)
+#endif
         end do
       end do
     end do
     do k = mesh%full_kds, mesh%full_kde
       do j = mesh%half_jds - merge(0, 1, mesh%has_south_pole()), mesh%half_jde
         do i = mesh%full_ids, mesh%full_ide + 1
+#ifdef USE_DEEP_ATM
+          factor_r = merge(radius / rdp_lat%d(i,j,k), 1.0_r8, deepwater .and. use_mesh_change) 
+          mfy_lat%d(i,j,k) = dmg_lat%d(i,j,k) * v_lat%d(i,j,k) * factor_r
+#else
           mfy_lat%d(i,j,k) = dmg_lat%d(i,j,k) * v_lat%d(i,j,k)
+#endif
         end do
       end do
     end do
@@ -740,7 +787,18 @@ contains
                v_lat => dstate%v_lat   , & ! in
                u_lat => block%aux%u_lat, & ! in
                vor   => block%aux%vor  )   ! out
+#ifdef USE_DEEP_ATM
+    ! if (deepwater) call deep_hamiton_modify_3d(block,vor,with_halo)
+    if (deepwater .and. use_mesh_change) then
+      call wait_halo(block%aux%rdp_lon)
+      call wait_halo(block%aux%rdp_lat)
+      call curl_operator_deep(u_lon,block%aux%rdp_lon, v_lat,block%aux%rdp_lon, vor, with_halo)!=.true.) !!fixme when deepwater is false , use curl shallow
+    else
+      call curl_operator(u_lon, v_lat, vor, with_halo)
+    end if 
+#else
     call curl_operator(u_lon, v_lat, vor, with_halo)
+#endif
     if (pv_pole_stokes) then
       ! Special treatment of vorticity around Poles
       if (mesh%has_south_pole()) then
@@ -1081,6 +1139,271 @@ contains
 
   end subroutine calc_coriolis
 
+#ifdef USE_DEEP_ATM
+  subroutine calc_nct_coriolis(block, dstate, dtend, dt)  !!add by cui ,nct means nontraditional coriolis term
+    type(block_type), intent(inout) :: block
+    type(dstate_type), intent(inout) :: dstate
+    type(dtend_type), intent(inout) :: dtend
+
+    type(latlon_field3d_type) :: w_lon, gz_lon, w_lat, gz_lat
+    real(r8), intent(in) :: dt
+
+    real(r8) tmp
+    integer i, j, k
+    call wait_halo(block%aux%rdp_lon)
+    call wait_halo(block%aux%rdp_lat)
+
+    call perf_start('calc_nct_coriolis')
+    ! print*,"nct_hor"
+
+    associate (mesh    => block%mesh       , &
+               u       => dstate%u_lon     , &
+               v       => dstate%v_lat     , &
+               w       => dstate%w         , &
+               w_lev   => dstate%w_lev     , &
+              !  gz      => dstate1%gz        , &
+               w_lon   => block%aux%w_lon  , &
+               rdp_lon => block%aux%rdp_lon, &
+               w_lat   => block%aux%w_lat  , &
+               rdp_lat => block%aux%rdp_lat, &
+               dudt    => dtend%dudt       , & ! out
+               dvdt    => dtend%dvdt      )   ! out
+
+    call interp_run(w_lev,w);call fill_halo(w, async=.true.)
+
+    call interp_run(w,w_lon);call fill_halo(w_lon, async=.true.)
+    call interp_run(w,w_lat);call fill_halo(w_lat, async=.true.)
+
+    ! call interp_run(gz,gz_lon)
+    ! call interp_run(gz,gz_lat)
+    
+    do k = mesh%full_kds, mesh%full_kde
+      do j = mesh%full_jds_no_pole, mesh%full_jde_no_pole
+        do i = mesh%half_ids, mesh%half_ide
+          ! tmp = (mesh%fd_lon(j) + u%d(i,j,k)/(gz_lon%d(i,j,k)/g + radius)) * w_lon%d(i,j,k)
+          ! tmp = (mesh%fd_lon(j) ) * w_lon%d(i,j,k)
+          ! tmp = u%d(i,j,k)/rdp_lon%d(i,j,k)* w_lon%d(i,j,k)
+          tmp = (mesh%fd_lon(j) + u%d(i,j,k)/rdp_lon%d(i,j,k)) * w_lon%d(i,j,k)
+          ! tmp = 0 !!!! for test the contribution
+          ! tmp = (mesh%fd_lon(j) + u%d(i,j,k)/radius) * w_lon%d(i,j,k)
+          ! print*,mesh%fd_lon(j),"1"
+          ! print*,u%d(i,j,k),"2"
+
+          ! print*,gz_lon%d(i,j,k),"3"
+          ! print*,w_lon%d(i,j,k),"4"
+          ! print*,radius
+          ! if (mesh%full_lat_deg(j) .lt. 22.0 .and.mesh%full_lat_deg(j) .gt. 18.0 .and. &
+          !     mesh%full_lon_deg(i) .lt. 22.0.and.mesh%full_lon_deg(i) .gt. 18.0) then
+          !   ! print*,"2omegacos w ",mesh%fd_lon(j) * w_lon%d(i,j,k) 
+          !   ! print*,"dudt", dudt%d(i,j,k)
+          !   print*,"ratio", abs(tmp)/abs(dudt%d(i,j,k))
+          !   print*,"mesh%full_lat_deg(j)",mesh%full_lat_deg(j),"k",k
+          ! end if
+
+          dudt%d(i,j,k) = dudt%d(i,j,k) - tmp
+          ! print*,"tmp=",tmp,"mesh%fd_lon(j)",mesh%fd_lon(j)
+          ! print*,"fw",mesh%fd_lon(j)* w_lon%d(i,j,k)
+
+          ! dv%d(i,j,k) = dv%d(i,j,k) + (v%d(i,j,k)*g/gz_lon%d(i,j,k)) * w_lon%d(i,j,k)
+! #ifdef USE_DEEP_ATM
+          ! dtend%dudt_nct_coriolis%d(i,j,k) = -tmp
+! #endif
+        end do
+      end do
+    end do
+
+    do k = mesh%full_kds, mesh%full_kde
+      do j = mesh%half_jds, mesh%half_jde
+        do i = mesh%full_ids, mesh%full_ide
+          ! tmp = (mesh%fd_lat(j) + v%d(i,j,k)/(gz_lat%d(i,j,k)/g + radius)) * w_lat%d(i,j,k)
+          tmp =  w_lat%d(i,j,k) * v%d(i,j,k)/rdp_lat%d(i,j,k)
+          ! tmp = 0 !!!! for test the contribution
+          ! tmp = w_lat%d(i,j,k) * v%d(i,j,k)/radius 
+
+          dvdt%d(i,j,k) = dvdt%d(i,j,k) - tmp
+        end do
+      end do
+    end do
+
+    end associate
+    call perf_stop('calc_nct_coriolis')
+  end subroutine calc_nct_coriolis
+
+  ! pure function integral_1rho_dmg(eta) result(res)
+    
+
+  subroutine calc_rdp(block, dstate)
+    type(block_type), intent(inout) :: block
+    type(dstate_type), intent(inout) :: dstate
+    ! type(dtend_type), intent(inout) :: dtend
+    ! real(r8), intent(in) :: dt
+
+    !real integral_1rho_dmg
+    integer i, j, k
+    ! integer neval, ierr
+    real(8) tmp
+    ! print*,"deepwater"
+    call perf_start("calc_rdp")
+
+    ! real(8) mgrho, abserr, integral_1rho_dmg
+
+    associate(mesh    => block%mesh        , &
+              rdp     => block%aux%rdp     , & ! out
+              rdp_lev => block%aux%rdp_lev , & ! out
+              rdp_lev_lon => block%aux%rdp_lev_lon , & ! out
+              rdp_lev_lat => block%aux%rdp_lev_lat , & ! out
+              rdp_lat => block%aux%rdp_lat , &
+              rdp_lon => block%aux%rdp_lon , &
+              rdp_vtx => block%aux%rdp_vtx , &
+              ! rdp_lev => block%aux%rdp_lev , &              
+              dmg     => dstate%dmg        , &
+              ! mgs  => block%dstate%mgs , &
+              rhod    => block%aux%rhod    )
+
+    ! do j = mesh%full_jds_no_pole, mesh%full_jde_no_pole
+    do j = mesh%full_jds, mesh%full_jde
+      do i = mesh%full_ids, mesh%full_ide
+        ! tmp = rhod(i,j,:)
+        tmp = dmg%d(i,j,mesh%full_kde)/rhod%d(i,j,mesh%full_kde)
+        rdp%d(i,j,mesh%full_kde) = (radius**3 + 3*radius**2 * tmp / g)**(1.0_r8/3.0_r8)
+        
+        ! print*,rdp%d(i,j,mesh%full_kde),"rdp_1"
+        do k = mesh%full_kde-1, mesh%full_kds, -1 ! reverse
+          !tmp = 1/rhod%d(i,j,k)
+          ! print*,tmp,"tmp"
+          ! rdp%d(i,j,k) = rdp%d(i,j,k+1) + dmg%d(i,j,k)/rhod%d(i,j,k)
+          ! tmp = rdp%d(i,j,k+1) + dmg%d(i,j,mesh%full_kde)/rhod%d(i,j,k)
+
+          tmp = tmp + dmg%d(i,j,k)*(1/rhod%d(i,j,k+1) + 1/rhod%d(i,j,k))/2
+          rdp%d(i,j,k) = (radius**3 + 3*radius**2 * tmp / g)**(1.0_r8/3.0_r8)
+          ! print*,tmp,"tmp",dmg%d(i,j,k),"dmg%d(i,j,k)",rhod%d(i,j,k),"rhod%d(i,j,k)",i,j,k
+          ! print*,rdp%d(i,j,k),"k=",k
+        end do
+      end do
+    end do
+    call fill_halo(rdp)
+    call average_run(rdp, rdp_lon); call fill_halo(rdp_lon, async=.true.)
+    call average_run(rdp, rdp_lat); call fill_halo(rdp_lat, async=.true.)
+    call interp_run(rdp, rdp_vtx); call fill_halo(rdp_vtx, async=.true.)
+    call interp_run(rdp, rdp_lev); call fill_halo(rdp_lev, async=.true.)
+    call interp_run(rdp_lev, rdp_lev_lon); call fill_halo(rdp_lev_lon, async=.true.)
+    call interp_run(rdp_lev, rdp_lev_lat); call fill_halo(rdp_lev_lat, async=.true.)
+    ! if (proc%id_model == 1) then
+    !   do k = mesh%full_kds, mesh%full_kde
+    !     do j = mesh%full_jds_no_pole, mesh%full_jde_no_pole + merge(0, 1, mesh%has_north_pole())
+    !       ! do i = mesh%half_ids - 1, mesh%half_ide
+    !         print*,"before",rdp_lon%d(mesh%half_ids - 1,j,k),j,k
+    !       ! end do
+    !     end do
+    !   end do
+    !   end if
+
+    ! do k = mesh%full_kds, mesh%full_kde
+    !   do j = mesh%full_jds_no_pole, mesh%full_jde_no_pole
+    !     do i = mesh%full_ids, mesh%full_ide
+    !       integral_1rho_dmg = - 1/rhod(i,j,k)
+    !       call qags(integral_1rho_dmg, mgs(i,j,k), mg(i,j,k),1.0d-12, 1.0d-3, mgrho,  abserr, neval, ierr)
+    !       rdp = 3.0 * radius**2/g * mgrho 
+    !       rdp = rdp
+    
+    end associate
+    call perf_stop("calc_rdp")
+  end subroutine calc_rdp
+
+  subroutine deep_hamiton_modify_3d(block,fd,with_halo)
+    type(block_type), intent(inout) :: block
+    type(latlon_field3d_type), intent(inout)  :: fd
+    logical, intent(in), optional :: with_halo
+    ! type(latlon_field3d_type), intent(out) :: fd
+    !
+    integer i, j, k, is, ie, js, je, ks, ke
+    real(r8) factor_r
+    logical with_halo_opt
+    with_halo_opt = .false.; if (present(with_halo)) with_halo_opt = with_halo
+    ! ks = merge(mesh%full_kds, mesh%half_kds, fd%loc(1:3) /= 'lev')
+    ! ke = merge(mesh%full_kde, mesh%half_kde, fd%loc(1:3) /= 'lev')
+    select case (fd%loc)
+    case("vtx")
+      associate (mesh => fd%mesh ,&
+                  rdp_vtx => block%aux%rdp_vtx)
+      do j = mesh%half_jds, mesh%half_jde
+        do i = mesh%half_ids, mesh%half_ide 
+          do k = mesh%full_kds, mesh%full_kde
+            factor_r = radius/rdp_vtx%d(i,j,k)
+            fd%d(i,j,k) = fd%d(i,j,k)/factor_r
+          end do
+        end do
+      end do
+      end associate
+    case("cell")
+      associate (mesh => fd%mesh ,&
+                  rdp => block%aux%rdp)
+      is = mesh%full_ids
+      ie = mesh%full_ide + merge(1, 0, with_halo_opt)
+      js = mesh%full_jds_no_pole
+      je = mesh%full_jde_no_pole + merge(1, 0, with_halo_opt .and. .not. mesh%has_north_pole())
+      do k = mesh%full_kds, mesh%full_kde
+        do j = js, je
+          do i = is, ie
+            factor_r = radius/rdp%d(i,j,k)
+            fd%d(i,j,k) = fd%d(i,j,k)/factor_r
+          end do
+        end do
+      end do
+      end associate
+    case("lev")
+      associate (mesh => fd%mesh ,&
+                  rdp_lev => block%aux%rdp_lev)
+      is = mesh%full_ids
+      ie = mesh%full_ide + merge(1, 0, with_halo_opt)
+      js = mesh%full_jds_no_pole
+      je = mesh%full_jde_no_pole + merge(1, 0, with_halo_opt .and. .not. mesh%has_north_pole())
+      do k = mesh%half_kds, mesh%half_kde
+        do j = js, je
+          do i = is, ie
+            factor_r = radius/rdp_lev%d(i,j,k)
+            fd%d(i,j,k) = fd%d(i,j,k)/factor_r
+          end do
+        end do
+      end do
+      end associate
+    case("lon")
+      associate (mesh => fd%mesh ,&
+        rdp_lon => block%aux%rdp_lon)
+        is = mesh%half_ids
+        ie = mesh%half_ide
+        js = mesh%full_jds_no_pole
+        je = mesh%full_jde_no_pole
+        do k = mesh%full_kds, mesh%full_kde
+          do j = js, je
+            do i = is, ie
+              factor_r = radius/rdp_lon%d(i,j,k)
+              fd%d(i,j,k) = fd%d(i,j,k)/factor_r
+            end do
+          end do
+        end do
+      end associate
+    case("lat")
+      associate (mesh => fd%mesh ,&
+        rdp_lat => block%aux%rdp_lat)
+        is = mesh%full_ids
+        ie = mesh%full_ide
+        js = mesh%half_jds
+        je = mesh%half_jde
+        do k = mesh%full_kds, mesh%full_kde
+          do j = js, je
+            do i = is, ie
+              factor_r = radius/rdp_lat%d(i,j,k)
+              fd%d(i,j,k) = fd%d(i,j,k)/factor_r
+            end do
+          end do
+        end do
+      end associate
+    end select
+  end subroutine deep_hamiton_modify_3d
+  !!!
+#endif
+
   subroutine calc_grad_ke(block, dstate, dtend, dt)
 
     type(block_type), intent(inout) :: block
@@ -1090,17 +1413,31 @@ contains
 
     real(r8) tmp
     integer i, j, k
+#ifdef USE_DEEP_ATM
+    real(r8) factor_r
+    call wait_halo(block%aux%rdp_lon)
+    call wait_halo(block%aux%rdp_lat)
+#endif
 
     call perf_start('calc_grad_ke')
 
     associate (mesh => block%mesh  , &
                ke   => block%aux%ke, & ! in
+#ifdef USE_DEEP_ATM
+               rdp_lat => block%aux%rdp_lat, & ! in
+               rdp_lon => block%aux%rdp_lon, & ! in
+#endif
                dudt => dtend%dudt  , & ! out
                dvdt => dtend%dvdt  )   ! out
     do k = mesh%full_kds, mesh%full_kde
       do j = mesh%full_jds_no_pole, mesh%full_jde_no_pole
         do i = mesh%half_ids, mesh%half_ide
+#ifdef USE_DEEP_ATM
+          factor_r = merge(radius / rdp_lon%d(i,j,k), 1.0_r8, deepwater .and. use_mesh_change) 
+          tmp = -(ke%d(i+1,j,k) - ke%d(i,j,k)) / mesh%de_lon(j) * factor_r
+#else
           tmp = -(ke%d(i+1,j,k) - ke%d(i,j,k)) / mesh%de_lon(j)
+#endif
           dudt%d(i,j,k) = dudt%d(i,j,k) + tmp
 #ifdef OUTPUT_H1_DTEND
           dtend%dudt_dkedx%d(i,j,k) = tmp
@@ -1111,7 +1448,12 @@ contains
     do k = mesh%full_kds, mesh%full_kde
       do j = mesh%half_jds, mesh%half_jde
         do i = mesh%full_ids, mesh%full_ide
+#ifdef USE_DEEP_ATM
+          factor_r = merge(radius / rdp_lat%d(i,j,k), 1.0_r8, deepwater .and. use_mesh_change) 
+          tmp = -(ke%d(i,j+1,k) - ke%d(i,j,k)) / mesh%de_lat(j) * factor_r
+#else          
           tmp = -(ke%d(i,j+1,k) - ke%d(i,j,k)) / mesh%de_lat(j)
+#endif
           dvdt%d(i,j,k) = dvdt%d(i,j,k) + tmp
 #ifdef OUTPUT_H1_DTEND
           dtend%dvdt_dkedy%d(i,j,k) = tmp
@@ -1136,7 +1478,19 @@ contains
                mfx_lon => block%aux%mfx_lon, & ! in
                mfy_lat => block%aux%mfy_lat, & ! in
                dmf     => block%aux%dmf    )   ! out
+#ifdef USE_DEEP_ATM
+    if (deepwater .and. use_mesh_change) then
+      call wait_halo(block%aux%rdp_lon)
+      call wait_halo(block%aux%rdp_lat)
+  
+      call div_operator(mfx_lon,block%aux%rdp_lon, mfy_lat,block%aux%rdp_lat, dmf)
+    else 
+      call div_operator(mfx_lon, mfy_lat, dmf)
+    end if 
+    ! if (deepwater) call deep_hamiton_modify_3d(block,dmf)
+#else
     call div_operator(mfx_lon, mfy_lat, dmf)
+#endif
     end associate
 
     call perf_stop('calc_grad_mf')
@@ -1171,7 +1525,18 @@ contains
     call block%adv_batch_pt%set_wind(u=u_lon, v=v_lat, mfx=mfx_lon, mfy=mfy_lat, mfz=mfz_lev, m=dmg, dt=dt)
     call swift_prepare(block%adv_batch_pt, dt)
     call adv_calc_tracer_hflx(block%adv_batch_pt, pt, ptfx, ptfy, dt)
+#ifdef USE_DEEP_ATM
+    if (deepwater .and. use_mesh_change) then
+      call wait_halo(block%aux%rdp_lon)
+      call wait_halo(block%aux%rdp_lat)
+  
+      call div_operator(ptfx,block%aux%rdp_lon, ptfy,block%aux%rdp_lat, dptdt)
+    else
+      call div_operator(ptfx, ptfy, dptdt)
+    end if
+#else
     call div_operator(ptfx, ptfy, dptdt)
+#endif
     call adv_fill_vhalo(pt, no_negvals=.true.)
     call adv_calc_tracer_vflx(block%adv_batch_pt, pt, ptfz, dt)
     do k = mesh%full_kds, mesh%full_kde

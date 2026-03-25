@@ -792,7 +792,7 @@ contains
     if (deepwater .and. use_mesh_change) then
       call wait_halo(block%aux%rdp_lon)
       call wait_halo(block%aux%rdp_lat)
-      call curl_operator_deep(u_lon,block%aux%rdp_lon, v_lat,block%aux%rdp_lon, vor, with_halo)!=.true.) !!fixme when deepwater is false , use curl shallow
+      call curl_operator_deep(u_lon,block%aux%rdp_lon, v_lat,block%aux%rdp_lat, vor, with_halo)
     else
       call curl_operator(u_lon, v_lat, vor, with_halo)
     end if 

@@ -168,15 +168,17 @@ contains
         do i = mesh%half_ids, mesh%half_ide
 #ifdef USE_DEEP_ATM
           factor_r = merge((radius / rdp_lon%d(i,j,k))**1, 1.0_r8, deepwater .and. use_mesh_change) 
+          ! Wood & Staniforth (2003, eq. 3.5 style metric form):
+          ! use r/a on geopotential-gradient-like terms, i.e. divide by (a/r).
 #endif
           L = 1 + 0.5_r8 * (qm%d(i,j,k) + qm%d(i+1,j,k))
-          tmp1 = 0.5_r8 * (ad_ptb%d(i,j,k) + ad_ptb%d(i+1,j,k)) * pro%dmgdx%d(i,j,k)
+          tmp1 = 0.5_r8 * (ad_ptb%d(i,j,k) + ad_ptb%d(i+1,j,k)) * pro%dmgdx%d(i,j,k) * factor_r
           tmp2 = 0.5_r8 * (1.0_r8 / rhod%d(i,j,k) + 1.0_r8 / rhod%d(i+1,j,k)) * &
-                 (p_ptb%d(i+1,j,k) - p_ptb%d(i,j,k)) / mesh%de_lon(j)
+                 (p_ptb%d(i+1,j,k) - p_ptb%d(i,j,k)) / mesh%de_lon(j) * factor_r
 #ifdef USE_DEEP_ATM                 
-          tmp3 = (gz_ptb%d(i+1,j,k) - gz_ptb%d(i,j,k)) / mesh%de_lon(j) /factor_r
+          tmp3 = (gz_ptb%d(i+1,j,k) - gz_ptb%d(i,j,k)) / mesh%de_lon(j) / factor_r
           tmp4 = 0.5_r8 * (dp_ptb%d(i,j,k) / dmg%d(i,j,k) + dp_ptb%d(i+1,j,k) / dmg%d(i+1,j,k)) * &
-                 (gz%d(i+1,j,k) - gz%d(i,j,k)) / mesh%de_lon(j) /factor_r
+                 (gz%d(i+1,j,k) - gz%d(i,j,k)) / mesh%de_lon(j) / factor_r
 #else
           tmp3 = (gz_ptb%d(i+1,j,k) - gz_ptb%d(i,j,k)) / mesh%de_lon(j)
           tmp4 = 0.5_r8 * (dp_ptb%d(i,j,k) / dmg%d(i,j,k) + dp_ptb%d(i+1,j,k) / dmg%d(i+1,j,k)) * &
@@ -193,15 +195,17 @@ contains
         do i = mesh%full_ids, mesh%full_ide
 #ifdef USE_DEEP_ATM
           factor_r = merge((radius / rdp_lat%d(i,j,k))**1,1.0_r8,deepwater .and. use_mesh_change)
+          ! Wood & Staniforth (2003, eq. 3.5 style metric form):
+          ! use r/a on geopotential-gradient-like terms, i.e. divide by (a/r).
 #endif
           L = 1 + 0.5_r8 * (qm%d(i,j,k) + qm%d(i,j+1,k))
-          tmp1 = 0.5_r8 * (ad_ptb%d(i,j,k) + ad_ptb%d(i,j+1,k)) * pro%dmgdy%d(i,j,k)
+          tmp1 = 0.5_r8 * (ad_ptb%d(i,j,k) + ad_ptb%d(i,j+1,k)) * pro%dmgdy%d(i,j,k) * factor_r
           tmp2 = 0.5_r8 * (1.0_r8 / rhod%d(i,j,k) + 1.0_r8 / rhod%d(i,j+1,k)) * &
-                 (p_ptb%d(i,j+1,k) - p_ptb%d(i,j,k)) / mesh%de_lat(j)
+                 (p_ptb%d(i,j+1,k) - p_ptb%d(i,j,k)) / mesh%de_lat(j) * factor_r
 #ifdef USE_DEEP_ATM                    
           tmp3 = (gz_ptb%d(i,j+1,k) - gz_ptb%d(i,j,k)) / mesh%de_lat(j) / factor_r
           tmp4 = 0.5_r8 * (dp_ptb%d(i,j,k) / dmg%d(i,j,k) + dp_ptb%d(i,j+1,k) / dmg%d(i,j+1,k)) * &
-                 (gz%d(i,j+1,k) - gz%d(i,j,k)) / mesh%de_lat(j) /factor_r
+                 (gz%d(i,j+1,k) - gz%d(i,j,k)) / mesh%de_lat(j) / factor_r
 #else
           tmp3 = (gz_ptb%d(i,j+1,k) - gz_ptb%d(i,j,k)) / mesh%de_lat(j)
           tmp4 = 0.5_r8 * (dp_ptb%d(i,j,k) / dmg%d(i,j,k) + dp_ptb%d(i,j+1,k) / dmg%d(i,j+1,k)) * &

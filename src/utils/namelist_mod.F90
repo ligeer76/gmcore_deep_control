@@ -420,6 +420,21 @@ contains
       nonhydrostatic = .false.
     end if
 
+    ! Deep-atmosphere framework defaults (ICON-style switch bundle):
+    ! - deepwater=.true. enables geometric and non-traditional metric terms by default.
+    ! - users can still override any sub-switch explicitly in namelist input.
+    if (deepwater) then
+      if (.not. use_mesh_change .and. .not. use_vert_nct .and. .not. use_hor_nct) then
+        use_mesh_change = .true.
+        use_vert_nct    = .true.
+        use_hor_nct     = .true.
+      end if
+    else
+      use_mesh_change = .false.
+      use_vert_nct    = .false.
+      use_hor_nct     = .false.
+    end if
+
     ! Set default for nonhydrostatic temporally.
     if (pgf_scheme == '') then
       if (nonhydrostatic) then

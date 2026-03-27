@@ -707,12 +707,6 @@ contains
     real(r8), intent(in) :: dt
 
     integer i, j, k
-#ifdef USE_DEEP_ATM
-    real(r8) :: factor_r
-    call wait_halo(block%aux%rdp_lon)
-    call wait_halo(block%aux%rdp_lat)
-#endif
-
     call wait_halo(dstate%u_lon)
     call wait_halo(dstate%v_lat)
     call wait_halo(block%aux%dmg_lon)
@@ -726,10 +720,6 @@ contains
                dmg_lat => block%aux%dmg_lat, & ! in
                u_lon   => dstate%u_lon     , & ! in
                v_lat   => dstate%v_lat     , & ! in
-#ifdef USE_DEEP_ATM
-               rdp_lat => block%aux%rdp_lat, & ! in
-               rdp_lon => block%aux%rdp_lon, & ! in
-#endif
                u_lat   => block%aux%u_lat  , & ! out
                v_lon   => block%aux%v_lon  , & ! out
                mfx_lon => block%aux%mfx_lon, & ! out
@@ -737,24 +727,14 @@ contains
     do k = mesh%full_kds, mesh%full_kde
       do j = mesh%full_jds_no_pole, mesh%full_jde_no_pole + merge(0, 1, mesh%has_north_pole())
         do i = mesh%half_ids - 1, mesh%half_ide
-#ifdef USE_DEEP_ATM
-          factor_r = merge(radius / rdp_lon%d(i,j,k), 1.0_r8, deepwater .and. use_mesh_change) 
-          mfx_lon%d(i,j,k) = dmg_lon%d(i,j,k) * u_lon%d(i,j,k) * factor_r
-#else
           mfx_lon%d(i,j,k) = dmg_lon%d(i,j,k) * u_lon%d(i,j,k)
-#endif
         end do
       end do
     end do
     do k = mesh%full_kds, mesh%full_kde
       do j = mesh%half_jds - merge(0, 1, mesh%has_south_pole()), mesh%half_jde
         do i = mesh%full_ids, mesh%full_ide + 1
-#ifdef USE_DEEP_ATM
-          factor_r = merge(radius / rdp_lat%d(i,j,k), 1.0_r8, deepwater .and. use_mesh_change) 
-          mfy_lat%d(i,j,k) = dmg_lat%d(i,j,k) * v_lat%d(i,j,k) * factor_r
-#else
           mfy_lat%d(i,j,k) = dmg_lat%d(i,j,k) * v_lat%d(i,j,k)
-#endif
         end do
       end do
     end do
@@ -792,7 +772,7 @@ contains
     if (deepwater .and. use_mesh_change) then
       call wait_halo(block%aux%rdp_lon)
       call wait_halo(block%aux%rdp_lat)
-      call curl_operator_deep(u_lon,block%aux%rdp_lon, v_lat,block%aux%rdp_lon, vor, with_halo)!=.true.) !!fixme when deepwater is false , use curl shallow
+      call curl_operator_deep(u_lon,block%aux%rdp_lon, v_lat,block%aux%rdp_lat, vor, with_halo)
     else
       call curl_operator(u_lon, v_lat, vor, with_halo)
     end if 
@@ -1522,7 +1502,11 @@ contains
                ptfy    => block%adv_batch_pt%qmfy, & ! out
                ptfz    => block%adv_batch_pt%qmfz, & ! out
                dptdt   => dtend%dptdt            )   ! out
-    call block%adv_batch_pt%set_wind(u=u_lon, v=v_lat, mfx=mfx_lon, mfy=mfy_lat, mfz=mfz_lev, m=dmg, dt=dt)
+    call block%adv_batch_pt%set_wind(u=u_lon, v=v_lat, mfx=mfx_lon, mfy=mfy_lat, mfz=mfz_lev, m=dmg, dt=dt &
+#ifdef USE_DEEP_ATM
+      , rdp=block%aux%rdp, rdp_x=block%aux%rdp_lon, rdp_y=block%aux%rdp_lat, rdp_z=block%aux%rdp_lev &
+#endif
+      )
     call swift_prepare(block%adv_batch_pt, dt)
     call adv_calc_tracer_hflx(block%adv_batch_pt, pt, ptfx, ptfy, dt)
 #ifdef USE_DEEP_ATM

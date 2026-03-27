@@ -47,6 +47,12 @@ module adv_batch_mod
 
   public adv_batch_type
   public adv_fill_vhalo
+  public adv_batch_use_deep_xy
+  public adv_batch_area
+  public adv_batch_face_length_x
+  public adv_batch_face_length_y
+  public adv_batch_edge_dx
+  public adv_batch_edge_dy
 
   ! Different tracers can be combined into one batch, and advected in different
   ! time steps.
@@ -76,6 +82,10 @@ module adv_batch_mod
     type(latlon_field3d_type) qmfx
     type(latlon_field3d_type) qmfy
     type(latlon_field3d_type) qmfz
+    type(latlon_field3d_type) rdp     ! Radius at batch center
+    type(latlon_field3d_type) rdp_x   ! Radius at x-face
+    type(latlon_field3d_type) rdp_y   ! Radius at y-face
+    type(latlon_field3d_type) rdp_z   ! Radius at z-face
     ! Semi-Lagrangian variables
     type(latlon_field3d_type) u_frac
     type(latlon_field3d_type) w_frac
@@ -470,6 +480,11 @@ contains
     this%ntracers    = 0
     this%nstep       = 0
     this%step        = 0
+    this%bg          => null()
+    call this%rdp  %clear()
+    call this%rdp_x%clear()
+    call this%rdp_y%clear()
+    call this%rdp_z%clear()
 
   end subroutine adv_batch_clear
 
@@ -484,7 +499,7 @@ contains
 
   end subroutine adv_batch_copy_m_old
 
-  subroutine adv_batch_set_wind(this, u, v, w, mfx, mfy, mfz, m, dt)
+  subroutine adv_batch_set_wind(this, u, v, w, mfx, mfy, mfz, m, dt, rdp, rdp_x, rdp_y, rdp_z)
 
     class(adv_batch_type), intent(inout) :: this
     type(latlon_field3d_type), intent(in) :: u
@@ -495,6 +510,10 @@ contains
     type(latlon_field3d_type), intent(in), optional :: mfz
     type(latlon_field3d_type), intent(in), optional :: m
     real(r8), intent(in), optional :: dt
+    type(latlon_field3d_type), intent(in), optional :: rdp
+    type(latlon_field3d_type), intent(in), optional :: rdp_x
+    type(latlon_field3d_type), intent(in), optional :: rdp_y
+    type(latlon_field3d_type), intent(in), optional :: rdp_z
 
     call perf_start('adv_batch_set_wind')
 
@@ -505,6 +524,10 @@ contains
     if (present(mfy)) call this%mfy%link(mfy)
     if (present(mfz)) call this%mfz%link(mfz)
     if (present(m  )) call this%copy_m_old(m)
+    if (present(rdp  )) call this%rdp  %link(rdp  )
+    if (present(rdp_x)) call this%rdp_x%link(rdp_x)
+    if (present(rdp_y)) call this%rdp_y%link(rdp_y)
+    if (present(rdp_z)) call this%rdp_z%link(rdp_z)
 
     if (this%semilag) then
       call this%prepare_semilag_h(dt)
@@ -515,7 +538,7 @@ contains
 
   end subroutine adv_batch_set_wind
 
-  subroutine adv_batch_accum_wind(this, u, v, mfx, mfy, mfz, dt)
+  subroutine adv_batch_accum_wind(this, u, v, mfx, mfy, mfz, dt, rdp, rdp_x, rdp_y, rdp_z)
 
     ! FIXME: We do not need to accumulate u and v.
 
@@ -526,6 +549,15 @@ contains
     type(latlon_field3d_type), intent(in) :: mfy
     type(latlon_field3d_type), intent(in), optional :: mfz
     real(r8), intent(in), optional :: dt
+    type(latlon_field3d_type), intent(in), optional :: rdp
+    type(latlon_field3d_type), intent(in), optional :: rdp_x
+    type(latlon_field3d_type), intent(in), optional :: rdp_y
+    type(latlon_field3d_type), intent(in), optional :: rdp_z
+
+    if (present(rdp  )) call this%rdp  %link(rdp  )
+    if (present(rdp_x)) call this%rdp_x%link(rdp_x)
+    if (present(rdp_y)) call this%rdp_y%link(rdp_y)
+    if (present(rdp_z)) call this%rdp_z%link(rdp_z)
 
     if (this%step == 0) then
       ! Reset step.
@@ -562,12 +594,122 @@ contains
 
   end subroutine adv_batch_accum_wind
 
+  logical function adv_batch_use_deep_xy(this)
+
+    class(adv_batch_type), intent(in) :: this
+
+    adv_batch_use_deep_xy = deepwater .and. use_mesh_change .and. associated(this%rdp%d) .and. &
+      associated(this%rdp_x%d) .and. associated(this%rdp_y%d)
+
+  end function adv_batch_use_deep_xy
+
+  real(r8) function adv_batch_area(this, i, j, k)
+
+    class(adv_batch_type), intent(in) :: this
+    integer, intent(in) :: i, j, k
+    real(r8) scale
+
+    scale = 1.0_r8
+    if (adv_batch_use_deep_xy(this)) scale = this%rdp%d(i,j,k) / radius
+
+    select case (this%loc)
+    case ('cell', 'lev')
+      adv_batch_area = this%mesh%area_cell(j) * scale**2
+    case ('vtx')
+      adv_batch_area = this%mesh%area_vtx(j) * scale**2
+    case default
+      adv_batch_area = 0.0_r8
+    end select
+
+  end function adv_batch_area
+
+  real(r8) function adv_batch_face_length_x(this, i, j, k)
+
+    class(adv_batch_type), intent(in) :: this
+    integer, intent(in) :: i, j, k
+    real(r8) scale
+
+    scale = 1.0_r8
+    if (adv_batch_use_deep_xy(this)) scale = this%rdp_x%d(i,j,k) / radius
+
+    select case (this%loc)
+    case ('cell', 'lev')
+      adv_batch_face_length_x = this%mesh%le_lon(j) * scale
+    case ('vtx')
+      adv_batch_face_length_x = this%mesh%de_lat(j) * scale
+    case default
+      adv_batch_face_length_x = 0.0_r8
+    end select
+
+  end function adv_batch_face_length_x
+
+  real(r8) function adv_batch_face_length_y(this, i, j, k)
+
+    class(adv_batch_type), intent(in) :: this
+    integer, intent(in) :: i, j, k
+    real(r8) scale
+
+    scale = 1.0_r8
+    if (adv_batch_use_deep_xy(this)) scale = this%rdp_y%d(i,j,k) / radius
+
+    select case (this%loc)
+    case ('cell', 'lev')
+      adv_batch_face_length_y = this%mesh%le_lat(j) * scale
+    case ('vtx')
+      adv_batch_face_length_y = this%mesh%de_lon(j) * scale
+    case default
+      adv_batch_face_length_y = 0.0_r8
+    end select
+
+  end function adv_batch_face_length_y
+
+  real(r8) function adv_batch_edge_dx(this, i, j, k)
+
+    class(adv_batch_type), intent(in) :: this
+    integer, intent(in) :: i, j, k
+    real(r8) scale
+
+    scale = 1.0_r8
+    if (adv_batch_use_deep_xy(this)) scale = this%rdp_x%d(i,j,k) / radius
+
+    select case (this%loc)
+    case ('cell', 'lev')
+      adv_batch_edge_dx = this%mesh%de_lon(j) * scale
+    case ('vtx')
+      adv_batch_edge_dx = this%mesh%de_lat(j) * scale
+    case default
+      adv_batch_edge_dx = 0.0_r8
+    end select
+
+  end function adv_batch_edge_dx
+
+  real(r8) function adv_batch_edge_dy(this, i, j, k)
+
+    class(adv_batch_type), intent(in) :: this
+    integer, intent(in) :: i, j, k
+    real(r8) scale
+
+    scale = 1.0_r8
+    if (adv_batch_use_deep_xy(this)) scale = this%rdp_y%d(i,j,k) / radius
+
+    select case (this%loc)
+    case ('cell', 'lev')
+      adv_batch_edge_dy = this%mesh%de_lat(j) * scale
+    case ('vtx')
+      adv_batch_edge_dy = this%mesh%de_lon(j) * scale
+    case default
+      adv_batch_edge_dy = 0.0_r8
+    end select
+
+  end function adv_batch_edge_dy
+
   subroutine adv_batch_calc_cflxy_mass(this, dt)
 
     class(adv_batch_type), intent(inout) :: this
     real(r8), intent(in) :: dt
 
     integer i, j, k
+    real(r8) dx, dy
 
     associate (mesh   => this%mesh  , &
                u      => this%u     , & ! in
@@ -578,13 +720,15 @@ contains
     do k = mesh%full_kds, mesh%full_kde
       do j = mesh%full_jds_no_pole, mesh%full_jde_no_pole
         do i = mesh%half_ids - 1, mesh%half_ide
-          cflx%d(i,j,k) = u%d(i,j,k) * dt / mesh%de_lon(j)
-          u_frac%d(i,j,k) = u%d(i,j,k) - int(cflx%d(i,j,k)) * mesh%de_lon(j) / dt
+          dx = adv_batch_edge_dx(this, i, j, k)
+          cflx%d(i,j,k) = u%d(i,j,k) * dt / dx
+          u_frac%d(i,j,k) = u%d(i,j,k) - int(cflx%d(i,j,k)) * dx / dt
         end do
       end do
       do j = mesh%half_jds - merge(0, 1, mesh%has_south_pole()), mesh%half_jde
         do i = mesh%full_ids, mesh%full_ide
-          cfly%d(i,j,k) = v%d(i,j,k) * dt / mesh%de_lat(j)
+          dy = adv_batch_edge_dy(this, i, j, k)
+          cfly%d(i,j,k) = v%d(i,j,k) * dt / dy
         end do
       end do
     end do
@@ -604,7 +748,7 @@ contains
     type(latlon_field3d_type), intent(inout) :: mfx_frac
     real(r8), intent(in) :: dt
 
-    real(r8) mc, dm
+    real(r8) mc, dm, face_len
     integer ks, ke, i, j, k, l
 
     call perf_start('adv_batch_calc_cflxy_tracer')
@@ -618,22 +762,23 @@ contains
       do k = ks, ke
         do j = mesh%full_jds_no_pole, mesh%full_jde_no_pole
           do i = mesh%half_ids - 1, mesh%half_ide
-            dm = mfx%d(i,j,k) * mesh%le_lon(j) * dt
+            face_len = adv_batch_face_length_x(this, i, j, k)
+            dm = mfx%d(i,j,k) * face_len * dt
             mfx_frac%d(i,j,k) = mfx%d(i,j,k)
             if (dm >= 0) then
               do l = i, mesh%full_ims, -1
-                mc = mx%d(l,j,k) * mesh%area_cell(j)
+                mc = mx%d(l,j,k) * adv_batch_area(this, l, j, k)
                 if (dm < mc) exit
                 dm = dm - mc
-                mfx_frac%d(i,j,k) = mfx_frac%d(i,j,k) - mx%d(l,j,k) * mesh%de_lon(j) / dt
+                mfx_frac%d(i,j,k) = mfx_frac%d(i,j,k) - mc / face_len / dt
               end do
               cflx%d(i,j,k) = i - l + dm / mc
             else
               do l = i + 1, mesh%full_ime
-                mc = mx%d(l,j,k) * mesh%area_cell(j)
+                mc = mx%d(l,j,k) * adv_batch_area(this, l, j, k)
                 if (-dm < mc) exit
                 dm = dm + mc
-                mfx_frac%d(i,j,k) = mfx_frac%d(i,j,k) + mx%d(l,j,k) * mesh%de_lon(j) / dt
+                mfx_frac%d(i,j,k) = mfx_frac%d(i,j,k) + mc / face_len / dt
               end do
               cflx%d(i,j,k) = i + 1 - l + dm / mc
             end if
@@ -644,17 +789,18 @@ contains
       do k = ks, ke
         do j = mesh%half_jds - merge(0, 1, mesh%has_south_pole()), mesh%half_jde
           do i = mesh%full_ids, mesh%full_ide
-            dm = mfy%d(i,j,k) * mesh%le_lat(j) * dt
+            face_len = adv_batch_face_length_y(this, i, j, k)
+            dm = mfy%d(i,j,k) * face_len * dt
             if (dm >= 0) then
               do l = j, mesh%full_jms, -1
-                mc = my%d(i,l,k) * mesh%area_cell(l)
+                mc = my%d(i,l,k) * adv_batch_area(this, i, l, k)
                 if (dm < mc) exit
                 dm = dm - mc
               end do
               cfly%d(i,j,k) = j - l + dm / mc
             else
               do l = j + 1, mesh%full_jme
-                mc = my%d(i,l,k) * mesh%area_cell(l)
+                mc = my%d(i,l,k) * adv_batch_area(this, i, l, k)
                 if (-dm < mc) exit
                 dm = dm + mc
               end do
@@ -672,17 +818,18 @@ contains
       do k = ks, ke
         do j = mesh%half_jds, mesh%half_jde
           do i = mesh%full_ids, mesh%full_ide + 1
-            dm = mfx%d(i,j,k) * mesh%de_lat(j) * dt
+            face_len = adv_batch_face_length_x(this, i, j, k)
+            dm = mfx%d(i,j,k) * face_len * dt
             if (dm >= 0) then
               do l = i, mesh%half_ims, -1
-                mc = mx%d(l,j,k) * mesh%area_vtx(j)
+                mc = mx%d(l,j,k) * adv_batch_area(this, l, j, k)
                 if (dm < mc) exit
                 dm = dm - mc
               end do
               cflx%d(i,j,k) = i - l + dm / mc
             else
               do l = i + 1, mesh%half_ime
-                mc = mx%d(l,j,k) * mesh%area_vtx(j)
+                mc = mx%d(l,j,k) * adv_batch_area(this, l, j, k)
                 if (-dm < mc) exit
                 dm = dm + mc
               end do
@@ -695,17 +842,18 @@ contains
       do k = ks, ke
         do j = mesh%full_jds_no_pole, mesh%full_jde_no_pole + merge(0, 1, mesh%has_north_pole())
           do i = mesh%half_ids, mesh%half_ide
-            dm = mfy%d(i,j,k) * mesh%de_lon(j) * dt
+            face_len = adv_batch_face_length_y(this, i, j, k)
+            dm = mfy%d(i,j,k) * face_len * dt
             if (dm >= 0) then
               do l = j, mesh%half_jms, -1
-                mc = my%d(i,l,k) * mesh%area_vtx(l)
+                mc = my%d(i,l,k) * adv_batch_area(this, i, l, k)
                 if (dm < mc) exit
                 dm = dm - mc
               end do
               cfly%d(i,j,k) = j - l + dm / mc
             else
               do l = j + 1, mesh%half_jme
-                mc = my%d(i,l,k) * mesh%area_vtx(l)
+                mc = my%d(i,l,k) * adv_batch_area(this, i, l, k)
                 if (-dm < mc) exit
                 dm = dm + mc
               end do
@@ -862,8 +1010,13 @@ contains
       call this%calc_cflxy_mass(dt_opt)
     end if
     if (this%scheme_h == 'ffsl') then
-      call divx_operator(u, divx)
-      call divy_operator(v, divy)
+      if (adv_batch_use_deep_xy(this)) then
+        call divx_operator_deep(u, this%rdp_x, divx)
+        call divy_operator_deep(v, this%rdp_y, divy)
+      else
+        call divx_operator(u, divx)
+        call divy_operator(v, divy)
+      end if
     end if
     end associate
 

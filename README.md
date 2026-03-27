@@ -56,6 +56,23 @@ $ ./run_tests.py -w <work_directory> --slurm -q <job_queue> -n <process_number> 
 
 It will take some time to run the tests. When the tests are finished, cd to `<work_directory>`, and use some visualization tools, such as Panoply, to view the results.
 
+## Deep-atmosphere extension (for GMCORE)
+
+GMCORE now supports a bundled deep-atmosphere switch in `gmcore_control`:
+
+- `deepwater = .true.` enables the deep-atmosphere framework.
+- If `use_mesh_change`, `use_vert_nct`, and `use_hor_nct` are all left as `.false.`, GMCORE will automatically turn all three on (ICON-like grouped activation).
+- Setting `deepwater = .false.` will disable the three deep-atmosphere sub-switches.
+
+This keeps shallow-atmosphere behavior unchanged by default, while making deep-atmosphere setup simpler and less error-prone.
+
+### Notes on deep-atmosphere formulation
+
+- **Area element**: in deep-atmosphere mode, vertical flux divergence should be evaluated with layer/interface area scaling proportional to \((r/a)^2\), where \(a\) is reference radius and \(r\) is local radius.
+- **Vertical advection**: when using mass/tracer vertical fluxes, use the area-scaled flux-form update to preserve column conservation under varying shell area.
+- **Operators**: horizontal operators and Coriolis terms should consistently use local metric radii (`rdp*`) in deep mode.
+- **Geopotential**: keep solving prognostic geopotential \(\Phi\) (instead of geometric height directly). In hydrostatic balance, \(d\Phi = -R T_v d\ln p\) remains valid; deep-atmosphere effects are then introduced through geometry/metric terms and area-weighted fluxes.
+
 # Authors
 
 - Li Dong <dongli@lasg.iap.ac.cn>

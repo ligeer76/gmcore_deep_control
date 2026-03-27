@@ -166,8 +166,13 @@ contains
     ! NOTE: Swap sy and sx.
     call batch%calc_cflxy_tracer(sy, sx, u, v, cflx, cfly, u_frac, dt)
     ! Calculate intermediate tracer density due to inner advective operators.
-    call divx_operator(mfx0, dmxdt)
-    call divy_operator(mfy0, dmydt)
+    if (adv_batch_use_deep_xy(batch)) then
+      call divx_operator_deep(mfx0, batch%rdp_x, dmxdt)
+      call divy_operator_deep(mfy0, batch%rdp_y, dmydt)
+    else
+      call divx_operator(mfx0, dmxdt)
+      call divy_operator(mfy0, dmydt)
+    end if
     do k = mesh%full_kds, mesh%full_kde
       do j = mesh%full_jds, mesh%full_jde
         do i = mesh%full_ids, mesh%full_ide
@@ -233,8 +238,13 @@ contains
     ks = merge(mesh%full_kds, mesh%half_kds, batch%loc(1:3) /= 'lev')
     ke = merge(mesh%full_kde, mesh%half_kde, batch%loc(1:3) /= 'lev')
     ! Calculate new mx and my from final mfx and mfy.
-    call divx_operator(mfx, dmxdt)
-    call divy_operator(mfy, dmydt)
+    if (adv_batch_use_deep_xy(batch)) then
+      call divx_operator_deep(mfx, batch%rdp_x, dmxdt)
+      call divy_operator_deep(mfy, batch%rdp_y, dmydt)
+    else
+      call divx_operator(mfx, dmxdt)
+      call divy_operator(mfy, dmydt)
+    end if
     do k = ks, ke
       do j = mesh%full_jds, mesh%full_jde
         do i = mesh%full_ids, mesh%full_ide
@@ -305,8 +315,13 @@ contains
       ks = merge(mesh%full_kds, mesh%half_kds, batch%loc == 'cell')
       ke = merge(mesh%full_kde, mesh%half_kde, batch%loc == 'cell')
       ! Calculate intermediate tracer density due to advective operators.
-      call divx_operator(qmfx0, dqmxdt)
-      call divy_operator(qmfy0, dqmydt)
+      if (adv_batch_use_deep_xy(batch)) then
+        call divx_operator_deep(qmfx0, batch%rdp_x, dqmxdt)
+        call divy_operator_deep(qmfy0, batch%rdp_y, dqmydt)
+      else
+        call divx_operator(qmfx0, dqmxdt)
+        call divy_operator(qmfy0, dqmydt)
+      end if
       do k = ks, ke
         do j = mesh%full_jds, mesh%full_jde
           do i = mesh%full_ids, mesh%full_ide
@@ -389,8 +404,8 @@ contains
     type(latlon_field3d_type), intent(inout) :: mfy
     real(r8), intent(in) :: dt
 
-    integer ks, ke, i, j, k, iu, ju, ci
-    real(r8) cf, mr
+    integer ks, ke, i, j, k, iu, ju, ci, l
+    real(r8) cf, mr, face_len
 
     associate (mesh => u%mesh    , &
                cflx => batch%cflx, & ! in
@@ -410,11 +425,19 @@ contains
             else if (cflx%d(i,j,k) > 0) then
               iu = i - ci
               mr = ppm3(cf, mx%d(iu-2,j,k), mx%d(iu-1,j,k), mx%d(iu,j,k), mx%d(iu+1,j,k), mx%d(iu+2,j,k))
-              mfx%d(i,j,k) = u_frac%d(i,j,k) * mr + sum(mx%d(iu+1:i,j,k)) * mesh%de_lon(j) / dt
+              face_len = adv_batch_face_length_x(batch, i, j, k)
+              mfx%d(i,j,k) = u_frac%d(i,j,k) * mr
+              do l = iu + 1, i
+                mfx%d(i,j,k) = mfx%d(i,j,k) + mx%d(l,j,k) * adv_batch_area(batch, l, j, k) / face_len / dt
+              end do
             else
               iu = i - ci + 1
               mr = ppm3(cf, mx%d(iu-2,j,k), mx%d(iu-1,j,k), mx%d(iu,j,k), mx%d(iu+1,j,k), mx%d(iu+2,j,k))
-              mfx%d(i,j,k) = u_frac%d(i,j,k) * mr - sum(mx%d(i+1:iu-1,j,k)) * mesh%de_lon(j) / dt
+              face_len = adv_batch_face_length_x(batch, i, j, k)
+              mfx%d(i,j,k) = u_frac%d(i,j,k) * mr
+              do l = i + 1, iu - 1
+                mfx%d(i,j,k) = mfx%d(i,j,k) - mx%d(l,j,k) * adv_batch_area(batch, l, j, k) / face_len / dt
+              end do
             end if
           end do
         end do
@@ -457,8 +480,8 @@ contains
     type(latlon_field3d_type), intent(inout) :: qmfy
     real(r8), intent(in) :: dt
 
-    integer ks, ke, i, j, k, iu, ju, ci
-    real(r8) cf, qr
+    integer ks, ke, i, j, k, iu, ju, ci, l
+    real(r8) cf, qr, face_len
 
     associate (mesh => mfx%mesh)
     select case (batch%loc)
@@ -481,7 +504,11 @@ contains
               end if
 #endif
               qr = ppm3(cf, qx%d(iu-2,j,k), qx%d(iu-1,j,k), qx%d(iu,j,k), qx%d(iu+1,j,k), qx%d(iu+2,j,k))
-              qmfx%d(i,j,k) = mfx_frac%d(i,j,k) * qr + sum(mx%d(iu+1:i,j,k) * qx%d(iu+1:i,j,k)) * mesh%de_lon(j) / dt
+              face_len = adv_batch_face_length_x(batch, i, j, k)
+              qmfx%d(i,j,k) = mfx_frac%d(i,j,k) * qr
+              do l = iu + 1, i
+                qmfx%d(i,j,k) = qmfx%d(i,j,k) + mx%d(l,j,k) * qx%d(l,j,k) * adv_batch_area(batch, l, j, k) / face_len / dt
+              end do
             else
               iu = i - ci + 1
 #ifdef CHECK_PARALLEL
@@ -490,7 +517,11 @@ contains
               end if
 #endif
               qr = ppm3(cf, qx%d(iu-2,j,k), qx%d(iu-1,j,k), qx%d(iu,j,k), qx%d(iu+1,j,k), qx%d(iu+2,j,k))
-              qmfx%d(i,j,k) = mfx_frac%d(i,j,k) * qr - sum(mx%d(i+1:iu-1,j,k) * qx%d(i+1:iu-1,j,k)) * mesh%de_lon(j) / dt
+              face_len = adv_batch_face_length_x(batch, i, j, k)
+              qmfx%d(i,j,k) = mfx_frac%d(i,j,k) * qr
+              do l = i + 1, iu - 1
+                qmfx%d(i,j,k) = qmfx%d(i,j,k) - mx%d(l,j,k) * qx%d(l,j,k) * adv_batch_area(batch, l, j, k) / face_len / dt
+              end do
             end if
           end do
         end do

@@ -256,9 +256,24 @@ contains
                  mfx   => blocks(iblk)%adv_batch_bg%mfx, & ! work array
                  mfy   => blocks(iblk)%adv_batch_bg%mfy, & ! work array
                  mfz   => blocks(iblk)%adv_batch_bg%mfz, & ! work array
+#ifdef USE_DEEP_ATM
+                 rdp_lev => blocks(iblk)%aux%rdp_lev   , & ! in
+                 rdp_lon => blocks(iblk)%aux%rdp_lon   , & ! in
+                 rdp_lat => blocks(iblk)%aux%rdp_lat   , & ! in
+#endif
                  dmdt  => blocks(iblk)%adv_batch_bg%qx )   ! borrowed array
       call adv_calc_mass_hflx(batch, m_old, mfx, mfy, dt_opt)
+#ifdef USE_DEEP_ATM
+      if (deepwater .and. use_mesh_change) then
+        call wait_halo(rdp_lon)
+        call wait_halo(rdp_lat)
+        call div_operator(mfx, rdp_lon, mfy, rdp_lat, dmdt)
+      else
+        call div_operator(mfx, mfy, dmdt)
+      end if
+#else
       call div_operator(mfx, mfy, dmdt)
+#endif
       do k = mesh%full_kds, mesh%full_kde
         do j = mesh%full_jds, mesh%full_jde
           do i = mesh%full_ids, mesh%full_ide
@@ -268,10 +283,24 @@ contains
       end do
       call adv_fill_vhalo(m_new, no_negvals=.true.)
       call adv_calc_mass_vflx(batch, m_new, mfz, dt_opt)
+#ifdef USE_DEEP_ATM
+      if (deepwater .and. use_mesh_change) call wait_halo(rdp_lev)
+#endif
       do k = mesh%full_kds, mesh%full_kde
         do j = mesh%full_jds, mesh%full_jde
           do i = mesh%full_ids, mesh%full_ide
+#ifdef USE_DEEP_ATM
+            if (deepwater .and. use_mesh_change) then
+              m_new%d(i,j,k) = m_new%d(i,j,k) - dt_opt * ( &
+                mfz%d(i,j,k+1) * (rdp_lev%d(i,j,k+1) / radius)**2 -        &
+                mfz%d(i,j,k  ) * (rdp_lev%d(i,j,k  ) / radius)**2 ) /       &
+                (rdp_lev%d(i,j,k) / radius)**2
+            else
+              m_new%d(i,j,k) = m_new%d(i,j,k) - dt_opt * (mfz%d(i,j,k+1) - mfz%d(i,j,k))
+            end if
+#else
             m_new%d(i,j,k) = m_new%d(i,j,k) - dt_opt * (mfz%d(i,j,k+1) - mfz%d(i,j,k))
+#endif
           end do
         end do
       end do
@@ -314,7 +343,12 @@ contains
                        qxy   => q_new     , & ! work array
                        qmfx  => batch%qmfx, & ! work array
                        qmfy  => batch%qmfy, & ! work array
-                       qmfz  => batch%qmfz)   ! work array
+                       qmfz  => batch%qmfz, & ! work array
+#ifdef USE_DEEP_ATM
+                       rdp_lev => blocks(iblk)%aux%rdp_lev) ! in
+#else
+                       )   ! work array
+#endif
             ! Calculate horizontal tracer mass flux.
             call adv_calc_tracer_hflx(batch, q_old, qmfx, qmfy)
 #ifdef USE_DEEP_ATM
@@ -328,7 +362,6 @@ contains
 #else
               call div_operator(qmfx, qmfy, dqdt)
 #endif            
-            call div_operator(qmfx, qmfy, dqdt)
             ! Update tracer mixing ratio due to horizontal advection.
             do k = mesh%full_kds, mesh%full_kde
               do j = mesh%full_jds, mesh%full_jde
@@ -340,10 +373,24 @@ contains
             ! Calculate vertical tracer mass flux.
             call adv_fill_vhalo(qxy, no_negvals=.true.)
             call adv_calc_tracer_vflx(block%adv_batches(m), qxy, qmfz)
+#ifdef USE_DEEP_ATM
+            if (deepwater .and. use_mesh_change) call wait_halo(rdp_lev)
+#endif
             do k = mesh%full_kds, mesh%full_kde
               do j = mesh%full_jds, mesh%full_jde
                 do i = mesh%full_ids, mesh%full_ide
+#ifdef USE_DEEP_ATM
+                  if (deepwater .and. use_mesh_change) then
+                    q_new%d(i,j,k) = (mxy%d(i,j,k) * qxy%d(i,j,k) - dt_adv * ( &
+                      qmfz%d(i,j,k+1) * (rdp_lev%d(i,j,k+1) / radius)**2 -        &
+                      qmfz%d(i,j,k  ) * (rdp_lev%d(i,j,k  ) / radius)**2 ) /       &
+                      (rdp_lev%d(i,j,k) / radius)**2 ) / m_new%d(i,j,k)
+                  else
+                    q_new%d(i,j,k) = (mxy%d(i,j,k) * qxy%d(i,j,k) - dt_adv * (qmfz%d(i,j,k+1) - qmfz%d(i,j,k))) / m_new%d(i,j,k)
+                  end if
+#else
                   q_new%d(i,j,k) = (mxy%d(i,j,k) * qxy%d(i,j,k) - dt_adv * (qmfz%d(i,j,k+1) - qmfz%d(i,j,k))) / m_new%d(i,j,k)
+#endif
 #ifdef CHECK_TRACERS
                   if (q_new%d(i,j,k) < 0) then
                     if (abs(q_new%d(i,j,k)) > 1.0e-19) then
@@ -394,7 +441,15 @@ contains
           v  =block%dstate(itime)%v_lat , & ! in
           w  =block%aux%we_lev          , & ! in
           mfx=block%aux%mfx_lon         , & ! in
-          mfy=block%aux%mfy_lat         )   ! in
+          mfy=block%aux%mfy_lat         , & ! in
+#ifdef USE_DEEP_ATM
+          rdp  =block%aux%rdp           , & ! in
+          rdp_x=block%aux%rdp_lon       , & ! in
+          rdp_y=block%aux%rdp_lat       , & ! in
+          rdp_z=block%aux%rdp_lev       )   ! in
+#else
+          )   ! in
+#endif
       end if
       end associate
     end do
@@ -420,7 +475,12 @@ contains
         do l = 1, size(block%adv_batches)
           select case (block%adv_batches(l)%loc)
           case ('cell')
+#ifdef USE_DEEP_ATM
+            call block%adv_batches(l)%accum_wind(u, v, mfx, mfy, mfz, rdp=block%aux%rdp, rdp_x=block%aux%rdp_lon, &
+              rdp_y=block%aux%rdp_lat, rdp_z=block%aux%rdp_lev)
+#else
             call block%adv_batches(l)%accum_wind(u, v, mfx, mfy, mfz)
+#endif
           end select
         end do
       end if

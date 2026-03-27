@@ -34,6 +34,8 @@ module latlon_operators_mod
 
   public divx_operator
   public divy_operator
+  public divx_operator_deep
+  public divy_operator_deep
   public div_operator
   public curl_operator
   public curl_operator_deep
@@ -193,6 +195,148 @@ contains
     call perf_stop('divy_operator')
 
   end subroutine divy_operator
+
+  subroutine divx_operator_deep(fx, rx, divx, with_halo)
+
+    type(latlon_field3d_type), intent(inout) :: fx
+    type(latlon_field3d_type), intent(inout) :: rx
+    type(latlon_field3d_type), intent(inout) :: divx
+    logical, intent(in), optional :: with_halo
+
+    logical with_halo_opt
+    integer i, j, k, is, ie, js, je, ks, ke
+
+    with_halo_opt = .false.; if (present(with_halo)) with_halo_opt = with_halo
+
+    call wait_halo(fx)
+    call wait_halo(rx)
+
+    call perf_start('divx_operator_deep')
+
+    associate (mesh => divx%mesh)
+    ks = merge(mesh%full_kds, mesh%half_kds, divx%loc(1:3) /= 'lev')
+    ke = merge(mesh%full_kde, mesh%half_kde, divx%loc(1:3) /= 'lev')
+    select case (divx%loc)
+    case ('cell', 'lev')
+      is = mesh%full_ids - merge(1, 0, with_halo_opt)
+      ie = mesh%full_ide + merge(1, 0, with_halo_opt)
+      js = mesh%full_jds_no_pole - merge(1, 0, with_halo_opt .and. .not. mesh%has_south_pole())
+      je = mesh%full_jde_no_pole + merge(1, 0, with_halo_opt .and. .not. mesh%has_north_pole())
+      do k = ks, ke
+        do j = js, je
+          do i = is, ie
+            divx%d(i,j,k) = (fx%d(i,j,k) * radius / rx%d(i,j,k) - fx%d(i-1,j,k) * radius / rx%d(i-1,j,k)) * &
+                            mesh%le_lon(j) / mesh%area_cell(j)
+          end do
+        end do
+      end do
+      if (mesh%has_south_pole()) divx%d(:,mesh%full_jds,:) = 0
+      if (mesh%has_north_pole()) divx%d(:,mesh%full_jde,:) = 0
+    case ('vtx')
+      is = mesh%half_ids - merge(1, 0, with_halo_opt)
+      ie = mesh%half_ide + merge(1, 0, with_halo_opt)
+      js = mesh%half_jds - merge(1, 0, with_halo_opt .and. .not. mesh%has_south_pole())
+      je = mesh%half_jde + merge(1, 0, with_halo_opt .and. .not. mesh%has_north_pole())
+      do k = ks, ke
+        do j = js, je
+          do i = is, ie
+            divx%d(i,j,k) = (fx%d(i+1,j,k) * radius / rx%d(i+1,j,k) - fx%d(i,j,k) * radius / rx%d(i,j,k)) * &
+                            mesh%de_lat(j) / mesh%area_vtx(j)
+          end do
+        end do
+      end do
+    end select
+    end associate
+
+    call perf_stop('divx_operator_deep')
+
+  end subroutine divx_operator_deep
+
+  subroutine divy_operator_deep(fy, ry, divy, with_halo)
+
+    type(latlon_field3d_type), intent(inout) :: fy
+    type(latlon_field3d_type), intent(inout) :: ry
+    type(latlon_field3d_type), intent(inout) :: divy
+    logical, intent(in), optional :: with_halo
+
+    logical with_halo_opt
+    real(r8) work(divy%mesh%full_ids:divy%mesh%full_ide,divy%nlev+1)
+    real(r8) pole(divy%nlev+1)
+    integer i, j, k, is, ie, js, je, ks, ke
+
+    with_halo_opt = .false.; if (present(with_halo)) with_halo_opt = with_halo
+
+    call wait_halo(fy)
+    call wait_halo(ry)
+
+    call perf_start('divy_operator_deep')
+
+    associate (mesh => divy%mesh)
+    ks = merge(mesh%full_kds, mesh%half_kds, divy%loc(1:3) /= 'lev')
+    ke = merge(mesh%full_kde, mesh%half_kde, divy%loc(1:3) /= 'lev')
+    select case (divy%loc)
+    case ('cell', 'lev')
+      is = mesh%full_ids - merge(1, 0, with_halo_opt)
+      ie = mesh%full_ide + merge(1, 0, with_halo_opt)
+      js = mesh%full_jds_no_pole - merge(1, 0, with_halo_opt .and. .not. mesh%has_south_pole())
+      je = mesh%full_jde_no_pole + merge(1, 0, with_halo_opt .and. .not. mesh%has_north_pole())
+      do k = ks, ke
+        do j = js, je
+          do i = is, ie
+            divy%d(i,j,k) = (fy%d(i,j  ,k) * radius / ry%d(i,j  ,k) * mesh%le_lat(j  ) - &
+                             fy%d(i,j-1,k) * radius / ry%d(i,j-1,k) * mesh%le_lat(j-1)) / mesh%area_cell(j)
+          end do
+        end do
+      end do
+      if (mesh%has_south_pole()) then
+        j = mesh%full_jds
+        do k = ks, ke
+          do i = mesh%full_ids, mesh%full_ide
+            work(i,k) = fy%d(i,j,k) * radius / ry%d(i,j,k)
+          end do
+        end do
+        call zonal_sum(proc%zonal_circle, work(:,ks:ke), pole(ks:ke))
+        pole(ks:ke) = pole(ks:ke) * mesh%le_lat(j) / global_mesh%area_pole_cap
+        do k = ks, ke
+          do i = is, ie
+            divy%d(i,j,k) = pole(k)
+          end do
+        end do
+      end if
+      if (mesh%has_north_pole()) then
+        j = mesh%full_jde
+        do k = ks, ke
+          do i = mesh%full_ids, mesh%full_ide
+            work(i,k) = fy%d(i,j-1,k) * radius / ry%d(i,j,k)
+          end do
+        end do
+        call zonal_sum(proc%zonal_circle, work(:,ks:ke), pole(ks:ke))
+        pole(ks:ke) = -pole(ks:ke) * mesh%le_lat(j-1) / global_mesh%area_pole_cap
+        do k = ks, ke
+          do i = mesh%full_ids, mesh%full_ide
+            divy%d(i,j,k) = pole(k)
+          end do
+        end do
+      end if
+    case ('vtx')
+      is = mesh%half_ids - merge(1, 0, with_halo_opt)
+      ie = mesh%half_ide + merge(1, 0, with_halo_opt)
+      js = mesh%half_jds - merge(1, 0, with_halo_opt .and. .not. mesh%has_south_pole())
+      je = mesh%half_jde + merge(1, 0, with_halo_opt .and. .not. mesh%has_north_pole())
+      do k = ks, ke
+        do j = js, je
+          do i = is, ie
+            divy%d(i,j,k) = (fy%d(i,j+1,k) * radius / ry%d(i,j+1,k) * mesh%de_lon(j+1) - &
+                             fy%d(i,j  ,k) * radius / ry%d(i,j  ,k) * mesh%de_lon(j  )) / mesh%area_vtx(j)
+          end do
+        end do
+      end do
+    end select
+    end associate
+
+    call perf_stop('divy_operator_deep')
+
+  end subroutine divy_operator_deep
 
   subroutine div_operator_2d(fx, fy, div, with_halo)
 

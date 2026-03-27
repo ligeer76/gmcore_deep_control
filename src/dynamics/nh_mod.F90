@@ -112,7 +112,15 @@ contains
       mfy               =mfy_lev_lat, &
       mfz               =mfz        , &
       m                 =dmg_lev    , &
-      dt                =dt         )
+      dt                =dt         , &
+#ifdef USE_DEEP_ATM
+      rdp               =block%aux%rdp_lev    , &
+      rdp_x             =block%aux%rdp_lev_lon, &
+      rdp_y             =block%aux%rdp_lev_lat, &
+      rdp_z             =block%aux%rdp        )
+#else
+      )
+#endif
     call swift_prepare(block%adv_batch_nh, dt)
 #ifdef USE_DEEP_ATM
     if (deepwater .and. use_mesh_change) then
@@ -167,13 +175,31 @@ contains
     end do
     call adv_fill_vhalo(q_lev, no_negvals=q_lev%name=='gz_lev')
     call adv_calc_tracer_vflx(block%adv_batch_nh, q_lev, qmfz, dt)
+#ifdef USE_DEEP_ATM
+    if (deepwater .and. use_mesh_change) call wait_halo(block%aux%rdp_lev)
+#endif
     ! Remove vertical mass flux divergence part.
     do k = mesh%half_kds + 1, mesh%half_kde - 1
       do j = mesh%full_jds, mesh%full_jde
         do i = mesh%full_ids, mesh%full_ide
+#ifdef USE_DEEP_ATM
+          if (deepwater .and. use_mesh_change) then
+            dqdt_lev%d(i,j,k) = dqdt_lev%d(i,j,k) - ( &
+              qmfz%d(i,j,k) * (block%aux%rdp_lev%d(i,j,k) / radius)**2 -           &
+              qmfz%d(i,j,k-1) * (block%aux%rdp_lev%d(i,j,k-1) / radius)**2 -        &
+              q_lev%d(i,j,k) * (mfz%d(i,j,k) * (block%aux%rdp_lev%d(i,j,k) / radius)**2 - &
+                                mfz%d(i,j,k-1) * (block%aux%rdp_lev%d(i,j,k-1) / radius)**2) ) / &
+                                (block%aux%rdp_lev%d(i,j,k) / radius)**2
+          else
+            dqdt_lev%d(i,j,k) = dqdt_lev%d(i,j,k) - ( &
+              qmfz%d(i,j,k) - qmfz%d(i,j,k-1) -       &
+              q_lev%d(i,j,k) * (mfz%d(i,j,k) - mfz%d(i,j,k-1)))
+          end if
+#else
           dqdt_lev%d(i,j,k) = dqdt_lev%d(i,j,k) - ( &
             qmfz%d(i,j,k) - qmfz%d(i,j,k-1) -       &
             q_lev%d(i,j,k) * (mfz%d(i,j,k) - mfz%d(i,j,k-1)))
+#endif
         end do
       end do
     end do

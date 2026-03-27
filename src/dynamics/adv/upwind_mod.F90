@@ -37,8 +37,8 @@ contains
     type(latlon_field3d_type), intent(inout) :: mfy
     real(r8), intent(in) :: dt
 
-    integer ks, ke, i, j, k, iu, ci
-    real(r8) cf, mr
+    integer ks, ke, i, j, k, iu, ci, l
+    real(r8) cf, mr, face_len
 
     call perf_start('upwind_calc_mass_hflx')
 
@@ -64,11 +64,19 @@ contains
                 else if (cflx%d(i,j,k) > 0) then
                   iu = i - ci
                   mr = 0.5_r8 * (m%d(iu,j,k) + m%d(iu+1,j,k))
-                  mfx%d(i,j,k) = u_frac%d(i,j,k) * mr + sum(m%d(iu+1:i  ,j,k)) * mesh%de_lon(j) / dt
+                  face_len = adv_batch_face_length_x(batch, i, j, k)
+                  mfx%d(i,j,k) = u_frac%d(i,j,k) * mr
+                  do l = iu + 1, i
+                    mfx%d(i,j,k) = mfx%d(i,j,k) + m%d(l,j,k) * adv_batch_area(batch, l, j, k) / face_len / dt
+                  end do
                 else
                   iu = i - ci + 1
                   mr = 0.5_r8 * (m%d(iu-1,j,k) + m%d(iu,j,k))
-                  mfx%d(i,j,k) = u_frac%d(i,j,k) * mr - sum(m%d(i+1:iu-1,j,k)) * mesh%de_lon(j) / dt
+                  face_len = adv_batch_face_length_x(batch, i, j, k)
+                  mfx%d(i,j,k) = u_frac%d(i,j,k) * mr
+                  do l = i + 1, iu - 1
+                    mfx%d(i,j,k) = mfx%d(i,j,k) - m%d(l,j,k) * adv_batch_area(batch, l, j, k) / face_len / dt
+                  end do
                 end if
               end do
             end do
@@ -101,11 +109,19 @@ contains
                 else if (cflx%d(i,j,k) > 0) then
                   iu = i - ci
                   mr = upwind3(sign(1.0_r8, u%d(i,j,k)), upwind_wgt, m%d(iu-1:iu+2,j,k))
-                  mfx%d(i,j,k) = u_frac%d(i,j,k) * mr + sum(m%d(iu+1:i  ,j,k)) * mesh%de_lon(j) / dt
+                  face_len = adv_batch_face_length_x(batch, i, j, k)
+                  mfx%d(i,j,k) = u_frac%d(i,j,k) * mr
+                  do l = iu + 1, i
+                    mfx%d(i,j,k) = mfx%d(i,j,k) + m%d(l,j,k) * adv_batch_area(batch, l, j, k) / face_len / dt
+                  end do
                 else
                   iu = i - ci + 1
                   mr = upwind3(sign(1.0_r8, u%d(i,j,k)), upwind_wgt, m%d(iu-2:iu+1,j,k))
-                  mfx%d(i,j,k) = u_frac%d(i,j,k) * mr - sum(m%d(i+1:iu-1,j,k)) * mesh%de_lon(j) / dt
+                  face_len = adv_batch_face_length_x(batch, i, j, k)
+                  mfx%d(i,j,k) = u_frac%d(i,j,k) * mr
+                  do l = i + 1, iu - 1
+                    mfx%d(i,j,k) = mfx%d(i,j,k) - m%d(l,j,k) * adv_batch_area(batch, l, j, k) / face_len / dt
+                  end do
                 end if
               end do
             end do
@@ -138,11 +154,19 @@ contains
                 else if (cflx%d(i,j,k) > 0) then
                   iu = i - ci
                   mr = upwind5(sign(1.0_r8, u%d(i,j,k)), upwind_wgt, m%d(iu-2:iu+3,j,k))
-                  mfx%d(i,j,k) = u_frac%d(i,j,k) * mr + sum(m%d(iu+1:i  ,j,k)) * mesh%de_lon(j) / dt
+                  face_len = adv_batch_face_length_x(batch, i, j, k)
+                  mfx%d(i,j,k) = u_frac%d(i,j,k) * mr
+                  do l = iu + 1, i
+                    mfx%d(i,j,k) = mfx%d(i,j,k) + m%d(l,j,k) * adv_batch_area(batch, l, j, k) / face_len / dt
+                  end do
                 else
                   iu = i - ci + 1
                   mr = upwind5(sign(1.0_r8, u%d(i,j,k)), upwind_wgt, m%d(iu-3:iu+2,j,k))
-                  mfx%d(i,j,k) = u_frac%d(i,j,k) * mr - sum(m%d(i+1:iu-1,j,k)) * mesh%de_lon(j) / dt
+                  face_len = adv_batch_face_length_x(batch, i, j, k)
+                  mfx%d(i,j,k) = u_frac%d(i,j,k) * mr
+                  do l = i + 1, iu - 1
+                    mfx%d(i,j,k) = mfx%d(i,j,k) - m%d(l,j,k) * adv_batch_area(batch, l, j, k) / face_len / dt
+                  end do
                 end if
               end do
             end do
@@ -181,8 +205,8 @@ contains
     type(latlon_field3d_type), intent(inout) :: qmfy
     real(r8), intent(in) :: dt
 
-    integer ks, ke, i, j, k, iu, ci
-    real(r8) cf, qr
+    integer ks, ke, i, j, k, iu, ci, l
+    real(r8) cf, qr, face_len
 
     call perf_start('upwind_calc_tracer_hflx')
 
@@ -235,11 +259,19 @@ contains
                 else if (cflx%d(i,j,k) > 0) then
                   iu = i - ci
                   qr = upwind3(sign(1.0_r8, mfx%d(i,j,k)), upwind_wgt, q%d(iu-1:iu+2,j,k))
-                  qmfx%d(i,j,k) = mfx_frac%d(i,j,k) * qr + sum(m%d(iu+1:i  ,j,k) * q%d(iu+1:i  ,j,k)) * mesh%de_lon(j) / dt
+                  face_len = adv_batch_face_length_x(batch, i, j, k)
+                  qmfx%d(i,j,k) = mfx_frac%d(i,j,k) * qr
+                  do l = iu + 1, i
+                    qmfx%d(i,j,k) = qmfx%d(i,j,k) + m%d(l,j,k) * q%d(l,j,k) * adv_batch_area(batch, l, j, k) / face_len / dt
+                  end do
                 else
                   iu = i - ci + 1
                   qr = upwind3(sign(1.0_r8, mfx%d(i,j,k)), upwind_wgt, q%d(iu-2:iu+1,j,k))
-                  qmfx%d(i,j,k) = mfx_frac%d(i,j,k) * qr - sum(m%d(i+1:iu-1,j,k) * q%d(i+1:iu-1,j,k)) * mesh%de_lon(j) / dt
+                  face_len = adv_batch_face_length_x(batch, i, j, k)
+                  qmfx%d(i,j,k) = mfx_frac%d(i,j,k) * qr
+                  do l = i + 1, iu - 1
+                    qmfx%d(i,j,k) = qmfx%d(i,j,k) - m%d(l,j,k) * q%d(l,j,k) * adv_batch_area(batch, l, j, k) / face_len / dt
+                  end do
                 end if
               end do
             end do
@@ -272,11 +304,19 @@ contains
                 else if (cflx%d(i,j,k) > 0) then
                   iu = i - ci
                   qr = upwind5(sign(1.0_r8, mfx%d(i,j,k)), upwind_wgt, q%d(iu-2:iu+3,j,k))
-                  qmfx%d(i,j,k) = mfx_frac%d(i,j,k) * qr + sum(m%d(iu+1:i  ,j,k) * q%d(iu+1:i  ,j,k)) * mesh%de_lon(j) / dt
+                  face_len = adv_batch_face_length_x(batch, i, j, k)
+                  qmfx%d(i,j,k) = mfx_frac%d(i,j,k) * qr
+                  do l = iu + 1, i
+                    qmfx%d(i,j,k) = qmfx%d(i,j,k) + m%d(l,j,k) * q%d(l,j,k) * adv_batch_area(batch, l, j, k) / face_len / dt
+                  end do
                 else
                   iu = i - ci + 1
                   qr = upwind5(sign(1.0_r8, mfx%d(i,j,k)), upwind_wgt, q%d(iu-3:iu+2,j,k))
-                  qmfx%d(i,j,k) = mfx_frac%d(i,j,k) * qr - sum(m%d(i+1:iu-1,j,k) * q%d(i+1:iu-1,j,k)) * mesh%de_lon(j) / dt
+                  face_len = adv_batch_face_length_x(batch, i, j, k)
+                  qmfx%d(i,j,k) = mfx_frac%d(i,j,k) * qr
+                  do l = i + 1, iu - 1
+                    qmfx%d(i,j,k) = qmfx%d(i,j,k) - m%d(l,j,k) * q%d(l,j,k) * adv_batch_area(batch, l, j, k) / face_len / dt
+                  end do
                 end if
               end do
             end do
@@ -314,11 +354,19 @@ contains
                 else if (cflx%d(i,j,k) > 0) then
                   iu = i - ci - 1
                   qr = upwind3(sign(1.0_r8, mfx%d(i,j,k)), upwind_wgt_pv, q%d(iu-2:iu+1,j,k))
-                  qmfx%d(i,j,k) = mfx_frac%d(i,j,k) * qr + sum(m%d(iu+1:i  ,j,k) * q%d(iu+1:i  ,j,k)) * mesh%le_lat(j) / dt
+                  face_len = adv_batch_face_length_x(batch, i, j, k)
+                  qmfx%d(i,j,k) = mfx_frac%d(i,j,k) * qr
+                  do l = iu + 1, i
+                    qmfx%d(i,j,k) = qmfx%d(i,j,k) + m%d(l,j,k) * q%d(l,j,k) * adv_batch_area(batch, l, j, k) / face_len / dt
+                  end do
                 else
                   iu = i - ci
                   qr = upwind3(sign(1.0_r8, mfx%d(i,j,k)), upwind_wgt_pv, q%d(iu-1:iu+2,j,k))
-                  qmfx%d(i,j,k) = mfx_frac%d(i,j,k) * qr - sum(m%d(i+1:iu-1,j,k) * q%d(i+1:iu-1,j,k)) * mesh%le_lat(j) / dt
+                  face_len = adv_batch_face_length_x(batch, i, j, k)
+                  qmfx%d(i,j,k) = mfx_frac%d(i,j,k) * qr
+                  do l = i + 1, iu - 1
+                    qmfx%d(i,j,k) = qmfx%d(i,j,k) - m%d(l,j,k) * q%d(l,j,k) * adv_batch_area(batch, l, j, k) / face_len / dt
+                  end do
                 end if
               end do
             end do

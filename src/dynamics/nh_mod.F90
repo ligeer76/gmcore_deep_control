@@ -36,6 +36,7 @@ module nh_mod
   use tracer_mod
   use operators_mod
   use filter_mod
+  use formula_mod
 
   implicit none
 
@@ -224,11 +225,16 @@ contains
 
     associate (mesh       => block%mesh          , &
                adv_gz_lev => block%aux%adv_gz_lev, & ! in
+               gzs        => block%static%gzs    , & ! in
                w_lev      => dstate%w_lev        )   ! out
     k = mesh%half_kde
     do j = mesh%full_jds, mesh%full_jde
       do i = mesh%full_ids, mesh%full_ide
-        w_lev%d(i,j,k) = -adv_gz_lev%d(i,j,k) / g
+        if (deepwater .and. use_mesh_change .and. use_variable_gravity) then
+          w_lev%d(i,j,k) = -adv_gz_lev%d(i,j,k) / gravity_from_geopotential(gzs%d(i,j))
+        else
+          w_lev%d(i,j,k) = -adv_gz_lev%d(i,j,k) / g
+        end if
       end do
     end do
     end associate
@@ -252,7 +258,8 @@ contains
     real(r8) d  (block%mesh%half_kds  :block%mesh%half_kde  )
     integer i, j, k
 #ifdef USE_DEEP_ATM
-    real(r8) factor_r  (block%mesh%half_kms:block%mesh%half_kme) !cui
+    real(r8) factor_r     (block%mesh%half_kms:block%mesh%half_kme)
+    real(r8) factor_r_lin (block%mesh%half_kms:block%mesh%half_kme)
     call wait_halo(block%aux%u_lev)
     call wait_halo(block%aux%v_lev)
     call wait_halo(block%aux%rdp)
@@ -304,9 +311,26 @@ contains
           else
             factor_r(k) = 1.0_r8
           end if
-          gz1(k) = old_gz_lev%d(i,j,k) + dt * adv_gz_lev%d(i,j,k) + gdt1mbeta * star_w_lev%d(i,j,k)
+          if (deepwater .and. use_mesh_change .and. use_variable_gravity) then
+            gz1(k) = old_gz_lev%d(i,j,k) + dt * adv_gz_lev%d(i,j,k) + gdt1mbeta * factor_r(k) * star_w_lev%d(i,j,k)
+            ! Keep the solve linear by freezing the local gravity metric at the predictor state.
+            factor_r_lin(k) = (radius / radius_from_geopotential(gz1(k)))**2
+          else
+            gz1(k) = old_gz_lev%d(i,j,k) + dt * adv_gz_lev%d(i,j,k) + gdt1mbeta * star_w_lev%d(i,j,k)
+            factor_r_lin(k) = factor_r(k)
+          end if
         end do
         gz1(mesh%half_kde) = old_gz_lev%d(i,j,mesh%half_kde)
+        if (deepwater .and. use_mesh_change) then
+          factor_r(mesh%half_kde) = (radius / rdp_lev%d(i,j,mesh%half_kde))**2
+        else
+          factor_r(mesh%half_kde) = 1.0_r8
+        end if
+        if (deepwater .and. use_mesh_change .and. use_variable_gravity) then
+          factor_r_lin(mesh%half_kde) = (radius / radius_from_geopotential(gz1(mesh%half_kde)))**2
+        else
+          factor_r_lin(mesh%half_kde) = factor_r(mesh%half_kde)
+        end if
         do k = mesh%half_kds + 1, mesh%half_kde - 1
           ! print*,w1(k),"i=",i,"j=",j,"k=",k,"begin"
             ! if (mesh%full_lat_deg(j) .lt. 7.0 .and.mesh%full_lat_deg(j) .gt. 3.0 .and. &
@@ -316,9 +340,13 @@ contains
             !   print*,"gdt1mbeta / factor_r(k) * (star_p%d(i,j,k) - star_p%d(i,j,k-1)) / star_dmg_lev%d(i,j,k) / (1 + qm_lev%d(i,j,k))",&
             !    gdt1mbeta / factor_r(k) * (star_p%d(i,j,k) - star_p%d(i,j,k-1)) / star_dmg_lev%d(i,j,k) / (1 + qm_lev%d(i,j,k))
             ! end if
-
-          w1(k) = old_w_lev %d(i,j,k) + dt * adv_w_lev %d(i,j,k) - g*factor_r(k) * dt + &
-            gdt1mbeta / factor_r(k) * (star_p%d(i,j,k) - star_p%d(i,j,k-1)) / star_dmg_lev%d(i,j,k) / (1 + qm_lev%d(i,j,k))
+          if (deepwater .and. use_mesh_change .and. use_variable_gravity) then
+            w1(k) = old_w_lev %d(i,j,k) + dt * adv_w_lev %d(i,j,k) - g * factor_r_lin(k) * dt + &
+              gdt1mbeta / factor_r_lin(k) * (star_p%d(i,j,k) - star_p%d(i,j,k-1)) / star_dmg_lev%d(i,j,k) / (1 + qm_lev%d(i,j,k))
+          else
+            w1(k) = old_w_lev %d(i,j,k) + dt * adv_w_lev %d(i,j,k) - g * factor_r(k) * dt + &
+              gdt1mbeta / factor_r(k) * (star_p%d(i,j,k) - star_p%d(i,j,k-1)) / star_dmg_lev%d(i,j,k) / (1 + qm_lev%d(i,j,k))
+          end if
         end do
         if(deepwater .and. use_vert_nct) then ! calc nct
           do k = mesh%half_kds + 1, mesh%half_kde - 1 ! add for deep eq
@@ -357,7 +385,11 @@ contains
             old_p%d(i,j,k-1) * (gz1(k  ) - gz1(k-1)) / (old_gz_lev%d(i,j,k  ) - old_gz_lev%d(i,j,k-1))           &
           ))
 #ifdef USE_DEEP_ATM  
-          w1(k) = w1(k) + gdtbeta / factor_r(k) * dp1 / new_dmg_lev%d(i,j,k) / (1 + qm_lev%d(i,j,k))
+          if (deepwater .and. use_mesh_change .and. use_variable_gravity) then
+            w1(k) = w1(k) + gdtbeta / factor_r_lin(k) * dp1 / new_dmg_lev%d(i,j,k) / (1 + qm_lev%d(i,j,k))
+          else
+            w1(k) = w1(k) + gdtbeta / factor_r(k) * dp1 / new_dmg_lev%d(i,j,k) / (1 + qm_lev%d(i,j,k))
+          end if
 #else
           w1(k) = w1(k) + gdtbeta * dp1 / new_dmg_lev%d(i,j,k) / (1 + qm_lev%d(i,j,k))
 #endif
@@ -382,14 +414,26 @@ contains
         ! -----------------------------------------------------------------------
         do k = mesh%half_kds + 1, mesh%half_kde - 1
 #ifdef USE_DEEP_ATM
-          a(k) = gdtbeta2gam / factor_r(k) * old_p%d(i,j,k-1) / (old_gz_lev%d(i,j,k  ) - old_gz_lev%d(i,j,k-1)) / (1 + qm_lev%d(i,j,k))
+          if (deepwater .and. use_mesh_change .and. use_variable_gravity) then
+            a(k) = gdtbeta2gam * factor_r_lin(k-1) / factor_r_lin(k) * old_p%d(i,j,k-1) / &
+                   (old_gz_lev%d(i,j,k  ) - old_gz_lev%d(i,j,k-1)) / (1 + qm_lev%d(i,j,k))
+          else
+            a(k) = gdtbeta2gam / factor_r(k) * old_p%d(i,j,k-1) / (old_gz_lev%d(i,j,k  ) - old_gz_lev%d(i,j,k-1)) / &
+                   (1 + qm_lev%d(i,j,k))
+          end if
 #else          
           a(k) = gdtbeta2gam * old_p%d(i,j,k-1) / (old_gz_lev%d(i,j,k  ) - old_gz_lev%d(i,j,k-1)) / (1 + qm_lev%d(i,j,k))
 #endif
         end do
         do k = mesh%half_kds + 1, mesh%half_kde - 1
 #ifdef USE_DEEP_ATM
-          c(k) = gdtbeta2gam / factor_r(k) * old_p%d(i,j,k  ) / (old_gz_lev%d(i,j,k+1) - old_gz_lev%d(i,j,k  )) / (1 + qm_lev%d(i,j,k))
+          if (deepwater .and. use_mesh_change .and. use_variable_gravity) then
+            c(k) = gdtbeta2gam * factor_r_lin(k+1) / factor_r_lin(k) * old_p%d(i,j,k  ) / &
+                   (old_gz_lev%d(i,j,k+1) - old_gz_lev%d(i,j,k  )) / (1 + qm_lev%d(i,j,k))
+          else
+            c(k) = gdtbeta2gam / factor_r(k) * old_p%d(i,j,k  ) / (old_gz_lev%d(i,j,k+1) - old_gz_lev%d(i,j,k  )) / &
+                   (1 + qm_lev%d(i,j,k))
+          end if
 #else
           c(k) = gdtbeta2gam * old_p%d(i,j,k  ) / (old_gz_lev%d(i,j,k+1) - old_gz_lev%d(i,j,k  )) / (1 + qm_lev%d(i,j,k))
 #endif
@@ -413,7 +457,11 @@ contains
 
         ! Update gz after w is solved.
         do k = mesh%half_kds, mesh%half_kde - 1
-          new_gz_lev%d(i,j,k) = gz1(k) + gdtbeta * new_w_lev%d(i,j,k)
+          if (deepwater .and. use_mesh_change .and. use_variable_gravity) then
+            new_gz_lev%d(i,j,k) = gz1(k) + gdtbeta * factor_r_lin(k) * new_w_lev%d(i,j,k)
+          else
+            new_gz_lev%d(i,j,k) = gz1(k) + gdtbeta * new_w_lev%d(i,j,k)
+          end if
         end do
         ! do k = mesh%half_kds, mesh%half_kde - 1
         !   if (mesh%full_lat_deg(j) .lt. 21.0 .and.mesh%full_lat_deg(j) .gt. 19.0 .and. &
@@ -438,13 +486,14 @@ contains
     real(r8), intent(in   ) :: gz(:)
     real(r8), intent(inout) :: w (:)
 
-    real(r8) gzd, c
+    real(r8) c, z_top, z_k
     integer k
 
-    gzd = rayleigh_damp_top * g
+    z_top = merge(height_from_geopotential(gz(1)), gz(1) / g, deepwater .and. use_mesh_change .and. use_variable_gravity)
     do k = 2, size(w) - 1
-      if (gz(k) > gz(1) - gzd) then
-        c = rayleigh_damp_w_coef * sin(pi05 * (1 - (gz(1) - gz(k)) / gzd))**2
+      z_k = merge(height_from_geopotential(gz(k)), gz(k) / g, deepwater .and. use_mesh_change .and. use_variable_gravity)
+      if (z_k > z_top - rayleigh_damp_top) then
+        c = rayleigh_damp_w_coef * sin(pi05 * (1 - (z_top - z_k) / rayleigh_damp_top))**2
         w(k) = w(k) / (1 + c * dt)
       else
         return
@@ -461,6 +510,10 @@ contains
     real(r8), intent(in) :: dt
 
     integer i, j, k
+#ifdef USE_DEEP_ATM
+    real(r8) factor_r_km1, factor_r_k
+    real(r8) vert_force_km1, vert_force_k
+#endif
 
     call perf_start('calc_p')
 
@@ -477,6 +530,11 @@ contains
                old_w_lev  => old_dstate%w_lev        , & ! in
                new_w_lev  => new_dstate%w_lev        , & ! in
                adv_w_lev  => block%aux%adv_w_lev     , & ! in
+#ifdef USE_DEEP_ATM
+               u_lev       => block%aux%u_lev         , & ! in
+               v_lev       => block%aux%v_lev         , & ! in
+               rdp_lev    => block%aux%rdp_lev       , & ! in
+#endif
                qm_lev     => tracers(block%id)%qm_lev)   ! in
     ! Use linearized ideal gas equation to calculate pressure on full levels.
     do k = mesh%full_kds, mesh%full_kde
@@ -503,12 +561,52 @@ contains
     do k = mesh%half_kds + 1, mesh%half_kde
       do j = mesh%full_jds, mesh%full_jde
         do i = mesh%full_ids, mesh%full_ide
+#ifdef USE_DEEP_ATM
+          if (deepwater .and. use_mesh_change) then
+            vert_force_km1 = 0.0_r8
+            vert_force_k   = 0.0_r8
+            if (deepwater .and. use_vert_nct) then
+              vert_force_km1 = mesh%fd_lon(j) * u_lev%d(i,j,k-1) + &
+                               (u_lev%d(i,j,k-1)**2 + v_lev%d(i,j,k-1)**2) / rdp_lev%d(i,j,k-1)
+              vert_force_k   = mesh%fd_lon(j) * u_lev%d(i,j,k  ) + &
+                               (u_lev%d(i,j,k  )**2 + v_lev%d(i,j,k  )**2) / rdp_lev%d(i,j,k  )
+            end if
+            if (use_variable_gravity) then
+              factor_r_km1 = (radius / radius_from_geopotential(new_gz_lev%d(i,j,k-1)))**2
+              factor_r_k   = (radius / radius_from_geopotential(new_gz_lev%d(i,j,k  )))**2
+            else
+              factor_r_km1 = (radius / rdp_lev%d(i,j,k-1))**2
+              factor_r_k   = (radius / rdp_lev%d(i,j,k  ))**2
+            end if
+            new_p_lev%d(i,j,k) = new_p_lev%d(i,j,k-1) + 0.5_r8 * new_dmg%d(i,j,k-1) * ( &
+              factor_r_km1 / g * (((new_w_lev%d(i,j,k-1) - old_w_lev%d(i,j,k-1)) / dt - &
+                                    adv_w_lev%d(i,j,k-1) - vert_force_km1 + g * factor_r_km1) * (1 + qm_lev%d(i,j,k-1))) + &
+              factor_r_k   / g * (((new_w_lev%d(i,j,k  ) - old_w_lev%d(i,j,k  )) / dt - &
+                                    adv_w_lev%d(i,j,k  ) - vert_force_k   + g * factor_r_k  ) * (1 + qm_lev%d(i,j,k  ))) )
+          else
+            vert_force_km1 = 0.0_r8
+            vert_force_k   = 0.0_r8
+            if (deepwater .and. use_vert_nct) then
+              vert_force_km1 = mesh%fd_lon(j) * u_lev%d(i,j,k-1) + &
+                               (u_lev%d(i,j,k-1)**2 + v_lev%d(i,j,k-1)**2) / rdp_lev%d(i,j,k-1)
+              vert_force_k   = mesh%fd_lon(j) * u_lev%d(i,j,k  ) + &
+                               (u_lev%d(i,j,k  )**2 + v_lev%d(i,j,k  )**2) / rdp_lev%d(i,j,k  )
+            end if
+            new_p_lev%d(i,j,k) = new_p_lev%d(i,j,k-1) + (            &
+              ((new_w_lev%d(i,j,k-1) - old_w_lev%d(i,j,k-1)) / dt -  &
+               adv_w_lev%d(i,j,k-1) - vert_force_km1 + g) * (1 + qm_lev%d(i,j,k-1)) + &
+              ((new_w_lev%d(i,j,k  ) - old_w_lev%d(i,j,k  )) / dt -  &
+               adv_w_lev%d(i,j,k  ) - vert_force_k   + g) * (1 + qm_lev%d(i,j,k  ))   &
+            ) * 0.5_r8 / g * new_dmg%d(i,j,k-1)
+          end if
+#else
           new_p_lev%d(i,j,k) = new_p_lev%d(i,j,k-1) + (            &
             ((new_w_lev%d(i,j,k-1) - old_w_lev%d(i,j,k-1)) / dt -  &
              adv_w_lev%d(i,j,k-1) + g) * (1 + qm_lev%d(i,j,k-1)) + &
             ((new_w_lev%d(i,j,k  ) - old_w_lev%d(i,j,k  )) / dt -  &
              adv_w_lev%d(i,j,k  ) + g) * (1 + qm_lev%d(i,j,k  ))   &
           ) * 0.5_r8 / g * new_dmg%d(i,j,k-1)
+#endif
         end do
       end do
     end do

@@ -164,21 +164,28 @@
 
 module critical_wave_test_mod
     !
-    ! Critical-latitude internal-wave packet for testing TA vs NCT (Gerkema 2008 Fig.11(b)-like).
+    ! Critical-latitude internal-wave packet for testing TA vs NCT
+    ! (Gerkema 2008 Fig.11-like frequency-band argument).
     !
-    ! Background: dry, hydrostatic-pressure coordinate, u=v=0, constant N = Omega.
-    ! Forcing frequency: omega_wave = 0.5 * Omega (fixed).
-    ! Center latitude: lat0 ~ 10deg.
+    ! Background: dry, hydrostatic-pressure coordinate, u=v=0, constant N.
+    ! Default case here is aimed at the user-requested N = 2 Omega regime:
+    !   N = 2 Omega, omega_wave = 1.5 Omega, lat0 = 20 deg.
+    ! For this case the traditional inertial latitude is about 48.6 deg,
+    ! while the full-Coriolis critical latitude from Gerkema's Eq. (22)
+    ! is about 64.1 deg, giving a clear poleward-extension target.
     !
     ! Two perturbation types:
     !   pert_type=1: theta-only (pt-only) Gaussian packet
-    !   pert_type=2: polarized packet (u,v,pt) using TA f-plane polarization at f0=2Ωsin(lat0)
+    !   pert_type=2: polarized packet (u,v,w,pt) using local TA polarization
+    !                at the source latitude so shallow/deep runs start from
+    !                the same packet and diverge dynamically afterward.
     !
     use const_mod, only : r8
     implicit none
     private
     public :: critical_wave_test_init
     public :: critical_wave_test_set_ic
+    public :: critical_wave_test_apply_forcing
     ! public :: critical_wave_test_set_params
   
     ! ---------------- constants ----------------
@@ -193,42 +200,52 @@ module critical_wave_test_mod
     real(8), parameter :: Omega_earth = 7.292115d-5
   
     ! ---------------- user controls ----------------
-    integer :: pert_type = 2          ! 1 theta-only, 2 polarized u/v/pt
+    integer :: pert_type = 0          ! 0 none, 1 theta-only, 2 polarized u/v/w/pt
     integer :: use_small_planet = 0
     real(8) :: scale_X = 1.0d0
+    integer :: forcing_mode = 1       ! 0 none, 1 smooth thermal wavemaker
+    integer :: forcing_zonal_uniform = 1
   
     ! Background N and reference surface theta
-    real(8) :: N_freq  = Omega_earth      ! <-- your request: N = Omega
+    real(8) :: N_freq  = 2.0d0*Omega_earth
     real(8) :: theta_s = 288.0d0
-  
+    real(8) :: N_ratio = -1.0d0
+
     ! Wave design
-    real(8) :: omega_wave = 0.5d0*Omega_earth  ! <-- your request: omega = 0.5 Omega
-    real(8) :: lon0 = 0.0d0
-    real(8) :: lat0 = 10.0d0*deg2rad           ! <-- your request: 10 deg
-  
+    real(8) :: omega_wave = 1.5d0*Omega_earth
+    real(8) :: omega_wave_ratio = -1.0d0
+    real(8) :: lon0 = 180.0d0*deg2rad
+    real(8) :: lat0 = 20.0d0*deg2rad
+    real(8) :: lon0_deg = -999.0d0
+    real(8) :: lat0_deg = -999.0d0
+
     ! Packet geometry
-    real(8) :: H_top = 20000.d0    ! model top for m=pi/H_top
-    real(8) :: z0    = 5000.d0     ! packet center height (m)
-    real(8) :: Lx    = 1200.d3     ! zonal envelope width (m)
-    real(8) :: Ly    = 1200.d3     ! meridional envelope width (m)
-    real(8) :: Lz    = 4000.d0     ! vertical envelope width (m)
+    real(8) :: H_top = 200000.d0   ! reference depth used to set m=pi/H_top
+    real(8) :: z0    = 12000.d0    ! packet center height (m)
+    real(8) :: Lx    = 2000.d3     ! zonal envelope width (m)
+    real(8) :: Ly    = 1500.d3     ! meridional envelope width (m)
+    real(8) :: Lz    = 6000.d0     ! vertical envelope width (m)
   
     integer :: ky_from_disp = 1    ! 1: compute ky from dispersion; 0: use lambda_y
     real(8) :: lambda_y = 2500.d3  ! used if ky_from_disp=0
     real(8) :: kx = 0.0d0          ! keep 0 for mostly meridional propagation
   
     ! Amplitudes
-    real(8) :: Atheta = 0.2d0      ! K (pert_type=1)
-    real(8) :: Aw     = 0.2d0      ! m/s reference w amplitude used in polarization (pert_type=2)
+    real(8) :: Atheta = 0.1d0      ! K (pert_type=1)
+    real(8) :: Aw     = 0.05d0     ! m/s reference w amplitude used in polarization (pert_type=2)
+    real(8) :: forcing_pt_amp = 2.0d-4 ! K/s peak potential-temperature forcing
+    real(8) :: forcing_ncycles = 3.0d0
+    real(8) :: forcing_phase = 0.0d0
+    real(8) :: forcing_elapsed = 0.0d0
   
     ! Numeric safety
-    real(8) :: eps = 1.d-12
+    real(8), parameter :: eps = 1.d-12
   
     namelist /critical_wave_control/ &
-      pert_type, use_small_planet, scale_X, &
-      N_freq, theta_s, omega_wave, lon0, lat0, &
+      pert_type, use_small_planet, scale_X, forcing_mode, forcing_zonal_uniform, &
+      N_freq, theta_s, N_ratio, omega_wave, omega_wave_ratio, lon0, lon0_deg, lat0, lat0_deg, &
       H_top, z0, Lx, Ly, Lz, ky_from_disp, lambda_y, kx, &
-      Atheta, Aw
+      Atheta, Aw, forcing_pt_amp, forcing_ncycles, forcing_phase
   
   contains
   
@@ -247,12 +264,17 @@ module critical_wave_test_mod
       open(11, file=namelist_path, status='old', action='read')
       read(11, nml=critical_wave_control, iostat=ios)
       close(11)
+      call apply_derived_inputs()
+      forcing_elapsed = 0.0d0
+      call check_case_inputs()
+      call print_case_summary()
     end subroutine critical_wave_test_init
-  
+
     subroutine critical_wave_test_set_ic(block)
       use block_mod
       use operators_mod
       use formula_mod
+      use interp_mod
       use latlon_parallel_mod
       implicit none
       type(block_type), intent(inout), target :: block
@@ -276,6 +298,8 @@ module critical_wave_test_mod
         u_lon  => block%dstate(1)%u_lon, &
         v_lat  => block%dstate(1)%v_lat, &
         pt     => block%dstate(1)%pt, &
+        w      => block%dstate(1)%w, &
+        w_lev  => block%dstate(1)%w_lev, &
         gz     => block%dstate(1)%gz, &
         gz_lev => block%dstate(1)%gz_lev, &
         ph     => block%dstate(1)%ph, &
@@ -287,6 +311,7 @@ module critical_wave_test_mod
   
         ! ---------------- pressure fields ----------------
         call calc_mg(block, block%dstate(1))
+        call calc_dmg(block, block%dstate(1))
         call calc_ph(block, block%dstate(1))
   
         ! ---------------- background: constant N, u=v=0 ----------------
@@ -310,9 +335,11 @@ module critical_wave_test_mod
             end do
           end do
         end do
-  
+
         u_lon%d = 0.0_r8
         v_lat%d = 0.0_r8
+        w_lev%d = 0.0_r8
+        w%d     = 0.0_r8
   
         ! ---------------- wave numbers ----------------
         f0 = 2.0d0 * Omega_earth * sin(lat0)
@@ -380,7 +407,25 @@ module critical_wave_test_mod
               end do
             end do
           end do
-  
+
+          do k = mesh%half_kds, mesh%half_kde
+            do j = mesh%full_jds, mesh%full_jde
+              y = rr * (lat(j) - lat0)
+              do i = mesh%full_ids, mesh%full_ide
+                dlon = lon(i) - lon0
+                if (dlon >  pi) dlon = dlon - 2.d0*pi
+                if (dlon < -pi) dlon = dlon + 2.d0*pi
+                x  = rr * cos(lat0) * dlon
+
+                zz    = gz_lev%d(i,j,k)
+                amp   = exp( - (x/Lx)**2 - (y/Ly)**2 - ((zz - z0)/Lz)**2 )
+                phase = kx*x + ky*y + m*(zz - z0)
+
+                w_lev%d(i,j,k) = Aw * amp * cos(phase)
+              end do
+            end do
+          end do
+
         case default
           ! do nothing
         end select
@@ -388,15 +433,179 @@ module critical_wave_test_mod
         call fill_halo(u_lon)
         call fill_halo(v_lat)
         call fill_halo(pt)
-  
+        call fill_halo(w_lev)
+        call interp_run(w_lev, w)
+        call fill_halo(w)
+
         ! convert z(m) -> gz(m^2/s^2)
         gz%d     = gz%d     * g
         gz_lev%d = gz_lev%d * g
   
         call fill_halo(gz)
         call fill_halo(gz_lev)
-  
+
       end associate
     end subroutine critical_wave_test_set_ic
-  
+
+    subroutine print_case_summary()
+      real(8) :: phi_i_deg, phi_c_deg
+      real(8) :: phi_i_rad, phi_c_rad
+      real(8) :: f0, m, ky, lambda_y_eff, lambda_z_eff
+
+      phi_i_rad = traditional_inertial_latitude(omega_wave, Omega_earth)
+      phi_c_rad = gerkema_critical_latitude(omega_wave, N_freq, Omega_earth)
+      phi_i_deg = phi_i_rad / deg2rad
+      phi_c_deg = phi_c_rad / deg2rad
+
+      f0 = 2.0d0 * Omega_earth * sin(lat0)
+      m  = pi / max(H_top, 1.d0)
+      if (ky_from_disp == 1) then
+        ky = m * sqrt( max(0.d0, (omega_wave*omega_wave - f0*f0) / &
+          max(eps, (N_freq*N_freq - omega_wave*omega_wave)) ) )
+      else
+        ky = 2.0d0*pi / max(lambda_y, 1.d0)
+      end if
+
+      if (ky > eps) then
+        lambda_y_eff = 2.0d0*pi / ky
+      else
+        lambda_y_eff = -1.0d0
+      end if
+      lambda_z_eff = 2.0d0*pi / max(m, eps)
+
+      write(*,'(A)') 'critical_wave_test_mod: Gerkema Fig.11-inspired case summary'
+      write(*,'(A,F12.6,A,F12.6,A,F10.3)') '  N/Omega=', N_freq/Omega_earth, &
+        '  omega_wave/Omega=', omega_wave/Omega_earth, '  lat0(deg)=', lat0/deg2rad
+      write(*,'(A,ES12.4,A,ES12.4)') '  N_freq(s^-1)=', N_freq, '  omega_wave(s^-1)=', omega_wave
+      write(*,'(A,F10.3,A,F10.3,A,F10.3)') '  phi_i(deg)=', phi_i_deg, &
+        '  phi_c_full(deg)=', phi_c_deg, '  delta(deg)=', phi_c_deg - phi_i_deg
+      write(*,'(A,ES12.4,A,ES12.4)') '  lambda_y(m)=', lambda_y_eff, '  lambda_z(m)=', lambda_z_eff
+      write(*,'(A,I3,A,I3,A,ES12.4,A,F8.3)') '  pert_type=', pert_type, &
+        '  forcing_mode=', forcing_mode, '  forcing_pt_amp(K/s)=', forcing_pt_amp, &
+        '  forcing_ncycles=', forcing_ncycles
+    end subroutine print_case_summary
+
+    subroutine apply_derived_inputs()
+      if (N_ratio > 0.0d0) then
+        N_freq = N_ratio * Omega_earth
+      end if
+      if (omega_wave_ratio > 0.0d0) then
+        omega_wave = omega_wave_ratio * Omega_earth
+      end if
+      if (lon0_deg > -900.0d0) then
+        lon0 = lon0_deg * deg2rad
+      end if
+      if (lat0_deg > -900.0d0) then
+        lat0 = lat0_deg * deg2rad
+      end if
+    end subroutine apply_derived_inputs
+
+    subroutine check_case_inputs()
+      if (N_freq > 100.0d0*Omega_earth) then
+        write(*,'(A)') 'critical_wave_test_mod error: N_freq is much larger than Omega.'
+        write(*,'(A)') '  Fortran namelist does not evaluate expressions like 2.0d0*7.292115d-5.'
+        write(*,'(A)') '  Use one of the following instead:'
+        write(*,'(A)') '    N_ratio = 2.0d0'
+        write(*,'(A)') '  or'
+        write(*,'(A)') '    N_freq = 1.4584230d-4'
+        stop 1
+      end if
+      if (omega_wave > 100.0d0*Omega_earth) then
+        write(*,'(A)') 'critical_wave_test_mod error: omega_wave is much larger than Omega.'
+        write(*,'(A)') '  Use omega_wave_ratio = 1.5d0 or omega_wave = 1.09381725d-4'
+        stop 1
+      end if
+      if (omega_wave > N_freq) then
+        write(*,'(A)') 'critical_wave_test_mod error: omega_wave > N_freq, the packet is not an IGW.'
+        stop 1
+      end if
+      if (omega_wave <= 2.0d0*Omega_earth*sin(lat0)) then
+        write(*,'(A)') 'critical_wave_test_mod error: omega_wave is not superinertial at the source latitude.'
+        stop 1
+      end if
+      if (forcing_ncycles < 0.0d0) then
+        write(*,'(A)') 'critical_wave_test_mod error: forcing_ncycles must be non-negative.'
+        stop 1
+      end if
+    end subroutine check_case_inputs
+
+    subroutine critical_wave_test_apply_forcing(block, dt, dstate)
+      use block_mod
+      use latlon_parallel_mod
+
+      type(block_type), intent(in) :: block
+      real(8), intent(in) :: dt
+      type(dstate_type), intent(inout) :: dstate
+
+      integer :: i, j, k
+      real(8) :: rr, tmid, period, burst_time, window_t, temporal
+      real(8) :: dlon, x, y, z_m, spatial
+
+      if (forcing_mode == 0) return
+      if (forcing_pt_amp == 0.0d0) return
+
+      rr = a_earth
+      if (use_small_planet == 1) rr = a_earth / max(scale_X, 1.d0)
+
+      tmid = forcing_elapsed + 0.5d0 * dt
+      period = 2.0d0 * pi / max(omega_wave, eps)
+      burst_time = max(forcing_ncycles, eps) * period
+
+      if (tmid >= burst_time) then
+        forcing_elapsed = forcing_elapsed + dt
+        return
+      end if
+
+      window_t = sin(pi * tmid / burst_time)**2
+      temporal = sin(omega_wave * tmid + forcing_phase)
+
+      associate (mesh => block%mesh, &
+                 lon  => block%mesh%full_lon, &
+                 lat  => block%mesh%full_lat, &
+                 pt   => dstate%pt, &
+                 gz   => dstate%gz)
+      do k = mesh%full_kds, mesh%full_kde
+        do j = mesh%full_jds, mesh%full_jde
+          y = rr * (lat(j) - lat0)
+          do i = mesh%full_ids, mesh%full_ide
+            z_m = gz%d(i,j,k) / g
+            if (forcing_zonal_uniform == 1) then
+              spatial = exp( - (y/Ly)**2 - ((z_m - z0)/Lz)**2 )
+            else
+              dlon = lon(i) - lon0
+              if (dlon >  pi) dlon = dlon - 2.d0*pi
+              if (dlon < -pi) dlon = dlon + 2.d0*pi
+              x = rr * cos(lat0) * dlon
+              spatial = exp( - (x/Lx)**2 - (y/Ly)**2 - ((z_m - z0)/Lz)**2 )
+            end if
+            pt%d(i,j,k) = pt%d(i,j,k) + dt * forcing_pt_amp * spatial * window_t * temporal
+          end do
+        end do
+      end do
+      call fill_halo(pt, async=.true.)
+      end associate
+
+      forcing_elapsed = forcing_elapsed + dt
+    end subroutine critical_wave_test_apply_forcing
+
+    pure real(8) function traditional_inertial_latitude(omega_wave_in, omega_planet)
+      real(8), intent(in) :: omega_wave_in, omega_planet
+      traditional_inertial_latitude = asin(clamp_unit(omega_wave_in / max(2.0d0*omega_planet, eps)))
+    end function traditional_inertial_latitude
+
+    pure real(8) function gerkema_critical_latitude(omega_wave_in, n_freq_in, omega_planet)
+      real(8), intent(in) :: omega_wave_in, n_freq_in, omega_planet
+      real(8) :: sin2_phi
+
+      sin2_phi = (omega_wave_in*omega_wave_in * &
+        (n_freq_in*n_freq_in + 4.0d0*omega_planet*omega_planet - omega_wave_in*omega_wave_in)) / &
+        max(eps, 4.0d0*omega_planet*omega_planet*n_freq_in*n_freq_in)
+      gerkema_critical_latitude = asin(sqrt(clamp_unit(sin2_phi)))
+    end function gerkema_critical_latitude
+
+    pure real(8) function clamp_unit(x)
+      real(8), intent(in) :: x
+      clamp_unit = min(1.0d0, max(0.0d0, x))
+    end function clamp_unit
+
   end module critical_wave_test_mod

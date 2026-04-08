@@ -6,6 +6,7 @@ module topo_reader_mod
   use const_mod
   use namelist_mod
   use process_mod
+  use formula_mod
 
   implicit none
 
@@ -49,7 +50,11 @@ contains
       call fiona_input_range('topo', 'y'   , topo_lat , coord_range=[min_lat,max_lat])
       call fiona_input_range('topo', 'z'   , topo_gzs , coord_range_1=[min_lon,max_lon], coord_range_2=[min_lat,max_lat])
       call fiona_input_range('topo', 'mask', topo_mask, coord_range_1=[min_lon,max_lon], coord_range_2=[min_lat,max_lat])
-      topo_gzs = topo_gzs * g
+      if (deepwater .and. use_mesh_change .and. use_variable_gravity) then
+        topo_gzs = geopotential_from_height(topo_gzs)
+      else
+        topo_gzs = topo_gzs * g
+      end if
     case ('gmted')
       if (.not. is_exist) topo_file = abspath(trim(gmcore_root) // '/data/earth/gmted2010_topo.nc')
       if (planet /= 'earth') call log_error('Topography file ' // trim(topo_file) // ' is used for the Earth!')
@@ -60,7 +65,11 @@ contains
       call fiona_input_range('topo', 'lon', topo_lon, coord_range=[min_lon,max_lon])
       call fiona_input_range('topo', 'lat', topo_lat, coord_range=[min_lat,max_lat])
       call fiona_input_range('topo', 'htopo', topo_gzs, coord_range_1=[min_lon,max_lon], coord_range_2=[min_lat,max_lat])
-      topo_gzs = topo_gzs * g
+      if (deepwater .and. use_mesh_change .and. use_variable_gravity) then
+        topo_gzs = geopotential_from_height(topo_gzs)
+      else
+        topo_gzs = topo_gzs * g
+      end if
     case ('gzs')
       call fiona_open_dataset('topo', file_path=topo_file, mpi_comm=proc%comm_io, ngroups=input_ngroups, async=use_async_io)
       call fiona_set_dim('topo', 'lon', span=[-180, 180], cyclic=.true.)
@@ -79,7 +88,11 @@ contains
       call fiona_input_range('topo', 'longitude', topo_lon, coord_range=[min_lon,max_lon])
       call fiona_input_range('topo', 'latitude', topo_lat, coord_range=[min_lat,max_lat])
       call fiona_input_range('topo', 'alt', topo_gzs, coord_range_1=[min_lon,max_lon], coord_range_2=[min_lat,max_lat])
-      topo_gzs = topo_gzs * g
+      if (deepwater .and. use_mesh_change .and. use_variable_gravity) then
+        topo_gzs = geopotential_from_height(topo_gzs)
+      else
+        topo_gzs = topo_gzs * g
+      end if
     case default
       if (proc%is_root()) call log_error('Unknown topo_type "' // trim(topo_type) // '"!')
     end select

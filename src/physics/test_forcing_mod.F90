@@ -3,6 +3,7 @@ module test_forcing_mod
   use namelist_mod
   use vortex_erosion_test_mod
   use held_suarez_test_mod
+  use critical_wave_test_mod
   use block_mod
 
   private
@@ -24,6 +25,8 @@ contains
         call vortex_erosion_test_apply_forcing(blocks(iblk), blocks(iblk)%static)
       case ('hs')
         call held_suarez_test_apply_forcing(blocks(iblk), dt, blocks(iblk)%dstate(time_idx))
+      case ('crt')
+        call critical_wave_test_apply_forcing(blocks(iblk), dt, blocks(iblk)%dstate(time_idx))
       end select
     end do
 

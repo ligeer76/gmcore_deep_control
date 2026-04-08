@@ -38,6 +38,7 @@ module gmcore_mod
   use interp_mod
   use gas_mod
   use adv_mod
+  use formula_mod
   use pgf_mod
   use nh_mod
   use damp_mod
@@ -541,7 +542,11 @@ contains
         do k = mesh%full_kds, mesh%full_kde
           do j = mesh%full_jds, mesh%full_jde
             do i = mesh%full_ids, mesh%full_ide
-              dtend%dgzdt%d(i,j,k) = -block%aux%dmf%d(i,j,k) * g
+              if (deepwater .and. use_mesh_change .and. use_variable_gravity) then
+                dtend%dgzdt%d(i,j,k) = -block%aux%dmf%d(i,j,k) * gravity_from_geopotential(star_dstate%gz%d(i,j,k))
+              else
+                dtend%dgzdt%d(i,j,k) = -block%aux%dmf%d(i,j,k) * g
+              end if
             end do
           end do
         end do
@@ -566,7 +571,11 @@ contains
         do k = mesh%full_kds, mesh%full_kde
           do j = mesh%full_jds, mesh%full_jde
             do i = mesh%full_ids, mesh%full_ide
-              dtend%dgzdt%d(i,j,k) = -block%aux%dmf%d(i,j,k) * g
+              if (deepwater .and. use_mesh_change .and. use_variable_gravity) then
+                dtend%dgzdt%d(i,j,k) = -block%aux%dmf%d(i,j,k) * gravity_from_geopotential(star_dstate%gz%d(i,j,k))
+              else
+                dtend%dgzdt%d(i,j,k) = -block%aux%dmf%d(i,j,k) * g
+              end if
             end do
           end do
         end do

@@ -31,6 +31,11 @@ module formula_mod
   public virtual_potential_temperature
   public dry_air_density
   public moist_air_density
+  public geopotential_from_height
+  public height_from_geopotential
+  public radius_from_geopotential
+  public gravity_from_radius
+  public gravity_from_geopotential
   public buoyancy_frequency
   public local_richardson_number
   public water_vapor_saturation_mixing_ratio_mars
@@ -184,6 +189,46 @@ contains
     res = tv * (p0 / p)**rd_o_cpd
 
   end function virtual_potential_temperature
+
+  pure elemental real(r8) function geopotential_from_height(z) result(res)
+
+    real(r8), intent(in) :: z ! Geometric height above the reference radius (m)
+
+    res = g * radius * z / (radius + z)
+
+  end function geopotential_from_height
+
+  pure elemental real(r8) function height_from_geopotential(phi) result(res)
+
+    real(r8), intent(in) :: phi ! True geopotential (m2 s-2)
+
+    res = radius * phi / (g * radius - phi)
+
+  end function height_from_geopotential
+
+  pure elemental real(r8) function radius_from_geopotential(phi) result(res)
+
+    real(r8), intent(in) :: phi ! True geopotential (m2 s-2)
+
+    res = radius + height_from_geopotential(phi)
+
+  end function radius_from_geopotential
+
+  pure elemental real(r8) function gravity_from_radius(r) result(res)
+
+    real(r8), intent(in) :: r ! Distance from the planet center (m)
+
+    res = g * (radius / r)**2
+
+  end function gravity_from_radius
+
+  pure elemental real(r8) function gravity_from_geopotential(phi) result(res)
+
+    real(r8), intent(in) :: phi ! True geopotential (m2 s-2)
+
+    res = gravity_from_radius(radius_from_geopotential(phi))
+
+  end function gravity_from_geopotential
 
   pure elemental real(r8) function dry_air_density(t, p) result(res)
 

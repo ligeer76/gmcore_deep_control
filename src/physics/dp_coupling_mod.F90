@@ -94,9 +94,15 @@ contains
             pstate%dp     (icol,k) = dstate %ph_lev%d(i,j,k+1) - dstate%ph_lev%d(i,j,k)
             pstate%dp_dry (icol,k) = dstate %dmg   %d(i,j,k)
             pstate%omg    (icol,k) = aux    %omg   %d(i,j,k)
-            pstate%z      (icol,k) = dstate %gz    %d(i,j,k) / g
-            pstate%dz     (icol,k) = (dstate%gz_lev%d(i,j,k) - dstate%gz_lev%d(i,j,k+1)) / g
-            pstate%rhod   (icol,k) = pstate%dp_dry(icol,k) / pstate%dz(icol,k) / g
+            if (deepwater .and. use_mesh_change .and. use_variable_gravity) then
+              pstate%z    (icol,k) = height_from_geopotential(dstate%gz%d(i,j,k))
+              pstate%dz   (icol,k) = height_from_geopotential(dstate%gz_lev%d(i,j,k)) - &
+                                     height_from_geopotential(dstate%gz_lev%d(i,j,k+1))
+            else
+              pstate%z    (icol,k) = dstate%gz%d(i,j,k) / g
+              pstate%dz   (icol,k) = (dstate%gz_lev%d(i,j,k) - dstate%gz_lev%d(i,j,k+1)) / g
+            end if
+            pstate%rhod   (icol,k) = pstate%dp_dry(icol,k) / (dstate%gz_lev%d(i,j,k) - dstate%gz_lev%d(i,j,k+1))
             icol = icol + 1
           end do
         end do
@@ -135,7 +141,11 @@ contains
             pstate%p_lev  (icol,k) = dstate%ph_lev%d(i,j,k)
             pstate%pk_lev (icol,k) = dstate%ph_lev%d(i,j,k)**rd_o_cpd / pk0
             pstate%lnp_lev(icol,k) = log(dstate%ph_lev%d(i,j,k))
-            pstate%z_lev  (icol,k) = dstate%gz_lev%d(i,j,k) / g
+            if (deepwater .and. use_mesh_change .and. use_variable_gravity) then
+              pstate%z_lev(icol,k) = height_from_geopotential(dstate%gz_lev%d(i,j,k))
+            else
+              pstate%z_lev(icol,k) = dstate%gz_lev%d(i,j,k) / g
+            end if
             icol = icol + 1
           end do
         end do
@@ -155,7 +165,11 @@ contains
         do i = mesh%full_ids, mesh%full_ide
           pstate%ps     (icol) = dstate%phs%d(i,j)
           pstate%ts     (icol) = aux%t%d(i,j,mesh%full_kde)
-          pstate%zs     (icol) = block%static%gzs%d(i,j) / g
+          if (deepwater .and. use_mesh_change .and. use_variable_gravity) then
+            pstate%zs(icol) = height_from_geopotential(block%static%gzs%d(i,j))
+          else
+            pstate%zs(icol) = block%static%gzs%d(i,j) / g
+          end if
           pstate%wsp_bot(icol) = sqrt(aux%u%d(i,j,mesh%full_kde)**2 + aux%v%d(i,j,mesh%full_kde)**2)
           icol = icol + 1
         end do

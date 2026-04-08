@@ -19,6 +19,7 @@ module latlon_topo_mod
   use latlon_interp_mod
   use math_mod
   use filter_mod
+  use formula_mod
 
   implicit none
 
@@ -113,7 +114,12 @@ contains
           call fill_grid(lon1, lon2, lat1, lat2, gzs%d(i,j), std%d(i,j), lnd%d(i,j), n(i))
           if (.not. mesh%is_pole(j)) then
             gzs%d(i,j) = gzs%d(i,j) / n(i)
-            std%d(i,j) = (std%d(i,j) - 2 * gzs%d(i,j)**2 * n(i) + gzs%d(i,j)**2) / n(i) / g
+            if (deepwater .and. use_mesh_change .and. use_variable_gravity) then
+              std%d(i,j) = (std%d(i,j) - 2 * gzs%d(i,j)**2 * n(i) + gzs%d(i,j)**2) / n(i) / &
+                           gravity_from_geopotential(gzs%d(i,j))
+            else
+              std%d(i,j) = (std%d(i,j) - 2 * gzs%d(i,j)**2 * n(i) + gzs%d(i,j)**2) / n(i) / g
+            end if
             lnd%d(i,j) = lnd%d(i,j) / n(i)
           end if
         end do
@@ -123,7 +129,12 @@ contains
           call zonal_sum(proc%zonal_circle, lnd%d(mesh%full_ids:mesh%full_ide,j), pole_lnd)
           call zonal_sum(proc%zonal_circle, n, pole_n)
           gzs%d(mesh%full_ids:mesh%full_ide,j) = pole_gzs / pole_n
-          std%d(mesh%full_ids:mesh%full_ide,j) = (pole_std - 2 * pole_gzs**2 * pole_n + pole_gzs**2) / pole_n / g
+          if (deepwater .and. use_mesh_change .and. use_variable_gravity) then
+            std%d(mesh%full_ids:mesh%full_ide,j) = (pole_std - 2 * pole_gzs**2 * pole_n + pole_gzs**2) / pole_n / &
+                                                   gravity_from_geopotential(pole_gzs / pole_n)
+          else
+            std%d(mesh%full_ids:mesh%full_ide,j) = (pole_std - 2 * pole_gzs**2 * pole_n + pole_gzs**2) / pole_n / g
+          end if
           lnd%d(mesh%full_ids:mesh%full_ide,j) = pole_lnd / pole_n
         end if
       end do
@@ -155,12 +166,20 @@ contains
       call zs_zonal_filter(block, gzs, dzsdx, dzsdy)
     end if
     if (use_zs_grad_filter) then
-      tmp = global_max(proc%comm_model, maxval(gzs%d / g))
+      if (deepwater .and. use_mesh_change .and. use_variable_gravity) then
+        tmp = global_max(proc%comm_model, maxval(height_from_geopotential(gzs%d)))
+      else
+        tmp = global_max(proc%comm_model, maxval(gzs%d / g))
+      end if
       if (proc%is_root()) call log_notice('Maximum zs is ' // to_str(tmp, 'F8.1') // ' m.')
       tmp = global_max(proc%comm_model, max(dzsdx%absmax(), dzsdy%absmax()))
       if (proc%is_root()) call log_notice('Maximum topography slope angle before grad filter is ' // to_str(atan(tmp) * deg, 'F7.2') // ' deg.')
       call zs_grad_filter(block, lnd, gzs, dzsdx, dzsdy)
-      tmp = global_max(proc%comm_model, maxval(gzs%d / g))
+      if (deepwater .and. use_mesh_change .and. use_variable_gravity) then
+        tmp = global_max(proc%comm_model, maxval(height_from_geopotential(gzs%d)))
+      else
+        tmp = global_max(proc%comm_model, maxval(gzs%d / g))
+      end if
       if (proc%is_root()) call log_notice('Maximum zs is ' // to_str(tmp, 'F8.1') // ' m.')
       tmp = global_max(proc%comm_model, max(dzsdx%absmax(), dzsdy%absmax()))
       if (proc%is_root()) call log_notice('Maximum topography slope angle after grad filter is ' // to_str(atan(tmp) * deg, 'F7.2') // ' deg.')
@@ -176,8 +195,13 @@ contains
     type(latlon_field2d_type), intent(inout) :: dzsdy
 
     call grad_operator(gzs, dzsdx, dzsdy)
-    dzsdx%d = dzsdx%d / g
-    dzsdy%d = dzsdy%d / g
+    if (deepwater .and. use_mesh_change .and. use_variable_gravity) then
+      dzsdx%d = dzsdx%d / gravity_from_geopotential(gzs%d)
+      dzsdy%d = dzsdy%d / gravity_from_geopotential(gzs%d)
+    else
+      dzsdx%d = dzsdx%d / g
+      dzsdy%d = dzsdy%d / g
+    end if
     call fill_halo(dzsdx)
     call fill_halo(dzsdy)
 

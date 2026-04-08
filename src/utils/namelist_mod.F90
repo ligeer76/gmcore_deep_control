@@ -65,6 +65,7 @@ module namelist_mod
   logical         :: use_mesh_change          = .false.
   logical         :: use_vert_nct             = .false.
   logical         :: use_hor_nct              = .false.
+  logical         :: use_variable_gravity     = .false.
   real(r8)        :: scale_X                  = 1.0_r8
   logical         :: ideal_dry_core           = .false.
   logical         :: advection                = .false.
@@ -230,6 +231,7 @@ module namelist_mod
     use_mesh_change           , &
     use_vert_nct              , &
     use_hor_nct               , &
+    use_variable_gravity      , &
     scale_X                   , &
     ideal_dry_core            , &
     advection                 , &
@@ -429,10 +431,14 @@ contains
         use_vert_nct    = .true.
         use_hor_nct     = .true.
       end if
+      if (use_variable_gravity) then
+        use_mesh_change = .true.
+      end if
     else
       use_mesh_change = .false.
       use_vert_nct    = .false.
       use_hor_nct     = .false.
+      use_variable_gravity = .false.
     end if
 
     ! Set default for nonhydrostatic temporally.
@@ -490,6 +496,7 @@ contains
       write(*, *) 'use_mesh_change        = ', to_str(use_mesh_change)
       write(*, *) 'use_vert_nct           = ', to_str(use_vert_nct)
       write(*, *) 'use_hor_nct            = ', to_str(use_hor_nct)
+      write(*, *) 'use_variable_gravity   = ', to_str(use_variable_gravity)
       write(*, *) 'scale_X                = ', scale_X 
       write(*, *) 'ideal_dry_core         = ', to_str(ideal_dry_core)
       write(*, *) 'vert_coord_scheme      = ', trim(vert_coord_scheme)

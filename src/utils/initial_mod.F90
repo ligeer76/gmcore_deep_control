@@ -133,7 +133,11 @@ contains
         end if
         call fiona_output('i0', 'mgs', mgs%d(is:ie,js:je), start=start, count=count)
       end if
-      call fiona_output('i0', 'zs'      , gzs     %d(is:ie,js:je) / g, start=start, count=count)
+      if (deepwater .and. use_mesh_change .and. use_variable_gravity) then
+        call fiona_output('i0', 'zs', height_from_geopotential(gzs%d(is:ie,js:je)), start=start, count=count)
+      else
+        call fiona_output('i0', 'zs', gzs%d(is:ie,js:je) / g, start=start, count=count)
+      end if
       call fiona_output('i0', 'zs_std'  , zs_std  %d(is:ie,js:je)    , start=start, count=count)
       call fiona_output('i0', 'landmask', landmask%d(is:ie,js:je)    , start=start, count=count)
 
@@ -161,7 +165,11 @@ contains
       start = [is,js,ks]
       count = [mesh%half_nlon,mesh%full_nlat,mesh%half_nlev]
 
-      call fiona_output('i0', 'z', gz_lev%d(is:ie,js:je,ks:ke) / g, start=start, count=count)
+      if (deepwater .and. use_mesh_change .and. use_variable_gravity) then
+        call fiona_output('i0', 'z', height_from_geopotential(gz_lev%d(is:ie,js:je,ks:ke)), start=start, count=count)
+      else
+        call fiona_output('i0', 'z', gz_lev%d(is:ie,js:je,ks:ke) / g, start=start, count=count)
+      end if
       end associate
     end do
     call fiona_end_output('i0')
@@ -272,7 +280,12 @@ contains
       count = [mesh%full_nlon,mesh%full_nlat,mesh%full_nlev]
 
       if (fiona_has_var('i0', 'zs')) then
-        call fiona_input('i0', 'zs', gzs%d(is:ie,js:je), start=start, count=count); gzs%d = gzs%d * g
+        call fiona_input('i0', 'zs', gzs%d(is:ie,js:je), start=start, count=count)
+        if (deepwater .and. use_mesh_change .and. use_variable_gravity) then
+          gzs%d = geopotential_from_height(gzs%d)
+        else
+          gzs%d = gzs%d * g
+        end if
         call fill_halo(gzs)
         input_zs = .true.
       end if
@@ -315,7 +328,12 @@ contains
           input_v = .true.
         end if
       else
-        call fiona_input('i0', 'z' , gz%d(is:ie,js:je,ks:ke), start=start, count=count); gz%d = gz%d * g
+        call fiona_input('i0', 'z' , gz%d(is:ie,js:je,ks:ke), start=start, count=count)
+        if (deepwater .and. use_mesh_change .and. use_variable_gravity) then
+          gz%d = geopotential_from_height(gz%d)
+        else
+          gz%d = gz%d * g
+        end if
         call fill_halo(gz)
       end if
 
@@ -350,8 +368,13 @@ contains
       count = [mesh%half_nlon,mesh%full_nlat,mesh%half_nlev]
 
       if (nonhydrostatic) then
-        if (fiona_has_var('i0', 'gz_lev')) then
-          call fiona_input('i0', 'z', gz_lev%d(is:ie,js:je,ks:ke), start=start, count=count); gz_lev%d = gz_lev%d * g
+        if (fiona_has_var('i0', 'z')) then
+          call fiona_input('i0', 'z', gz_lev%d(is:ie,js:je,ks:ke), start=start, count=count)
+          if (deepwater .and. use_mesh_change .and. use_variable_gravity) then
+            gz_lev%d = geopotential_from_height(gz_lev%d)
+          else
+            gz_lev%d = gz_lev%d * g
+          end if
           call fill_halo(gz_lev)
           input_gz_lev = .true.
         end if

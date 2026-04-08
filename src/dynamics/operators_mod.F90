@@ -141,6 +141,10 @@ contains
       if (baroclinic    ) call calc_t     (block, dstate)
       if (hydrostatic   ) call calc_gz    (block, dstate)
       if (baroclinic    ) call calc_rhod  (block, dstate)
+#ifdef USE_DEEP_ATM
+      ! if (deepwater     ) call calc_rdp (blocks(iblk), blocks(iblk)%dstate(itime))
+      call calc_rdp (block, dstate)
+#endif
     case (forward_pass)
       call calc_mf                        (block, dstate, dt)
       call calc_ke                        (block, dstate,     substep)
@@ -150,6 +154,11 @@ contains
       if (baroclinic    ) call calc_t     (block, dstate)
       if (hydrostatic   ) call calc_gz    (block, dstate)
       if (baroclinic    ) call calc_rhod  (block, dstate)
+#ifdef USE_DEEP_ATM
+      ! if (deepwater     ) call calc_rdp (blocks(iblk), blocks(iblk)%dstate(itime))
+      call calc_rdp (block, dstate)
+#endif
+
     end select
 
   end subroutine operators_prepare_2
@@ -686,7 +695,11 @@ contains
     else
       do j = js, je
         do i = is, ie
-          dmg%d(i,j,1) = (gz%d(i,j,1) - gzs%d(i,j)) / g
+          if (deepwater .and. use_mesh_change .and. use_variable_gravity) then
+            dmg%d(i,j,1) = height_from_geopotential(gz%d(i,j,1)) - height_from_geopotential(gzs%d(i,j))
+          else
+            dmg%d(i,j,1) = (gz%d(i,j,1) - gzs%d(i,j)) / g
+          end if
         end do
       end do
     end if
@@ -1221,7 +1234,7 @@ contains
     !real integral_1rho_dmg
     integer i, j, k
     ! integer neval, ierr
-    real(8) tmp
+    real(8) tmp_lev, tmp, r_h
     ! print*,"deepwater"
     call perf_start("calc_rdp")
 
@@ -1235,37 +1248,57 @@ contains
               rdp_lat => block%aux%rdp_lat , &
               rdp_lon => block%aux%rdp_lon , &
               rdp_vtx => block%aux%rdp_vtx , &
+              gz      => dstate%gz         , &
+              gz_lev  => dstate%gz_lev     , &
               ! rdp_lev => block%aux%rdp_lev , &              
               dmg     => dstate%dmg        , &
+              dmg_lev     => dstate%dmg_lev        , &
+              gzs     => block%static%gzs , & ! in
               ! mgs  => block%dstate%mgs , &
               rhod    => block%aux%rhod    )
-
-    ! do j = mesh%full_jds_no_pole, mesh%full_jde_no_pole
-    do j = mesh%full_jds, mesh%full_jde
-      do i = mesh%full_ids, mesh%full_ide
-        ! tmp = rhod(i,j,:)
-        tmp = dmg%d(i,j,mesh%full_kde)/rhod%d(i,j,mesh%full_kde)
-        rdp%d(i,j,mesh%full_kde) = (radius**3 + 3*radius**2 * tmp / g)**(1.0_r8/3.0_r8)
-        
-        ! print*,rdp%d(i,j,mesh%full_kde),"rdp_1"
-        do k = mesh%full_kde-1, mesh%full_kds, -1 ! reverse
-          !tmp = 1/rhod%d(i,j,k)
-          ! print*,tmp,"tmp"
-          ! rdp%d(i,j,k) = rdp%d(i,j,k+1) + dmg%d(i,j,k)/rhod%d(i,j,k)
-          ! tmp = rdp%d(i,j,k+1) + dmg%d(i,j,mesh%full_kde)/rhod%d(i,j,k)
-
-          tmp = tmp + dmg%d(i,j,k)*(1/rhod%d(i,j,k+1) + 1/rhod%d(i,j,k))/2
-          rdp%d(i,j,k) = (radius**3 + 3*radius**2 * tmp / g)**(1.0_r8/3.0_r8)
-          ! print*,tmp,"tmp",dmg%d(i,j,k),"dmg%d(i,j,k)",rhod%d(i,j,k),"rhod%d(i,j,k)",i,j,k
-          ! print*,rdp%d(i,j,k),"k=",k
+    if (deepwater .and. use_mesh_change .and. use_variable_gravity) then
+      do k = mesh%half_kds, mesh%half_kde
+        do j = mesh%full_jds, mesh%full_jde + merge(0, 1, mesh%has_north_pole())
+          do i = mesh%full_ids, mesh%full_ide + 1
+            rdp_lev%d(i,j,k) = radius_from_geopotential(gz_lev%d(i,j,k))
+          end do
         end do
       end do
-    end do
+      do k = mesh%full_kds, mesh%full_kde
+        do j = mesh%full_jds, mesh%full_jde + merge(0, 1, mesh%has_north_pole())
+          do i = mesh%full_ids, mesh%full_ide + 1
+            rdp%d(i,j,k) = radius_from_geopotential(gz%d(i,j,k))
+          end do
+        end do
+      end do
+    else
+      ! do j = mesh%full_jds_no_pole, mesh%full_jde_no_pole
+      do j = mesh%full_jds, mesh%full_jde
+        do i = mesh%full_ids, mesh%full_ide
+          tmp_lev = 0.0_r8
+          rdp_lev%d(i,j,mesh%half_kde) = radius + gzs%d(i,j) / g
+          r_h = rdp_lev%d(i,j,mesh%half_kde)
+
+          tmp = dstate%mgs%d(i,j) - dstate%mg%d(i,j,mesh%full_kde)
+          rdp%d(i,j,mesh%full_kde) = (r_h**3 + 3*radius**2 * tmp / g)**(1.0_r8/3.0_r8)
+
+          do k = mesh%half_kde - 1, mesh%half_kds, -1
+            tmp_lev = tmp_lev + dmg%d(i,j,k) / rhod%d(i,j,k)
+            rdp_lev%d(i,j,k) = (r_h**3 + 3*radius**2 * tmp_lev / g)**(1.0_r8/3.0_r8)
+          end do
+          do k = mesh%full_kde - 1, mesh%full_kds, -1
+            tmp = tmp + dmg_lev%d(i,j,k+1) * (1 / rhod%d(i,j,k+1) + 1 / rhod%d(i,j,k)) / 2
+            rdp%d(i,j,k) = (r_h**3 + 3*radius**2 * tmp / g)**(1.0_r8/3.0_r8)
+          end do
+        end do
+      end do
+    end if
     call fill_halo(rdp)
+    call fill_halo(rdp_lev)
     call average_run(rdp, rdp_lon); call fill_halo(rdp_lon, async=.true.)
     call average_run(rdp, rdp_lat); call fill_halo(rdp_lat, async=.true.)
     call interp_run(rdp, rdp_vtx); call fill_halo(rdp_vtx, async=.true.)
-    call interp_run(rdp, rdp_lev); call fill_halo(rdp_lev, async=.true.)
+    ! call interp_run(rdp, rdp_lev); call fill_halo(rdp_lev, async=.true.)
     call interp_run(rdp_lev, rdp_lev_lon); call fill_halo(rdp_lev_lon, async=.true.)
     call interp_run(rdp_lev, rdp_lev_lat); call fill_halo(rdp_lev_lat, async=.true.)
     ! if (proc%id_model == 1) then

@@ -371,15 +371,21 @@ contains
     type(block_type), intent(inout), target :: blocks(:)
     integer, intent(in) :: itime
 
-    integer i, j, k, iblk
-    real(r8) tm, te, tpe, tpt, tqv, max_w
+    integer i, j, k, m, iblk
+    real(r8) tm, te, tpe, tpt, tqv, tqm, max_w
     real(r8) te_ke, te_ie, te_pe
+    real(r8) area_cell, area_lon, area_lat, area_sfc, rsfc
+    real(r8) g_cell, g_lon, g_lat, g_sfc
+    real(r8), save :: tm_ref = 0, te_ref = 0, tpe_ref = 0
+    real(r8), save :: tqv_ref = 0, tqm_ref = 0, tpt_ref = 0
+    logical, save :: reset_ref = .true.
 
     tm    = 0
     te    = 0
     tpe   = 0
     tpt   = 0
     tqv   = 0
+    tqm   = 0
     te_ke = 0
     te_ie = 0
     te_pe = 0
@@ -397,34 +403,53 @@ contains
                  pt      => blocks(iblk)%dstate(itime)%pt   , &
                  pv_lon  => blocks(iblk)%aux%pv_lon         , &
                  pv_lat  => blocks(iblk)%aux%pv_lat         , &
+#ifdef USE_DEEP_ATM
+                 rdp     => blocks(iblk)%aux%rdp            , &
+                 rdp_lon => blocks(iblk)%aux%rdp_lon        , &
+                 rdp_lat => blocks(iblk)%aux%rdp_lat        , &
+#endif
                  q       => tracers(iblk)%q                 )
       do k = mesh%full_kds, mesh%full_kde
         do j = mesh%full_jds, mesh%full_jde
           do i = mesh%full_ids, mesh%full_ide
-            tm  = tm  + dmg%d(i,j,k) * mesh%area_cell(j)
-            if (idx_qv > 0) tqv = tqv + dmg%d(i,j,k) * q%d(i,j,k,idx_qv) * mesh%area_cell(j)
+            area_cell = mesh%area_cell(j)
+            g_cell = g
+#ifdef USE_DEEP_ATM
+            if (deepwater .and. use_mesh_change) area_cell = area_cell * (rdp%d(i,j,k) / radius)**2
+            if (deepwater .and. use_mesh_change .and. use_variable_gravity) g_cell = gravity_from_radius(rdp%d(i,j,k))
+#endif
+            tm = tm + dmg%d(i,j,k) * area_cell / g_cell
+            if (idx_qv > 0) tqv = tqv + dmg%d(i,j,k) * q%d(i,j,k,idx_qv) * area_cell / g_cell
+            if (ntracers_water > 0) then
+              do m = 1, ntracers
+                if (is_water_tracer(m)) tqm = tqm + dmg%d(i,j,k) * q%d(i,j,k,m) * area_cell / g_cell
+              end do
+            end if
           end do
         end do
       end do
-      if (idx_qv > 0) then
-        do k = mesh%full_kds, mesh%full_kde
-          do j = mesh%full_jds, mesh%full_jde
-            do i = mesh%full_ids, mesh%full_ide
-              tqv = tqv + dmg%d(i,j,k) * q%d(i,j,k,idx_qv) * mesh%area_cell(j)
-            end do
-          end do
-        end do
-      end if
 
       do k = mesh%full_kds, mesh%full_kde
         do j = mesh%full_jds_no_pole, mesh%full_jde_no_pole
           do i = mesh%half_ids, mesh%half_ide
-            te_ke = te_ke + dmg_lon%d(i,j,k) * 0.5_r8 * u_lon%d(i,j,k)**2 * mesh%area_lon(j) * 2
+            area_lon = mesh%area_lon(j)
+            g_lon = g
+#ifdef USE_DEEP_ATM
+            if (deepwater .and. use_mesh_change) area_lon = area_lon * (rdp_lon%d(i,j,k) / radius)**2
+            if (deepwater .and. use_mesh_change .and. use_variable_gravity) g_lon = gravity_from_radius(rdp_lon%d(i,j,k))
+#endif
+            te_ke = te_ke + dmg_lon%d(i,j,k) * 0.5_r8 * u_lon%d(i,j,k)**2 * area_lon * 2 / g_lon
           end do
         end do
         do j = mesh%half_jds, mesh%half_jde
           do i = mesh%full_ids, mesh%full_ide
-            te_ke = te_ke + dmg_lat%d(i,j,k) * 0.5_r8 * v_lat%d(i,j,k)**2 * mesh%area_lat(j) * 2
+            area_lat = mesh%area_lat(j)
+            g_lat = g
+#ifdef USE_DEEP_ATM
+            if (deepwater .and. use_mesh_change) area_lat = area_lat * (rdp_lat%d(i,j,k) / radius)**2
+            if (deepwater .and. use_mesh_change .and. use_variable_gravity) g_lat = gravity_from_radius(rdp_lat%d(i,j,k))
+#endif
+            te_ke = te_ke + dmg_lat%d(i,j,k) * 0.5_r8 * v_lat%d(i,j,k)**2 * area_lat * 2 / g_lat
           end do
         end do
       end do
@@ -432,19 +457,51 @@ contains
         do k = mesh%full_kds, mesh%full_kde
           do j = mesh%full_jds, mesh%full_jde
             do i = mesh%full_ids, mesh%full_ide
-              te_ie = te_ie + dmg%d(i,j,k) * cpd * tv%d(i,j,k) * mesh%area_cell(j)
+              area_cell = mesh%area_cell(j)
+              g_cell = g
+#ifdef USE_DEEP_ATM
+              if (deepwater .and. use_mesh_change) area_cell = area_cell * (rdp%d(i,j,k) / radius)**2
+              if (deepwater .and. use_mesh_change .and. use_variable_gravity) g_cell = gravity_from_radius(rdp%d(i,j,k))
+#endif
+              te_ie = te_ie + dmg%d(i,j,k) * cpd * tv%d(i,j,k) * area_cell / g_cell
             end do
           end do
         end do
         do j = mesh%full_jds, mesh%full_jde
           do i = mesh%full_ids, mesh%full_ide
-            te_pe = te_pe + gzs%d(i,j) * mgs%d(i,j) * mesh%area_cell(j)
+            area_sfc = mesh%area_cell(j)
+            g_sfc = g
+#ifdef USE_DEEP_ATM
+            if (deepwater .and. use_mesh_change) then
+              if (use_variable_gravity) then
+                rsfc = radius_from_geopotential(gzs%d(i,j))
+                g_sfc = gravity_from_radius(rsfc)
+              else
+                rsfc = radius + gzs%d(i,j) / g
+              end if
+              area_sfc = area_sfc * (rsfc / radius)**2
+            end if
+#endif
+            te_pe = te_pe + gzs%d(i,j) * mgs%d(i,j) * area_sfc / g_sfc
           end do
         end do
       else
         do j = mesh%full_jds, mesh%full_jde
           do i = mesh%full_ids, mesh%full_ide
-            te_pe = te_pe + (dmg%d(i,j,1)**2 * g * 0.5_r8 + dmg%d(i,j,1) * gzs%d(i,j)) * mesh%area_cell(j)
+            area_sfc = mesh%area_cell(j)
+            g_sfc = g
+#ifdef USE_DEEP_ATM
+            if (deepwater .and. use_mesh_change) then
+              if (use_variable_gravity) then
+                rsfc = radius_from_geopotential(gzs%d(i,j))
+                g_sfc = gravity_from_radius(rsfc)
+              else
+                rsfc = radius + gzs%d(i,j) / g
+              end if
+              area_sfc = area_sfc * (rsfc / radius)**2
+            end if
+#endif
+            te_pe = te_pe + (dmg%d(i,j,1)**2 * g * 0.5_r8 + dmg%d(i,j,1) * gzs%d(i,j)) * area_sfc / g_sfc
           end do
         end do
       end if
@@ -452,12 +509,24 @@ contains
       do k = mesh%full_kds, mesh%full_kde
         do j = mesh%full_jds_no_pole, mesh%full_jde_no_pole
           do i = mesh%half_ids, mesh%half_ide
-            tpe = tpe + dmg_lon%d(i,j,k) * pv_lon%d(i,j,k)**2 * 0.5_r8 * mesh%area_lon(j) * 2
+            area_lon = mesh%area_lon(j)
+            g_lon = g
+#ifdef USE_DEEP_ATM
+            if (deepwater .and. use_mesh_change) area_lon = area_lon * (rdp_lon%d(i,j,k) / radius)**2
+            if (deepwater .and. use_mesh_change .and. use_variable_gravity) g_lon = gravity_from_radius(rdp_lon%d(i,j,k))
+#endif
+            tpe = tpe + dmg_lon%d(i,j,k) * pv_lon%d(i,j,k)**2 * 0.5_r8 * area_lon * 2 / g_lon
           end do
         end do
         do j = mesh%half_jds, mesh%half_jde
           do i = mesh%full_ids, mesh%full_ide
-            tpe = tpe + dmg_lat%d(i,j,k) * pv_lat%d(i,j,k)**2 * 0.5_r8 * mesh%area_lat(j) * 2
+            area_lat = mesh%area_lat(j)
+            g_lat = g
+#ifdef USE_DEEP_ATM
+            if (deepwater .and. use_mesh_change) area_lat = area_lat * (rdp_lat%d(i,j,k) / radius)**2
+            if (deepwater .and. use_mesh_change .and. use_variable_gravity) g_lat = gravity_from_radius(rdp_lat%d(i,j,k))
+#endif
+            tpe = tpe + dmg_lat%d(i,j,k) * pv_lat%d(i,j,k)**2 * 0.5_r8 * area_lat * 2 / g_lat
           end do
         end do
       end do
@@ -466,7 +535,13 @@ contains
         do k = mesh%full_kds, mesh%full_kde
           do j = mesh%full_jds, mesh%full_jde
             do i = mesh%full_ids, mesh%full_ide
-              tpt = tpt + dmg%d(i,j,k) * pt%d(i,j,k) * mesh%area_cell(j)
+              area_cell = mesh%area_cell(j)
+              g_cell = g
+#ifdef USE_DEEP_ATM
+              if (deepwater .and. use_mesh_change) area_cell = area_cell * (rdp%d(i,j,k) / radius)**2
+              if (deepwater .and. use_mesh_change .and. use_variable_gravity) g_cell = gravity_from_radius(rdp%d(i,j,k))
+#endif
+              tpt = tpt + dmg%d(i,j,k) * pt%d(i,j,k) * area_cell / g_cell
             end do
           end do
         end do
@@ -475,6 +550,7 @@ contains
     end do
                     tm    = global_sum(proc%comm_model, tm   )
     if (idx_qv > 0) tqv   = global_sum(proc%comm_model, tqv  )
+    if (ntracers_water > 0) tqm = global_sum(proc%comm_model, tqm)
                     te_ke = global_sum(proc%comm_model, te_ke)
                     te_ie = global_sum(proc%comm_model, te_ie)
                     te_pe = global_sum(proc%comm_model, te_pe)
@@ -482,23 +558,66 @@ contains
     if (baroclinic) tpt   = global_sum(proc%comm_model, tpt  )
     te = te_ke + te_ie + te_pe
 
+    if (reset_ref .or. time_step == 0) then
+      tm_ref  = tm
+      tqv_ref = tqv
+      tqm_ref = tqm
+      tpt_ref = tpt
+      te_ref  = te
+      tpe_ref = tpe
+      reset_ref = .false.
+    end if
+
     do iblk = 1, size(blocks)
       blocks(iblk)%dstate(itime)%tm  = tm
+      blocks(iblk)%dstate(itime)%tqv = tqv
+      blocks(iblk)%dstate(itime)%tqm = tqm
+      blocks(iblk)%dstate(itime)%tpt = tpt
       blocks(iblk)%dstate(itime)%te  = te
       blocks(iblk)%dstate(itime)%tpe = tpe
       blocks(iblk)%dstate(itime)%te_ke = te_ke
       blocks(iblk)%dstate(itime)%te_ie = te_ie
       blocks(iblk)%dstate(itime)%te_pe = te_pe
+      blocks(iblk)%dstate(itime)%tm_relerr  = relative_drift(tm , tm_ref )
+      blocks(iblk)%dstate(itime)%tqv_relerr = relative_drift(tqv, tqv_ref)
+      blocks(iblk)%dstate(itime)%tqm_relerr = relative_drift(tqm, tqm_ref)
+      blocks(iblk)%dstate(itime)%tpt_relerr = relative_drift(tpt, tpt_ref)
+      blocks(iblk)%dstate(itime)%te_relerr  = relative_drift(te , te_ref )
+      blocks(iblk)%dstate(itime)%tpe_relerr = relative_drift(tpe, tpe_ref)
     end do
 
     if (planet == 'mars') call log_add_diag('ls', curr_time%solar_longitude()*deg)
                           call log_add_diag('tm' , tm )
+                          call log_add_diag('tm_relerr', relative_drift(tm, tm_ref))
     if (idx_qv > 0      ) call log_add_diag('tqv', tqv)
+    if (idx_qv > 0      ) call log_add_diag('tqv_relerr', relative_drift(tqv, tqv_ref))
+    if (ntracers_water > 0) call log_add_diag('tqm', tqm)
+    if (ntracers_water > 0) call log_add_diag('tqm_relerr', relative_drift(tqm, tqm_ref))
     if (baroclinic      ) call log_add_diag('tpt', tpt)
+    if (baroclinic      ) call log_add_diag('tpt_relerr', relative_drift(tpt, tpt_ref))
                           call log_add_diag('te' , te )
+                          call log_add_diag('te_relerr', relative_drift(te, te_ref))
                           call log_add_diag('tpe', tpe)
+                          call log_add_diag('tpe_relerr', relative_drift(tpe, tpe_ref))
 
   end subroutine diagnose
+
+  pure elemental real(r8) function relative_drift(value, reference) result(res)
+
+    real(r8), intent(in) :: value
+    real(r8), intent(in) :: reference
+
+    if (abs(reference) <= tiny(reference)) then
+      if (abs(value) <= tiny(value)) then
+        res = 0
+      else
+        res = sign(huge(value), value)
+      end if
+    else
+      res = (value - reference) / reference
+    end if
+
+  end function relative_drift
 
   subroutine space_operators(block, old_dstate, star_dstate, new_dstate, dtend, dt, pass, substep)
 

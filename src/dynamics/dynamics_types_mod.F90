@@ -50,8 +50,11 @@ module dynamics_types_mod
     type(latlon_field2d_type) ps
     ! Total diagnostics
     real(r8) tm
+    real(r8) tqv, tqm, tpt
     real(r8) te, te_ke, te_ie, te_pe
     real(r8) tpe
+    real(r8) tm_relerr, tqv_relerr, tqm_relerr, tpt_relerr
+    real(r8) te_relerr, tpe_relerr
   contains
     procedure :: init  => dstate_init
     procedure :: clear => dstate_clear

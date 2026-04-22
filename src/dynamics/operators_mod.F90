@@ -1529,6 +1529,9 @@ contains
                mfx_lon => block%aux%mfx_lon      , & ! in
                mfy_lat => block%aux%mfy_lat      , & ! in
                mfz_lev => block%aux%mfz_lev      , & ! in
+#ifdef USE_DEEP_ATM
+               rdp_lev => block%aux%rdp_lev      , & ! in
+#endif
                dmg     => dstate%dmg             , & ! in
                pt      => dstate%pt              , & ! in
                ptfx    => block%adv_batch_pt%qmfx, & ! out
@@ -1556,10 +1559,25 @@ contains
 #endif
     call adv_fill_vhalo(pt, no_negvals=.true.)
     call adv_calc_tracer_vflx(block%adv_batch_pt, pt, ptfz, dt)
+#ifdef USE_DEEP_ATM
+    if (deepwater .and. use_mesh_change) call wait_halo(rdp_lev)
+#endif
     do k = mesh%full_kds, mesh%full_kde
       do j = mesh%full_jds, mesh%full_jde
         do i = mesh%full_ids, mesh%full_ide
+#ifdef USE_DEEP_ATM
+          if (deepwater .and. use_mesh_change) then
+            ! Match the deep vertical shell-area form already used by mass and tracer updates.
+            dptdt%d(i,j,k) = -dptdt%d(i,j,k) - ( &
+              ptfz%d(i,j,k+1) * (rdp_lev%d(i,j,k+1) / radius)**2 -        &
+              ptfz%d(i,j,k  ) * (rdp_lev%d(i,j,k  ) / radius)**2 ) /       &
+              (rdp_lev%d(i,j,k) / radius)**2
+          else
+            dptdt%d(i,j,k) = -dptdt%d(i,j,k) - (ptfz%d(i,j,k+1) - ptfz%d(i,j,k))
+          end if
+#else
           dptdt%d(i,j,k) = -dptdt%d(i,j,k) - (ptfz%d(i,j,k+1) - ptfz%d(i,j,k))
+#endif
         end do
       end do
     end do

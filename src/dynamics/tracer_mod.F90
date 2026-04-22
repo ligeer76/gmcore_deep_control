@@ -179,9 +179,9 @@ contains
     case ('qs', 'SNOWQM')
       idx_qs    = idx; is_water_tracer(idx) = .true.; ntracers_water = ntracers_water + 1
     case ('qg')
-      idx_qg    = idx; ntracers_water = ntracers_water + 1
+      idx_qg    = idx; is_water_tracer(idx) = .true.; ntracers_water = ntracers_water + 1
     case ('qh')
-      idx_qh    = idx; ntracers_water = ntracers_water + 1
+      idx_qh    = idx; is_water_tracer(idx) = .true.; ntracers_water = ntracers_water + 1
     case ('qo3')
       idx_qo3   = idx
     case ('qso2', 'SO2')

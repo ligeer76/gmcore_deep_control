@@ -603,6 +603,15 @@ contains
 
   end function adv_batch_use_deep_xy
 
+  logical function adv_batch_use_deep_z(this)
+
+    class(adv_batch_type), intent(in) :: this
+
+    adv_batch_use_deep_z = deepwater .and. use_mesh_change .and. associated(this%rdp%d) .and. &
+      associated(this%rdp_z%d)
+
+  end function adv_batch_use_deep_z
+
   real(r8) function adv_batch_area(this, i, j, k)
 
     class(adv_batch_type), intent(in) :: this
@@ -921,7 +930,7 @@ contains
     type(latlon_field3d_type), intent(inout) :: mfz_frac
     real(r8), intent(in) :: dt
 
-    real(r8) mc, dm
+    real(r8) mc, dm, area_face, area_cell
     integer i, j, k, l
 
     associate (mesh => this%mesh)
@@ -930,26 +939,31 @@ contains
       do k = mesh%half_kds + 1, mesh%half_kde - 1
         do j = mesh%full_jds, mesh%full_jde
           do i = mesh%full_ids, mesh%full_ide
-            ! NOTE: Here we ignore the horizontal area of the cell since it cancels out in shallow-atmosphere approximation.
-            dm = mfz%d(i,j,k) * dt ! 𝜹π/𝜹η dη/dt * dt
-            mfz_frac%d(i,j,k) = mfz%d(i,j,k)
+            area_face = 1.0_r8
+            ! In deep atmosphere, interface fluxes and layer capacities must use the
+            ! local shell area instead of relying on shallow-atmosphere cancellation.
+            if (adv_batch_use_deep_z(this)) area_face = (this%rdp_z%d(i,j,k) / radius)**2
+            dm = mfz%d(i,j,k) * dt * area_face ! 𝜹π/𝜹η dη/dt * dt * area
             if (dm >= 0) then
               do l = k - 1, mesh%full_kms, -1
-                mc = m%d(i,j,l) ! 𝜹π/𝜹η 𝜹η = 𝜹π
+                area_cell = 1.0_r8
+                if (adv_batch_use_deep_z(this)) area_cell = (this%rdp%d(i,j,l) / radius)**2
+                mc = m%d(i,j,l) * area_cell ! 𝜹π/𝜹η 𝜹η * area = 𝜹π * area
                 if (dm < mc) exit
                 dm = dm - mc
-                mfz_frac%d(i,j,k) = mfz_frac%d(i,j,k) - mc / dt
               end do
               cflz%d(i,j,k) = k - 1 - l + dm / mc
             else
               do l = k, mesh%full_kme
-                mc = m%d(i,j,l)
+                area_cell = 1.0_r8
+                if (adv_batch_use_deep_z(this)) area_cell = (this%rdp%d(i,j,l) / radius)**2
+                mc = m%d(i,j,l) * area_cell
                 if (-dm < mc) exit
                 dm = dm + mc
-                mfz_frac%d(i,j,k) = mfz_frac%d(i,j,k) + mc / dt
               end do
               cflz%d(i,j,k) = k - l + dm / mc
             end if
+            mfz_frac%d(i,j,k) = dm / (dt * area_face)
           end do
         end do
       end do
@@ -957,25 +971,29 @@ contains
       do k = mesh%full_kds, mesh%full_kde
         do j = mesh%full_jds, mesh%full_jde
           do i = mesh%full_ids, mesh%full_ide
-            dm = mfz%d(i,j,k) * dt
-            mfz_frac%d(i,j,k) = mfz%d(i,j,k)
+            area_face = 1.0_r8
+            if (adv_batch_use_deep_z(this)) area_face = (this%rdp_z%d(i,j,k) / radius)**2
+            dm = mfz%d(i,j,k) * dt * area_face
             if (dm >= 0) then
               do l = k, mesh%half_kms, -1
-                mc = m%d(i,j,l)
+                area_cell = 1.0_r8
+                if (adv_batch_use_deep_z(this)) area_cell = (this%rdp%d(i,j,l) / radius)**2
+                mc = m%d(i,j,l) * area_cell
                 if (dm < mc) exit
                 dm = dm - mc
-                mfz_frac%d(i,j,k) = mfz_frac%d(i,j,k) - mc / dt
               end do
               cflz%d(i,j,k) = k - l + dm / mc
             else
               do l = k + 1, mesh%half_kme
-                mc = m%d(i,j,l)
+                area_cell = 1.0_r8
+                if (adv_batch_use_deep_z(this)) area_cell = (this%rdp%d(i,j,l) / radius)**2
+                mc = m%d(i,j,l) * area_cell
                 if (-dm < mc) exit
                 dm = dm + mc
-                mfz_frac%d(i,j,k) = mfz_frac%d(i,j,k) + mc / dt
               end do
               cflz%d(i,j,k) = k + 1 - l + dm / mc
             end if
+            mfz_frac%d(i,j,k) = dm / (dt * area_face)
           end do
         end do
       end do

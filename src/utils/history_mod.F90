@@ -220,8 +220,20 @@ contains
     end select
     if (.not. advection) then
       call fiona_add_var('h0', 'tm' , long_name='Total mass'               , units='', dim_names=['time'])
+      call fiona_add_var('h0', 'tm_relerr' , long_name='Relative drift of total mass'               , units='1', dim_names=['time'])
+      if (idx_qv > 0) call fiona_add_var('h0', 'tqv' , long_name='Total water vapor'         , units='', dim_names=['time'])
+      if (idx_qv > 0) call fiona_add_var('h0', 'tqv_relerr' , long_name='Relative drift of total water vapor'         , units='1', dim_names=['time'])
+      if (ntracers_water > 0) call fiona_add_var('h0', 'tqm' , long_name='Total water species'         , units='', dim_names=['time'])
+      if (ntracers_water > 0) call fiona_add_var('h0', 'tqm_relerr' , long_name='Relative drift of total water species'         , units='1', dim_names=['time'])
+      if (baroclinic) call fiona_add_var('h0', 'tpt' , long_name='Total potential temperature'             , units='', dim_names=['time'])
+      if (baroclinic) call fiona_add_var('h0', 'tpt_relerr' , long_name='Relative drift of total potential temperature'             , units='1', dim_names=['time'])
       call fiona_add_var('h0', 'te' , long_name='Total energy'             , units='', dim_names=['time'])
+      call fiona_add_var('h0', 'te_ke' , long_name='Total kinetic energy'             , units='', dim_names=['time'])
+      call fiona_add_var('h0', 'te_ie' , long_name='Total internal energy'             , units='', dim_names=['time'])
+      call fiona_add_var('h0', 'te_pe' , long_name='Total potential energy'             , units='', dim_names=['time'])
+      call fiona_add_var('h0', 'te_relerr' , long_name='Relative drift of total energy'             , units='1', dim_names=['time'])
       call fiona_add_var('h0', 'tpe', long_name='Total potential enstrophy', units='', dim_names=['time'])
+      call fiona_add_var('h0', 'tpe_relerr', long_name='Relative drift of total potential enstrophy', units='1', dim_names=['time'])
     end if
 
     call add_fields('h0', blocks(1)%dstate(1)   %fields)
@@ -269,8 +281,20 @@ contains
 
     if (.not. advection) then
       call fiona_output('h0', 'tm' , blocks(1)%dstate(itime)%tm )
+      call fiona_output('h0', 'tm_relerr' , blocks(1)%dstate(itime)%tm_relerr )
+      if (idx_qv > 0) call fiona_output('h0', 'tqv' , blocks(1)%dstate(itime)%tqv )
+      if (idx_qv > 0) call fiona_output('h0', 'tqv_relerr' , blocks(1)%dstate(itime)%tqv_relerr )
+      if (ntracers_water > 0) call fiona_output('h0', 'tqm' , blocks(1)%dstate(itime)%tqm )
+      if (ntracers_water > 0) call fiona_output('h0', 'tqm_relerr' , blocks(1)%dstate(itime)%tqm_relerr )
+      if (baroclinic) call fiona_output('h0', 'tpt' , blocks(1)%dstate(itime)%tpt )
+      if (baroclinic) call fiona_output('h0', 'tpt_relerr' , blocks(1)%dstate(itime)%tpt_relerr )
       call fiona_output('h0', 'te' , blocks(1)%dstate(itime)%te )
+      call fiona_output('h0', 'te_ke' , blocks(1)%dstate(itime)%te_ke )
+      call fiona_output('h0', 'te_ie' , blocks(1)%dstate(itime)%te_ie )
+      call fiona_output('h0', 'te_pe' , blocks(1)%dstate(itime)%te_pe )
+      call fiona_output('h0', 'te_relerr' , blocks(1)%dstate(itime)%te_relerr )
       call fiona_output('h0', 'tpe', blocks(1)%dstate(itime)%tpe)
+      call fiona_output('h0', 'tpe_relerr', blocks(1)%dstate(itime)%tpe_relerr)
     end if
 
     if (first_call .or. time_has_alert('h0_new_file')) then

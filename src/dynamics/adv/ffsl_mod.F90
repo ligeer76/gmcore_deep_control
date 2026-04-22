@@ -584,11 +584,13 @@ contains
             else if (cflz%d(i,j,k) > 0) then
               ku = k - ci - 1
               mr = ppm3(cf, m%d(i,j,ku-2), m%d(i,j,ku-1), m%d(i,j,ku), m%d(i,j,ku+1), m%d(i,j,ku+2))
-              mfz%d(i,j,k) = w_frac%d(i,j,k) * mr + sum(m%d(i,j,ku+1:k-1)) / dt
+              ! mfz%d(i,j,k) = w_frac%d(i,j,k) * mr + sum(m%d(i,j,ku+1:k-1)) / dt
+              mfz%d(i,j,k) = w_frac%d(i,j,k) * mr + sum(m%d(i,j,ku+1:k-1) * mesh%full_dlev(ku+1:k-1)) / dt !dong
             else
               ku = k - ci
               mr = ppm3(cf, m%d(i,j,ku-2), m%d(i,j,ku-1), m%d(i,j,ku), m%d(i,j,ku+1), m%d(i,j,ku+2))
-              mfz%d(i,j,k) = w_frac%d(i,j,k) * mr - sum(m%d(i,j,k:ku-1)) / dt
+              ! mfz%d(i,j,k) = w_frac%d(i,j,k) * mr - sum(m%d(i,j,k:ku-1)) / dt
+              mfz%d(i,j,k) = w_frac%d(i,j,k) * mr - sum(m%d(i,j,k:ku-1) * mesh%full_dlev(k:ku-1)) / dt !dong
             end if
           end do
         end do
@@ -604,11 +606,13 @@ contains
             else if (cflz%d(i,j,k) > 0) then
               ku = k - ci
               mr = ppm3(cf, m%d(i,j,ku-2), m%d(i,j,ku-1), m%d(i,j,ku), m%d(i,j,ku+1), m%d(i,j,ku+2))
-              mfz%d(i,j,k) = w_frac%d(i,j,k) * mr + sum(m%d(i,j,ku+1:k)) / dt
+              ! mfz%d(i,j,k) = w_frac%d(i,j,k) * mr + sum(m%d(i,j,ku+1:k)) / dt
+              mfz%d(i,j,k) = w_frac%d(i,j,k) * mr + sum(m%d(i,j, ku+1:k) * mesh%half_dlev(ku+1:k)) / dt !dong
             else
               ku = k - ci + 1
               mr = ppm3(cf, m%d(i,j,ku-2), m%d(i,j,ku-1), m%d(i,j,ku), m%d(i,j,ku+1), m%d(i,j,ku+2))
-              mfz%d(i,j,k) = w_frac%d(i,j,k) * mr - sum(m%d(i,j,k+1:ku-1)) / dt
+              ! mfz%d(i,j,k) = w_frac%d(i,j,k) * mr - sum(m%d(i,j,k+1:ku-1)) / dt
+              mfz%d(i,j,k) = w_frac%d(i,j,k) * mr - sum(m%d(i,j,k+1:ku-1) * mesh%half_dlev(k+1:ku-1)) / dt !dong
             end if
           end do
         end do
@@ -650,7 +654,8 @@ contains
               end if
 #endif
               qr = ppm3(cf, q%d(i,j,ku-2), q%d(i,j,ku-1), q%d(i,j,ku), q%d(i,j,ku+1), q%d(i,j,ku+2))
-              qmfz%d(i,j,k) = mfz_frac%d(i,j,k) * qr + sum(m%d(i,j,ku+1:k-1) * q%d(i,j,ku+1:k-1)) / dt
+              ! qmfz%d(i,j,k) = mfz_frac%d(i,j,k) * qr + sum(m%d(i,j,ku+1:k-1) * q%d(i,j,ku+1:k-1)) / dt
+              qmfz%d(i,j,k) = mfz_frac%d(i,j,k) * qr + sum(m%d(i,j,ku+1:k-1) * q%d(i,j,ku+1:k-1) *mesh%full_dlev(ku+1:k-1))/dt !dong
             else
               ku = k - ci
 #ifdef CHECK_PARALLEL
@@ -659,7 +664,8 @@ contains
               end if
 #endif
               qr = ppm3(cf, q%d(i,j,ku-2), q%d(i,j,ku-1), q%d(i,j,ku), q%d(i,j,ku+1), q%d(i,j,ku+2))
-              qmfz%d(i,j,k) = mfz_frac%d(i,j,k) * qr - sum(m%d(i,j,k:ku-1) * q%d(i,j,k:ku-1)) / dt
+              ! qmfz%d(i,j,k) = mfz_frac%d(i,j,k) * qr - sum(m%d(i,j,k:ku-1) * q%d(i,j,k:ku-1)) / dt
+              qmfz%d(i, j, k) = mfz_frac%d(i,j,k)* qr - sum (m%d(i,j,k:ku-1) *q%d(i,j,k:ku-1)* mesh%full_dlev(k:ku-1))/dt !dong
             end if
           end do
         end do
@@ -680,7 +686,8 @@ contains
               end if
 #endif
               qr = ppm3(cf, q%d(i,j,ku-2), q%d(i,j,ku-1), q%d(i,j,ku), q%d(i,j,ku+1), q%d(i,j,ku+2))
-              qmfz%d(i,j,k) = mfz_frac%d(i,j,k) * qr + sum(m%d(i,j,ku+1:k) * q%d(i,j,ku+1:k)) / dt
+              ! qmfz%d(i,j,k) = mfz_frac%d(i,j,k) * qr + sum(m%d(i,j,ku+1:k) * q%d(i,j,ku+1:k)) / dt
+              qmfz%d(i, j, k) = mfz_frac%d(i, j, k) * qr + sum(m%d(i, j, ku+1:k) * q%d(i, j, ku+1:k) * mesh%half_dlev(ku+1:k)) / dt !dong
             else
               ku = k - ci + 1
 #ifdef CHECK_PARALLEL
@@ -689,7 +696,8 @@ contains
               end if
 #endif
               qr = ppm3(cf, q%d(i,j,ku-2), q%d(i,j,ku-1), q%d(i,j,ku), q%d(i,j,ku+1), q%d(i,j,ku+2))
-              qmfz%d(i,j,k) = mfz_frac%d(i,j,k) * qr - sum(m%d(i,j,k+1:ku-1) * q%d(i,j,k+1:ku-1)) / dt
+              ! qmfz%d(i,j,k) = mfz_frac%d(i,j,k) * qr - sum(m%d(i,j,k+1:ku-1) * q%d(i,j,k+1:ku-1)) / dt
+              qmfz%d(i, j, k) = mfz_frac%d(i, j, k) * qr - sum(m%d(i, j, k+1:ku-1) * q%d(i, j, k+1:ku-1) * mesh%half_dlev(k+1:ku-1)) / dt !dong
             end if
           end do
         end do

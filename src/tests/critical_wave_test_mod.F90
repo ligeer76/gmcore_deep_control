@@ -595,11 +595,16 @@ module critical_wave_test_mod
 
     pure real(8) function gerkema_critical_latitude(omega_wave_in, n_freq_in, omega_planet)
       real(8), intent(in) :: omega_wave_in, n_freq_in, omega_planet
-      real(8) :: sin2_phi
+      real(8) :: sin2_phi, denom
+
+      denom = 4.0d0 * omega_planet*omega_planet * n_freq_in*n_freq_in
+      if (abs(denom) <= tiny(denom)) then
+        gerkema_critical_latitude = 0.0d0
+        return
+      end if
 
       sin2_phi = (omega_wave_in*omega_wave_in * &
-        (n_freq_in*n_freq_in + 4.0d0*omega_planet*omega_planet - omega_wave_in*omega_wave_in)) / &
-        max(eps, 4.0d0*omega_planet*omega_planet*n_freq_in*n_freq_in)
+        (n_freq_in*n_freq_in + 4.0d0*omega_planet*omega_planet - omega_wave_in*omega_wave_in)) / denom
       gerkema_critical_latitude = asin(sqrt(clamp_unit(sin2_phi)))
     end function gerkema_critical_latitude
 

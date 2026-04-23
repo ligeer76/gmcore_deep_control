@@ -127,11 +127,8 @@ contains
     type(dstate_type), intent(inout) :: dstate
     type(dtend_type ), intent(inout) :: dtend
 
-    real(r8) L, tmp1, tmp2, tmp3, tmp4, tmp
+    real(r8) L, tmp1, tmp2, tmp3, tmp4, tmp, factor_r
     integer i, j, k
-#ifdef USE_DEEP_ATM
-    real(r8) :: factor_r
-#endif
 
     if (nonhydrostatic) call wait_halo(dstate%p_lev)
 
@@ -166,6 +163,7 @@ contains
     do k = mesh%full_kds, mesh%full_kde
       do j = mesh%full_jds_no_pole, mesh%full_jde_no_pole
         do i = mesh%half_ids, mesh%half_ide
+          factor_r = 1.0_r8
 #ifdef USE_DEEP_ATM
           factor_r = merge((radius / rdp_lon%d(i,j,k))**1, 1.0_r8, deepwater .and. use_mesh_change) 
           ! Wood & Staniforth (2003, eq. 3.5 style metric form):
@@ -193,6 +191,7 @@ contains
       end do
       do j = mesh%half_jds, mesh%half_jde
         do i = mesh%full_ids, mesh%full_ide
+          factor_r = 1.0_r8
 #ifdef USE_DEEP_ATM
           factor_r = merge((radius / rdp_lat%d(i,j,k))**1,1.0_r8,deepwater .and. use_mesh_change)
           ! Wood & Staniforth (2003, eq. 3.5 style metric form):

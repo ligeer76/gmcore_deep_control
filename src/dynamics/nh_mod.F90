@@ -106,6 +106,7 @@ contains
     call wait_halo(mfy_lev_lat)
     call wait_halo(u_lev_lon)
     call wait_halo(v_lev_lat)
+#ifdef USE_DEEP_ATM
     call block%adv_batch_nh%set_wind( &
       u                 =u_lev_lon  , &
       v                 =v_lev_lat  , &
@@ -114,13 +115,19 @@ contains
       mfz               =mfz        , &
       m                 =dmg_lev    , &
       dt                =dt         , &
-#ifdef USE_DEEP_ATM
       rdp               =block%aux%rdp_lev    , &
       rdp_x             =block%aux%rdp_lev_lon, &
       rdp_y             =block%aux%rdp_lev_lat, &
       rdp_z             =block%aux%rdp        )
 #else
-      )
+    call block%adv_batch_nh%set_wind( &
+      u                 =u_lev_lon  , &
+      v                 =v_lev_lat  , &
+      mfx               =mfx_lev_lon, &
+      mfy               =mfy_lev_lat, &
+      mfz               =mfz        , &
+      m                 =dmg_lev    , &
+      dt                =dt         )
 #endif
     call swift_prepare(block%adv_batch_nh, dt)
 #ifdef USE_DEEP_ATM
@@ -457,11 +464,15 @@ contains
 
         ! Update gz after w is solved.
         do k = mesh%half_kds, mesh%half_kde - 1
+#ifdef USE_DEEP_ATM
           if (deepwater .and. use_mesh_change .and. use_variable_gravity) then
             new_gz_lev%d(i,j,k) = gz1(k) + gdtbeta * factor_r_lin(k) * new_w_lev%d(i,j,k)
           else
             new_gz_lev%d(i,j,k) = gz1(k) + gdtbeta * new_w_lev%d(i,j,k)
           end if
+#else
+          new_gz_lev%d(i,j,k) = gz1(k) + gdtbeta * new_w_lev%d(i,j,k)
+#endif
         end do
         ! do k = mesh%half_kds, mesh%half_kde - 1
         !   if (mesh%full_lat_deg(j) .lt. 21.0 .and.mesh%full_lat_deg(j) .gt. 19.0 .and. &

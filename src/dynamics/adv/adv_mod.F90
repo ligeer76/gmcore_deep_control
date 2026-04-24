@@ -336,19 +336,17 @@ contains
             idx = batch%idx(l)
             call wait_halo(tracers(iblk)%q, idx)
             call q_new%link(tracers(iblk)%q, idx)
-            associate (m_old => batch%m   , & ! in
-                       q_old => q_new     , & ! borrowed array
-                       dqdt  => batch%qx  , & ! borrowed array
-                       mxy   => batch%bg%m, & ! work array
-                       qxy   => q_new     , & ! work array
-                       qmfx  => batch%qmfx, & ! work array
-                       qmfy  => batch%qmfy, & ! work array
-                       qmfz  => batch%qmfz, & ! work array
+            associate (m_old   => batch%m                 , & ! in
+                       q_old   => q_new                   , & ! borrowed array
+                       dqdt    => batch%qx                , & ! borrowed array
+                       mxy     => batch%bg%m              , & ! work array
+                       qxy     => q_new                   , & ! work array
+                       qmfx    => batch%qmfx              , & ! work array
+                       qmfy    => batch%qmfy              , & ! work array
 #ifdef USE_DEEP_ATM
-                       rdp_lev => blocks(iblk)%aux%rdp_lev) ! in
-#else
-                       )   ! work array
+                       rdp_lev => blocks(iblk)%aux%rdp_lev, & ! in
 #endif
+                       qmfz    => batch%qmfz              )   ! work array
             ! Calculate horizontal tracer mass flux.
             call adv_calc_tracer_hflx(batch, q_old, qmfx, qmfy)
 #ifdef USE_DEEP_ATM
@@ -436,19 +434,24 @@ contains
     do iblk = 1, size(blocks)
       associate (block => blocks(iblk))
       if (block%adv_batch_bg%initialized) then
+#ifdef USE_DEEP_ATM
         call block%adv_batch_bg%set_wind( &
           u  =block%dstate(itime)%u_lon , & ! in
           v  =block%dstate(itime)%v_lat , & ! in
           w  =block%aux%we_lev          , & ! in
           mfx=block%aux%mfx_lon         , & ! in
           mfy=block%aux%mfy_lat         , & ! in
-#ifdef USE_DEEP_ATM
           rdp  =block%aux%rdp           , & ! in
           rdp_x=block%aux%rdp_lon       , & ! in
           rdp_y=block%aux%rdp_lat       , & ! in
           rdp_z=block%aux%rdp_lev       )   ! in
 #else
-          )   ! in
+        call block%adv_batch_bg%set_wind( &
+          u  =block%dstate(itime)%u_lon , & ! in
+          v  =block%dstate(itime)%v_lat , & ! in
+          w  =block%aux%we_lev          , & ! in
+          mfx=block%aux%mfx_lon         , & ! in
+          mfy=block%aux%mfy_lat         )   ! in
 #endif
       end if
       end associate
